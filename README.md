@@ -38,8 +38,6 @@ provide correct names and options
 > > gcge_cg.h
 > > gcge_eigsol.c
 > > gcge_eigsol.h
-> > gcge_matvec.c
-> > gcge_matvec.h
 > > gcge_ops.c
 > > gcge_ops.h
 > > gcge_orthogonal.c
@@ -52,7 +50,7 @@ provide correct names and options
 > > gcge_solver.h
 > > gcge_statistics.c
 > > gcge_statistics.h
-> > gcge_type.h
+> > gcge_config.h
 > > gcge_utilities.c
 > > gcge_utilities.h
 > > gcge_workspace.c
