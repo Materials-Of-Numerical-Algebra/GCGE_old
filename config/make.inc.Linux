@@ -52,7 +52,7 @@ DEBUGFLAGS   = $(VALGRINDFLAGS)
 # DEFINE for mixed code
 ############################################################
 # linking Fortran
-LIBF         = -lgfortranbegin -lgfortran -lm -shared-libgcc
+LIBF         = -lgfortran -lm
 # linking CPP
 LIBCPP       = -lstdc++
 # other exist libs
