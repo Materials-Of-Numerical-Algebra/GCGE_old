@@ -34,7 +34,7 @@
  *   start = { 0, n_V }
  *   end   = { 0, n_X }
  *
- *   ops->MultiVecLinearComb(V, X, start, end, a, lda, NULL, -1, ops);
+ *   ops->MultiVecLinearComb(V, X, start, end, a, lda, 0, ops);
  *
  * @param V
  * @param subspace_evec
@@ -66,7 +66,7 @@ void GCGE_ComputeX(void **V, GCGE_DOUBLE *subspace_evec, void **X,
     start[1] = start_x;
     end[1]   = dim_x;
     ops->MultiVecLinearComb(V, X, start, end, subspace_evec+start_x*dim_v+start_x,
-            dim_v, NULL, 0, ops);
+            dim_v, 0, 1.0, 0.0, ops);
 #if 0 
     GCGE_DOUBLE t2 = GCGE_GetTime();
     //统计计算Rtiz向量时间
@@ -262,12 +262,12 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
  *  x_end_in_V_tmp = p_start-nev
  *  mv_s = { 0, 0 }
  *  mv_e = { ldc, x_end_in_V_tmp }
- *  MultiVecLinearComb(V, V_tmp, mv_s, mv_e, px, ldc, NULL, -1, ops)
+ *  MultiVecLinearComb(V, V_tmp, mv_s, mv_e, px, ldc, 0, ops)
  * >V线性组合得到P向量，存放在V_tmp中
  *  p_end_in_V_tmp  = x_end_in_V_tmp + p_ncols
  *  mv_s = { 0, x_end_in_V_tmp }
  *  mv_e = { ldc, p_end_in_V_tmp }
- *  MultiVecLinearComb(V, V_tmp, mv_s, mv_e, px, ldc, NULL, -1, ops)
+ *  MultiVecLinearComb(V, V_tmp, mv_s, mv_e, px, ldc, 0, ops)
  *  把V_tmp与V中X中看作重特征值的特征向量的部分进行指针交换
  *  把V_tmp与V中P的部分进行指针交换
  *  mv_s = { nev, 0 }
@@ -404,7 +404,7 @@ void GCGE_ComputeP(GCGE_DOUBLE *subspace_evec, void **V, GCGE_OPS *ops, GCGE_PAR
     mv_e[1] = p_end_in_V_tmp;
     //线性组合的系数从第orth_start行开始
     ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, coef+nev*ldc+orth_start, 
-            ldc, NULL, -1, ops);
+            ldc, 0, 1.0, 0.0, ops);
 
     //把V_tmp与V中P的部分进行指针交换
     //把V_tmp与V中X看作重特征值的部分特征向量的部分进行指针交换

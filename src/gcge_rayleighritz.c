@@ -63,7 +63,7 @@ void GCGE_ComputeSubspaceMatrixVTAW(void **V, void *A, GCGE_INT start_W, GCGE_IN
     //这里计算 X(AW) 部分
     //         P(AW)
     //需要 subspace_mat 的 leading dimension, 这里为end_V
-    ops->MultiVecInnerProd(V, workspace, subspace_mat, "nonsym", mv_s, mv_e, end_V, ops);
+    ops->MultiVecInnerProd(V, workspace, subspace_mat, "nonsym", mv_s, mv_e, end_V, 0, ops);
 
     //double *vTAw = subspace_mat;
 
@@ -76,7 +76,7 @@ void GCGE_ComputeSubspaceMatrixVTAW(void **V, void *A, GCGE_INT start_W, GCGE_IN
     //这里计算 W(AW) 部分
     //需要 subspace_mat 的 leading dimension, 这里为end_V
     //     以及子空间矩阵存放的起始位置 subspace_mat+xp_length
-    ops->MultiVecInnerProd(V, workspace, subspace_mat + xp_length, "sym", mv_s, mv_e, end_V, ops);
+    ops->MultiVecInnerProd(V, workspace, subspace_mat + xp_length, "sym", mv_s, mv_e, end_V, 0, ops);
 
 }
 

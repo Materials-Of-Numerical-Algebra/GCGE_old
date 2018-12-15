@@ -184,31 +184,38 @@ void GCGE_SLEPC_MatDotMultiVec(void *mat, void **x, void **y,
 /* vec_y[j] = \sum_{i=sx}^{ex} vec_x[i] a[i][j] */
 //对连续的向量组进行线性组合: y(:,start[1]:end[1]) = x(:,start[0]:end[0])*a
 void GCGE_SLEPC_MultiVecLinearComb(void **x, void **y, 
-        GCGE_INT *start, GCGE_INT *end,
-        GCGE_DOUBLE *a, GCGE_INT lda, 
-        void *dmat, GCGE_INT lddmat, struct GCGE_OPS_ *ops)
+        GCGE_INT *start, GCGE_INT *end, GCGE_DOUBLE *a, GCGE_INT lda, 
+        GCGE_DOUBLE alpha, GCGE_DOUBLE beta,
+        GCGE_INT if_Vec, struct GCGE_OPS_ *ops)
 {
     PetscErrorCode ierr;
     ierr = BVSetActiveColumns((BV)x, start[0], end[0]);
-    ierr = BVSetActiveColumns((BV)y, start[1], end[1]);
-    Mat dense_mat;
-    //y = x * dense_mat，因此dense_mat的行数为x的列数,列数为y的列数
-    GCGE_INT nrows = end[0];
-    GCGE_INT ncols = end[1];
-    ierr = MatCreateSeqDense(PETSC_COMM_SELF, nrows, ncols, NULL, &dense_mat);
-    //将稠密矩阵a中的元素赋值给dense_mat
-    GCGE_DOUBLE *q;
-    ierr = MatDenseGetArray(dense_mat, &q);
-    memset(q, 0.0, nrows*ncols*sizeof(GCGE_DOUBLE));
-    GCGE_INT i = 0;
-    for(i=start[1]; i<end[1]; i++)
+    if(if_Vec == 0)
     {
-        //默认输入的矩阵a是要从第一个元素开始用的,所以q的位置要+start[0]
-        memcpy(q+i*nrows+start[0], a+(i-start[1])*lda, (end[0]-start[0])*sizeof(GCGE_DOUBLE));
+        ierr = BVSetActiveColumns((BV)y, start[1], end[1]);
+        Mat dense_mat;
+        //y = x * dense_mat，因此dense_mat的行数为x的列数,列数为y的列数
+        GCGE_INT nrows = end[0];
+        GCGE_INT ncols = end[1];
+        ierr = MatCreateSeqDense(PETSC_COMM_SELF, nrows, ncols, NULL, &dense_mat);
+        //将稠密矩阵a中的元素赋值给dense_mat
+        GCGE_DOUBLE *q;
+        ierr = MatDenseGetArray(dense_mat, &q);
+        memset(q, 0.0, nrows*ncols*sizeof(GCGE_DOUBLE));
+        GCGE_INT i = 0;
+        for(i=start[1]; i<end[1]; i++)
+        {
+            //默认输入的矩阵a是要从第一个元素开始用的,所以q的位置要+start[0]
+            memcpy(q+i*nrows+start[0], a+(i-start[1])*lda, (end[0]-start[0])*sizeof(GCGE_DOUBLE));
+        }
+        ierr = MatDenseRestoreArray(dense_mat, &q);
+        ierr = BVMult((BV)y, alpha, beta, (BV)x, dense_mat);
+        ierr = MatDestroy(&dense_mat);
     }
-    ierr = MatDenseRestoreArray(dense_mat, &q);
-    ierr = BVMult((BV)y, 1.0, 0.0, (BV)x, dense_mat);
-    ierr = MatDestroy(&dense_mat);
+    else
+    {
+        ierr = BVMultVec((BV)x, alpha, beta, (Vec)(y[0]), a);
+    }
 
 }
 
@@ -216,35 +223,47 @@ void GCGE_SLEPC_MultiVecLinearComb(void **x, void **y,
 // a(start[0]:end[0],start[1]:end[1]) = V(:,start[0]:end[0])^T * W(:,start[1]:end[1])
 void GCGE_SLEPC_MultiVecInnerProd(void **V, void **W, GCGE_DOUBLE *a, 
         char *is_sym, GCGE_INT *start, GCGE_INT *end, 
-        GCGE_INT lda, struct GCGE_OPS_ *ops)
+        GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops)
 {
     PetscErrorCode ierr;
-
     ierr = BVSetActiveColumns((BV)V, start[0], end[0]);
-    ierr = BVSetActiveColumns((BV)W, start[1], end[1]);
-    //计算VT*W的L2内积,要先把W的矩阵设为NULL
-    ierr = BVSetMatrix((BV)W, NULL, PETSC_TRUE);
-    Mat dense_mat;
-    //dense_mat = VT*W，因此dense_mat的行数为V的列数,列数为W的列数
-    GCGE_INT nrows = end[0];
-    GCGE_INT ncols = end[1];
-    //col_length表示实际用到的稠密矩阵的列数,即W的列数
-    GCGE_INT col_length = end[1]-start[1];
-    GCGE_INT row_length = end[0]-start[0];
-    ierr = MatCreateSeqDense(PETSC_COMM_SELF, nrows, ncols, NULL, &dense_mat);
-    ierr = BVDot((BV)W, (BV)V, dense_mat);
-    //将稠密矩阵a中的元素赋值给dense_mat
-    GCGE_DOUBLE *q;
-    ierr = MatDenseGetArray(dense_mat, &q);
-    GCGE_INT i = 0;
 
-    for(i=0; i<col_length; i++)
+    //如果W是BV结构
+    if(if_Vec == 0)
     {
-        //默认输入的矩阵a是要从第一个元素开始用的,q的位置要从start[1]列开始用,每列加start[0]
-        memcpy(a+i*lda, q+(start[1]+i)*nrows+start[0], row_length*sizeof(GCGE_DOUBLE));
+        //dense_mat = VT*W，因此dense_mat的行数为V的列数,列数为W的列数
+        GCGE_INT nrows = end[0];
+        GCGE_INT ncols = end[1];
+        //col_length表示实际用到的稠密矩阵的列数,即W的列数
+        GCGE_INT col_length = end[1]-start[1];
+        GCGE_INT row_length = end[0]-start[0];
+        ierr = BVSetActiveColumns((BV)W, start[1], end[1]);
+        //计算VT*W的L2内积,要先把W的矩阵设为NULL
+        ierr = BVSetMatrix((BV)W, NULL, PETSC_TRUE);
+        Mat dense_mat;
+        ierr = MatCreateSeqDense(PETSC_COMM_SELF, nrows, ncols, NULL, &dense_mat);
+
+        ierr = BVDot((BV)W, (BV)V, dense_mat);
+
+        //将稠密矩阵a中的元素赋值给dense_mat
+        GCGE_DOUBLE *q;
+        ierr = MatDenseGetArray(dense_mat, &q);
+        GCGE_INT i = 0;
+ 
+        for(i=0; i<col_length; i++)
+        {
+            //默认输入的矩阵a是要从第一个元素开始用的,q的位置要从start[1]列开始用,每列加start[0]
+            memcpy(a+i*lda, q+(start[1]+i)*nrows+start[0], row_length*sizeof(GCGE_DOUBLE));
+        }
+        ierr = MatDenseRestoreArray(dense_mat, &q);
+        ierr = MatDestroy(&dense_mat);
     }
-    ierr = MatDenseRestoreArray(dense_mat, &q);
-    ierr = MatDestroy(&dense_mat);
+    else
+    {
+        //如果W是Vec*结构
+        ierr = BVSetMatrix((BV)V, NULL, PETSC_TRUE);
+        ierr = BVDotVec((BV)V, (Vec)(W[0]), a);
+    }
 
 }
 

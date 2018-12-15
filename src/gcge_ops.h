@@ -71,11 +71,18 @@ typedef struct GCGE_OPS_ {
     void (*MultiVecAxpbyColumn)     (GCGE_DOUBLE a, void **x, GCGE_INT col_x, GCGE_DOUBLE b, 
                                      void **y, GCGE_INT col_y, struct GCGE_OPS_ *ops);
     /* vec_y[j] = \sum_{i=sx}^{ex} vec_x[i] a[i-sx][j-sy] */
+    //MultiVecLinearComb去掉原来的void* dmat与GCGE_INT lddmat两个参数，加上GCGE_INT if_Vec这个参数
+    //加的参数if_Vec表示是否是线性组合得到一个向量，因为之前的线性组合是默认得到一个向量组，但我们应该允许得到一个(单向量结构的)向量
+    //对gcge_ops.c中默认的线性组合函数，如果y给的是单向量，因为给的是void**类型，可以直接取y[0], 因此不需要改函数体内部
+    //另加上alpha与beta两个参数，表示y=alpha*a*x+beta*y, Default默认只支持alpha=1.0,beta=1.0或beta=0.0的情况
     void (*MultiVecLinearComb)      (void **x, void **y, GCGE_INT *start, GCGE_INT *end,
-                                     GCGE_DOUBLE *a, GCGE_INT lda, 
-                                     void *dmat, GCGE_INT lddmat, struct GCGE_OPS_ *ops);
+                                     GCGE_DOUBLE *a, GCGE_INT lda, GCGE_INT if_Vec,
+                                     GCGE_DOUBLE alpha, GCGE_DOUBLE beta, struct GCGE_OPS_ *ops);
+    //添加了
+    //加的参数if_Vec表示是否是多向量组与一个单向量结构进行线性组合
+    //这两个函数里加这个参数主要是为了slepc接口的时候不出问题
     void (*MultiVecInnerProd)       (void **V, void **W, GCGE_DOUBLE *a, char *is_sym, 
-                                     GCGE_INT *start, GCGE_INT *end, GCGE_INT lda, struct GCGE_OPS_ *ops);
+                                     GCGE_INT *start, GCGE_INT *end, GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops);
     void (*MultiVecSwap)            (void **V_1, void **V_2, GCGE_INT *start, GCGE_INT *end, 
                                      struct GCGE_OPS_ *ops);
     void (*MultiVecPrint)           (void **x, GCGE_INT n);

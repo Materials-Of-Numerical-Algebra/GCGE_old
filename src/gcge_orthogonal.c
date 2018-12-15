@@ -51,7 +51,7 @@
  *
  *     mv_s = {0, 0}
  *     mv_e = {current+1, 1}
- *     MultiVecInnerProd(V, &V_tmp, d_tmp, "ns", d_tmp, mv_s, mv_e, current+1, ops )
+ *     MultiVecInnerProd(V, &V_tmp, d_tmp, "ns", d_tmp, mv_s, mv_e, current+1, 0, ops )
  *
  *    // V[current] = V[current] - sum_{i=0}^{current-1} d_tmp[i] V[i]
  *    // d_tmp[current] = d_tmp[current] - sum_{i=0}^{current-1} d_tmp[i]^2
@@ -230,7 +230,7 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
                 mv_e[0] = current+1;
                 mv_s[1] = 0;
                 mv_e[1] = 1;
-                ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, current+1, ops);
+                ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, current+1, 0, ops);
 
                 // 如果当前计算的不是向量组中的第一个向量，那么需要减去前面的分量
                 if(current != 0)
@@ -241,7 +241,7 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
                     mv_e[0] = current;
                     mv_s[1] = 0;
                     mv_e[1] = 1;
-                    ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, current, NULL, -1, ops);
+                    ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, current, 0, 1.0, 0.0, ops);
 
                     // 计算 vec_current = vec_current - V_tmp[0]
                     ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp);
@@ -420,7 +420,7 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //d_tmp = vec_tmp*V(:,start:end)
             //统一做内积
             //lda = w_length, 表示矩阵的行数，第一个向量组的列数
-            ops->MultiVecInnerProd(V,evec, d_tmp, "ns", mv_s, mv_e, w_length, ops);      
+            ops->MultiVecInnerProd(V,evec, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);      
             //减去相应的分量
             for(j=start;j<*(end);j++)
             {
@@ -445,7 +445,7 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //d_tmp = vec_tmp*V(:,start:end)
             //w_length = mv_e[1] - mv_s[1];
             //统一做内积
-            ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, w_length, ops);      
+            ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);      
             //减去相应的分量
             for(j=start;j<*(end);j++)
             {
@@ -483,7 +483,7 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //d_tmp = vec_tmp*V(:,start:end)
             w_length = mv_e[0] - mv_s[0];
             //统一做内积
-            ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, ops);    
+            ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);    
             //V[current]的向量范数
             norm_value = sqrt(d_tmp[0]);	  
             //下面看看目前处理的向量是否是一个零向量    	  
@@ -824,14 +824,14 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, ops);    
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, 0, ops);    
 
         //计算 V_tmp = [V1,V2] * subspace_dtmp
         mv_s[0] = 0;
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, NULL, -1, ops);
+        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, 0, 1.0, 0.0, ops);
 
         //计算 V3 = V3 - V_tmp
         mv_s[0] = 0;
@@ -869,7 +869,7 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = *end;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, w_length, ops);    
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);    
 
         nonzero_flag = 0;
         for(j=0; j<w_length*w_length; j++)
@@ -945,7 +945,7 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             mv_s[1] = 0;
             mv_e[1] = w_length;
             ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, 
-                    tmp_evec+tmp_eval_nonzero_start*w_length, w_length, NULL, -1, ops);
+                    tmp_evec+tmp_eval_nonzero_start*w_length, w_length, 0, 1.0, 0.0, ops);
             *end = start + w_length;
             //计算 V3 = V_tmp
             mv_s[0] = start;
@@ -1040,7 +1040,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, ops);  
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, 0, ops);  
         value_inner = 0.0;
         for(i=0;i<length;i++)
         { 
@@ -1056,7 +1056,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, NULL, -1, ops);
+        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, 0, 1.0, 0.0, ops);
 
         //计算 V3 = V3 - V_tmp
         mv_s[0] = 0;
@@ -1160,7 +1160,7 @@ void GCGE_SCBOrth_Minus(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, ops);  
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, 0, ops);  
         value_inner = 0.0;
         for(i=0;i<length;i++)
         { 
@@ -1176,7 +1176,7 @@ void GCGE_SCBOrth_Minus(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, NULL, -1, ops);
+        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, 0, 1.0, 0.0, ops);
 
         //计算 W2 = W2 - V_tmp
         mv_s[0] = 0;
@@ -1234,7 +1234,7 @@ void GCGE_SCBOrth_Self(void **V, GCGE_INT start, GCGE_INT *end,
            //d_tmp = vec_tmp*V(:,start:end)
            w_length = mv_e[0] - mv_s[0];
            //统一做内积
-           ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, ops);    
+           ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);    
            //V[current]的向量范数
            norm_value = sqrt(d_tmp[0]);	  
            //下面看看目前处理的向量是否是一个零向量    	  
@@ -1359,7 +1359,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, ops);  
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, 0, ops);  
         value_inner = 0.0;
         for(i=0;i<length;i++)
         { 
@@ -1375,7 +1375,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, NULL, -1, ops);
+        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, 0, 1.0, 0.0, ops);
 
         //计算 V3 = V3 - V_tmp
         mv_s[0] = 0;
@@ -1415,7 +1415,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //d_tmp = vec_tmp*V(:,start:end)
             w_length = mv_e[0] - mv_s[0];
             //统一做内积
-            ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, ops);    
+            ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);    
             //V[current]的向量范数
             norm_value = sqrt(d_tmp[0]);	  
             //下面看看目前处理的向量是否是一个零向量    	  
@@ -1909,7 +1909,7 @@ void *GCGE_SubOrthonormalization(void **V, GCGE_INT *start, GCGE_INT *end,
     mv_e[0] = end[0];
     mv_s[1] = 0;
     mv_e[1] = length_2;
-    ops->MultiVecInnerProd(V, V_tmp, subspace_dtmp, "ns", mv_s, mv_e, length_1, ops);  
+    ops->MultiVecInnerProd(V, V_tmp, subspace_dtmp, "ns", mv_s, mv_e, length_1, 0, ops);  
 
     //即计算 VV2 = V1 * (V1'*B*V2)
     //计算 V_tmp = V1 * subspace_dtmp
@@ -1917,7 +1917,7 @@ void *GCGE_SubOrthonormalization(void **V, GCGE_INT *start, GCGE_INT *end,
     mv_e[0] = end[0];
     mv_s[1] = 0;
     mv_e[1] = length_2;
-    ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, subspace_dtmp, length_1, NULL, -1, ops);
+    ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, subspace_dtmp, length_1, 0, 1.0, 0.0, ops);
     
     //计算 V2 = V2 - V_tmp
     mv_s[0] = 0;
@@ -2071,7 +2071,7 @@ void GCGE_SubOrthonormalizationSelfBGS(void **V, GCGE_INT start, GCGE_INT *end,
         //d_tmp = vec_tmp*V(:,start:end)
         length = mv_e[0] - mv_s[0];
         //统一做内积
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, length, ops);    
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, length, 0, ops);    
         //V[current]的向量范数
         norm_value = sqrt(d_tmp[0]);      
         //下面看看目前处理的向量是否是一个零向量          

@@ -501,3 +501,9 @@ TODO:
 TODO
 1. 子空间矩阵计算特征值时，往前考虑重数，但此时矩阵没有把重数的部分构造出来，而是在判断重数之后多构造的。
    应该在构造矩阵前先重新判断当前的重数，即把rr_eigen里面判断重数的部分挪到构造矩阵之前
+
+2018.12.15 zhangning
+1. 修改了gcge_ops.h中MultiVecLinearComb的参数, 进而修改了相关的 gcge_ops.c gcge_xpw.c gcge_orthogonal.c中的调用格式
+   去掉了 void* dmat, GCGE_INT lddmat, 添加了 GCGE_INT if_Vec, GCGE_DOUBLE alpha, GCGE_DOUBLE beta
+2. 修改了gcge_ops.h中MultiVecInnerProd的参数，进而修改了相关的 gcge_ops.c, gcge_rayleighritz.c gcge_orthogonal.c中的调用格式
+   添加了 GCGE_INT if_Vec

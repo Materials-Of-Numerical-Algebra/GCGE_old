@@ -161,7 +161,8 @@ void GCGE_Default_MultiVecAxpbyColumn(GCGE_DOUBLE a, void **x, GCGE_INT col_x,
 //对连续的向量组进行线性组合: y(:,start[1]:end[1]) = x(:,start[0]:end[0])*a
 //a 为一个系数矩阵, 按列排列的
 void GCGE_Default_MultiVecLinearComb(void **x, void **y, GCGE_INT *start, GCGE_INT *end,
-        GCGE_DOUBLE *a, GCGE_INT lda, void *dmat, GCGE_INT lddmat, struct GCGE_OPS_ *ops)
+        GCGE_DOUBLE *a, GCGE_INT lda, GCGE_INT if_Vec, 
+        GCGE_DOUBLE alpha, GCGE_DOUBLE beta, struct GCGE_OPS_ *ops)
 {
     GCGE_INT idx_x = 0;
     GCGE_INT idx_y = 0;
@@ -173,12 +174,12 @@ void GCGE_Default_MultiVecLinearComb(void **x, void **y, GCGE_INT *start, GCGE_I
         //取出y的相应的列
         ops->GetVecFromMultiVec(y, idx_y,    &ys);
         //ops->VecAxpby(0.0, ys, 0.0, ys);
-	//取出x的相应的列
+	    //取出x的相应的列
         ops->GetVecFromMultiVec(x, start[0], &xs);
-	//ys = a(0,idy)*xs + 0.0*ys
+	    //ys = a(0,idy)*xs + 0.0*ys
         //ops->VecAxpby(a[idx_y*lda+start[0]], xs, 0.0, ys);
-        ops->VecAxpby(a[(idx_y-start[1])*lda], xs, 0.0, ys);
-	//把xs返回给x(:,start[0])
+        ops->VecAxpby(a[(idx_y-start[1])*lda], xs, beta, ys);
+	    //把xs返回给x(:,start[0])
         ops->RestoreVecForMultiVec(x, start[0], &xs);
         //下面进行迭代
         for(idx_x = start[0]+1; idx_x<end[0]; idx_x++)
@@ -196,7 +197,7 @@ void GCGE_Default_MultiVecLinearComb(void **x, void **y, GCGE_INT *start, GCGE_I
 // a(0: end[0]-start[0], 0:end[1]-start[1]) = V(:,start[0]:end[0])^T * W(:,start[1]:end[1])
 // 做内积得到值是存在矩阵a的相应的位置
 void GCGE_Default_MultiVecInnerProd(void **V, void **W, GCGE_DOUBLE *a, char *is_sym, 
-        GCGE_INT *start, GCGE_INT *end, GCGE_INT lda, struct GCGE_OPS_ *ops)
+        GCGE_INT *start, GCGE_INT *end, GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops)
 {
     //lda表示做完相减存储到V的位置？
     GCGE_INT iv = 0, iw = 0;
