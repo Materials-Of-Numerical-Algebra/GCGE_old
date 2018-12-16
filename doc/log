@@ -507,3 +507,8 @@ TODO
    去掉了 void* dmat, GCGE_INT lddmat, 添加了 GCGE_INT if_Vec, GCGE_DOUBLE alpha, GCGE_DOUBLE beta
 2. 修改了gcge_ops.h中MultiVecInnerProd的参数，进而修改了相关的 gcge_ops.c, gcge_rayleighritz.c gcge_orthogonal.c中的调用格式
    添加了 GCGE_INT if_Vec
+
+2018.12.15 zhangning
+1. pase文件夹中，修改了pase_ops.c pase_ops.h pase_matvec.c pase_matvec.h
+2. test/pase文件夹中，添加了test_ops.c，测试了CSR格式下的pase_ops，均测试通过
+3. 在make.inc(3个文件)中添加了 GCGEPASEINC与LIBGCGEPASE

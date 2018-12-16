@@ -19,3 +19,6 @@
  *
  *             3 PASE_LinearSolver<---PASE_MultiGrid   
  * */
+
+#include "pase_matvec.h"
+#include "pase_ops.h"

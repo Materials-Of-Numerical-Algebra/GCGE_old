@@ -181,7 +181,7 @@ void PASE_DefaultVecLocalInnerProd(void *x, void *y, PASE_REAL *value_ip, struct
 //由src_vec单向量创建des_vec单向量
 void PASE_DefaultVecCreateByVec(void **des_vec, void *src_vec, struct PASE_OPS_ *ops)
 {
-    PASE_Vector vec         = (PASE_Vector)malloc(sizeof(PASE_Vector));
+    PASE_Vector vec         = (PASE_Vector)malloc(sizeof(pase_Vector));
     void        *b_H        = ((PASE_Vector)src_vec)->b_H;
     PASE_REAL   *aux_h      = ((PASE_Vector)src_vec)->aux_h;
     PASE_INT    num_aux_vec = ((PASE_Vector)src_vec)->num_aux_vec;
@@ -197,7 +197,7 @@ void PASE_DefaultVecCreateByVec(void **des_vec, void *src_vec, struct PASE_OPS_ 
 //由矩阵mat创建des_vec单向量
 void PASE_DefaultVecCreateByMat(void **vec, void *mat, struct PASE_OPS_ *ops)
 {
-    PASE_Vector v           = (PASE_Vector)malloc(sizeof(PASE_Vector));
+    PASE_Vector v           = (PASE_Vector)malloc(sizeof(pase_Vector));
     void        *A_H        = ((PASE_Matrix)mat)->A_H;
     PASE_INT    num_aux_vec = ((PASE_Matrix)mat)->num_aux_vec;
 
@@ -217,6 +217,8 @@ void PASE_DefaultVecDestroy(void **vec, struct PASE_OPS_ *ops)
     //释放vec->aux_h空间
     free(((PASE_Vector)(*vec))->aux_h); 
     ((PASE_Vector)(*vec))->aux_h = NULL; 
+    free((PASE_Vector)(*vec)); 
+    *vec = NULL;
 }
 
 //由单向量vec创建向量组multi_vec,其中multi_vec中有n_vec个向量
@@ -227,7 +229,7 @@ void PASE_DefaultMultiVecCreateByVec(void ***multi_vec, PASE_INT n_vec,
     PASE_INT  num_aux_vec = ((PASE_Vector)vec)->num_aux_vec;
 
     //分配空间
-    PASE_MultiVector vecs = (PASE_MultiVector)malloc(sizeof(PASE_MultiVector));
+    PASE_MultiVector vecs = (PASE_MultiVector)malloc(sizeof(pase_MultiVector));
     //给aux部分size赋值
     vecs->num_vec     = n_vec;
     vecs->num_aux_vec = num_aux_vec;
@@ -246,7 +248,7 @@ void PASE_DefaultMultiVecCreateByMat(void ***multi_vec, PASE_INT n_vec,
     PASE_INT  num_aux_vec = ((PASE_Matrix)mat)->num_aux_vec;
 
     //分配空间
-    PASE_MultiVector vecs = (PASE_MultiVector)malloc(sizeof(PASE_MultiVector));
+    PASE_MultiVector vecs = (PASE_MultiVector)malloc(sizeof(pase_MultiVector));
     //给aux部分size赋值
     vecs->num_vec     = n_vec;
     vecs->num_aux_vec = num_aux_vec;
@@ -265,7 +267,7 @@ void PASE_DefaultMultiVecCreateByMultiVec(void **init_vec, void ***multi_vec,
     PASE_INT  num_aux_vec = ((PASE_MultiVector)init_vec)->num_aux_vec;
 
     //分配空间
-    PASE_MultiVector vecs = (PASE_MultiVector)malloc(sizeof(PASE_MultiVector));
+    PASE_MultiVector vecs = (PASE_MultiVector)malloc(sizeof(pase_MultiVector));
     //给aux部分size赋值
     vecs->num_vec     = n_vec;
     vecs->num_aux_vec = num_aux_vec;
@@ -285,6 +287,8 @@ void PASE_DefaultMultiVecDestroy(void ***MultiVec, PASE_INT n_vec, struct PASE_O
     //释放aux_h部分的空间
     free(((PASE_MultiVector)(*MultiVec))->aux_h);
     ((PASE_MultiVector)(*MultiVec))->aux_h = NULL;
+    free((PASE_MultiVector)(*MultiVec));
+    *MultiVec = NULL;
 }
 
 //给向量组赋初值，从multi_vec中第start个向量开始，给n_vec个向量赋随机初值
@@ -292,7 +296,7 @@ void PASE_DefaultMultiVecSetRandomValue(void **multi_vec, PASE_INT start,
         PASE_INT n_vec, struct PASE_OPS_ *ops)
 {
     //通过gcge_ops给b_H部分赋随机初值
-    ops->gcge_ops->MultiVecSetRandomValue(((PASE_MultiVector)(*multi_vec))->b_H, start, n_vec, ops->gcge_ops);
+    ops->gcge_ops->MultiVecSetRandomValue(((PASE_MultiVector)multi_vec)->b_H, start, n_vec, ops->gcge_ops);
     PASE_INT  i = 0;
     //aux部分用srand，这里time(NULL)需要再include time头文件
     srand(time(NULL));
@@ -413,7 +417,8 @@ void PASE_DefaultMultiVecLinearComb(void **x, void **y, PASE_INT *start,
     PASE_INT  nrows = num_aux_vec;
     PASE_INT  mid   = end[0]-start[0];
     PASE_INT  ncols = end[1]-start[1];
-    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &nrows, &ncols, 
+    //这里不做转置
+    ops->gcge_ops->DenseMatDotDenseMat("N", "N", &nrows, &ncols, 
             &mid, &alpha, x_aux_h, &num_aux_vec, 
             a, &lda, &beta, y_aux_h, &num_aux_vec);
 }
@@ -493,7 +498,7 @@ void PASE_DefaultGetVecFromMultiVec(void **V, PASE_INT j, void **x, struct PASE_
     PASE_REAL *V_aux_h    = ((PASE_MultiVector)V)->aux_h;
     PASE_INT  num_aux_vec = ((PASE_MultiVector)V)->num_aux_vec;
     //首先创建*x向量
-    PASE_Vector vec         = (PASE_Vector)malloc(sizeof(PASE_Vector));
+    PASE_Vector vec         = (PASE_Vector)malloc(sizeof(pase_Vector));
     vec->num_aux_vec = num_aux_vec;
     //从V_b_H中获取b_H
     ops->gcge_ops->GetVecFromMultiVec(V_b_H, j, &(vec->b_H));
@@ -546,3 +551,30 @@ void PASE_OPS_Free(PASE_OPS **ops)
 {
     free(*ops); *ops = NULL;
 }
+
+void PASE_MatrixCreate( PASE_Matrix* pase_matrix,
+                        PASE_INT num_aux_vec,
+                        void *A_H, 
+                        PASE_OPS *ops
+                        )
+{
+    *pase_matrix = (PASE_Matrix)malloc(sizeof(pase_Matrix));
+    (*pase_matrix)->num_aux_vec = num_aux_vec;
+    (*pase_matrix)->A_H         = A_H;
+    (*pase_matrix)->is_diag     = 0;
+    ops->gcge_ops->MultiVecCreateByMat(&((*pase_matrix)->aux_Hh), num_aux_vec,
+            A_H, ops->gcge_ops);
+    (*pase_matrix)->aux_hh = (PASE_SCALAR*)calloc(num_aux_vec*num_aux_vec, 
+            sizeof(PASE_SCALAR));
+}
+
+void PASE_MatrixDestroy( PASE_Matrix*  matrix, 
+                         PASE_OPS *ops )
+{
+    PASE_INT num_aux_vec = (*matrix)->num_aux_vec;
+    ops->gcge_ops->MultiVecDestroy(&((*matrix)->aux_Hh), num_aux_vec,
+            ops->gcge_ops);
+    free((*matrix)->aux_hh); (*matrix)->aux_hh = NULL;
+    free(*matrix); *matrix = NULL;
+}
+

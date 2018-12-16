@@ -4,12 +4,12 @@ include $(GCGEHOME)/config/make.inc
 .PHONY: all lib clean help
 
 ########################################################################
-FILES   = pase_matvec.c pase_mg.c pase_ops.c pase_solver.c
-HEADERS = pase_matvec.h pase_mg.h pase_ops.h pase_solver.h
+FILES   = pase_matvec.c pase_mg.c pase_solver.c pase_ops.c
+HEADERS = pase_config.h pase_matvec.h pase_mg.h pase_solver.h pase_ops.h pase.h
 OBJS    = ${FILES:.c=.o}
 
-INC     = 
-LIB     = $(LIBPASE)
+INC     = -I$(GCGEINC)
+LIB     = $(LIBGCGEPASE)
 
 ########################################################################
 all:    help

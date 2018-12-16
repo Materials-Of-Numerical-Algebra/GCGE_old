@@ -23,6 +23,7 @@
 
 #include "gcge_ops.h"
 #include "pase_config.h"
+#include "pase_matvec.h"
 //把每一个操作都写好，这样以后进行算法设计的时候才能方便。
 #if GCGE_USE_MPI
 #include <mpi.h>
@@ -79,4 +80,13 @@ typedef struct PASE_OPS_ {
 void PASE_OPS_Create(PASE_OPS **ops, GCGE_OPS *gcge_ops);
 PASE_INT PASE_OPS_Setup(PASE_OPS *ops);
 void PASE_OPS_Free(PASE_OPS **ops);
+void PASE_MatrixCreate( PASE_Matrix* pase_matrix,
+                        PASE_INT num_aux_vec,
+                        void *A_H, 
+                        PASE_OPS *ops
+                        );
+void PASE_MatrixDestroy( PASE_Matrix*  matrix, 
+                         PASE_OPS *ops );
+
+
 #endif

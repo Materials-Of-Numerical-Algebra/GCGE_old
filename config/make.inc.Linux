@@ -66,6 +66,7 @@ LDFLAGS      =
 
 GCGEBIN       = $(GCGEHOME)/bin
 GCGEINC       = $(GCGEHOME)/include
+GCGEPASEINC   = $(GCGEHOME)/pase
 GCGELIB       = $(GCGEHOME)/lib
 GCGESRC       = $(GCGEHOME)/src
 
