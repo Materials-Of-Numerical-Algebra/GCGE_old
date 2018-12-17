@@ -508,7 +508,13 @@ TODO
 2. 修改了gcge_ops.h中MultiVecInnerProd的参数，进而修改了相关的 gcge_ops.c, gcge_rayleighritz.c gcge_orthogonal.c中的调用格式
    添加了 GCGE_INT if_Vec
 
-2018.12.15 zhangning
+2018.12.16 zhangning
 1. pase文件夹中，修改了pase_ops.c pase_ops.h pase_matvec.c pase_matvec.h
 2. test/pase文件夹中，添加了test_ops.c，测试了CSR格式下的pase_ops，均测试通过
 3. 在make.inc(3个文件)中添加了 GCGEPASEINC与LIBGCGEPASE
+
+2018.12.17 zhangning
+1. 测试时发现GCGE_DefaultMultiVecAxpbyColumn的一个bug，之前因为没有用到这个函数，所以没检查到错误
+   错误原因在于对BV向量组结构使用了x[1]这种操作
+   in gcge_ops.c
+2. test/pase文件夹中，添加了test_slepc_pase_ops.c, 其测试是在example中进行的

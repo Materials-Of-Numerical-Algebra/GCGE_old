@@ -152,7 +152,7 @@ void GCGE_Default_MultiVecAxpbyColumn(GCGE_DOUBLE a, void **x, GCGE_INT col_x,
     void     *xs, *ys;
     ops->GetVecFromMultiVec(x, col_x, &xs);
     ops->GetVecFromMultiVec(y, col_y, &ys);
-    ops->VecAxpby(a, x[col_x], b, y[col_y]);
+    ops->VecAxpby(a, xs, b, ys);
     ops->RestoreVecForMultiVec(x, col_x, &xs);
     ops->RestoreVecForMultiVec(y, col_y, &ys);
 }
