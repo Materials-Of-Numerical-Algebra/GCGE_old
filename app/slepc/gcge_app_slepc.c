@@ -54,7 +54,7 @@ void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
     ierr = KSPSetFromOptions(*ksp);
 }
 
-void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value, GCGE_OPS *ops)
+void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value)
 {
     PetscErrorCode     ierr;
     const PetscScalar *local_x;
@@ -84,7 +84,7 @@ void GCGE_SLEPC_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 	PetscErrorCode ierr;
     ierr = MatCreateVecs((Mat)mat, NULL, (Vec*)vec);
 }
-void GCGE_SLEPC_VecDestroy(void **vec, GCGE_OPS *ops, GCGE_OPS *ops)
+void GCGE_SLEPC_VecDestroy(void **vec, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr;
     ierr = VecDestroy((Vec*)vec);
@@ -185,8 +185,8 @@ void GCGE_SLEPC_MatDotMultiVec(void *mat, void **x, void **y,
 //对连续的向量组进行线性组合: y(:,start[1]:end[1]) = x(:,start[0]:end[0])*a
 void GCGE_SLEPC_MultiVecLinearComb(void **x, void **y, 
         GCGE_INT *start, GCGE_INT *end, GCGE_DOUBLE *a, GCGE_INT lda, 
-        GCGE_DOUBLE alpha, GCGE_DOUBLE beta,
-        GCGE_INT if_Vec, struct GCGE_OPS_ *ops)
+        GCGE_INT if_Vec, GCGE_DOUBLE alpha, GCGE_DOUBLE beta,
+        struct GCGE_OPS_ *ops)
 {
     PetscErrorCode ierr;
     ierr = BVSetActiveColumns((BV)x, start[0], end[0]);
@@ -313,7 +313,7 @@ void GCGE_SLEPC_SetOps(GCGE_OPS *ops)
     /* either-or */
     ops->VecCreateByVec     = GCGE_SLEPC_VecCreateByVec;
     ops->VecCreateByMat     = GCGE_SLEPC_VecCreateByMat;
-    ops->VecDestroy           = GCGE_SLEPC_VecDestroy;
+    ops->VecDestroy         = GCGE_SLEPC_VecDestroy;
 
     ops->VecSetRandomValue = GCGE_SLEPC_VecSetRandomValue;
     ops->MatDotVec         = GCGE_SLEPC_MatDotVec;

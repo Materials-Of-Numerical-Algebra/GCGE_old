@@ -56,7 +56,7 @@ void PETSC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
     ierr = KSPSetFromOptions(*ksp);
 }
 
-void PETSC_VecLocalInnerProd(Vec x, Vec y, double *value, GCGE_OPS *ops)
+void PETSC_VecLocalInnerProd(Vec x, Vec y, double *value)
 {
     PetscErrorCode     ierr;
     const PetscScalar *local_x;
