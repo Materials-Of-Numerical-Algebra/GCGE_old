@@ -134,41 +134,41 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
     for(idx=0; idx<w_length; idx++)
     {
         //rhs = V_tmp(:,0);
-        ops->GetVecFromMultiVec(V_tmp, idx, &rhs);
+        ops->GetVecFromMultiVec(V_tmp, idx, &rhs, ops);
         x_current_idx = unlock[idx];
         w_current_idx = w_start + idx;	
-        ops->GetVecFromMultiVec(V, x_current_idx, &x_current);
-        ops->GetVecFromMultiVec(V, w_current_idx, &w_current);
+        ops->GetVecFromMultiVec(V, x_current_idx, &x_current, ops);
+        ops->GetVecFromMultiVec(V, w_current_idx, &w_current, ops);
         // B == NULL，那么 rhs = lambda * x_current
         // B != NULL，那么 rhs = lambda * B * x_current
         if(B == NULL)
         {
-            ops->VecAxpby(1.0, x_current, 0.0, rhs);
+            ops->VecAxpby(1.0, x_current, 0.0, rhs, ops);
         }
         else
         {
-            ops->MatDotVec(B, x_current, rhs);
+            ops->MatDotVec(B, x_current, rhs, ops);
         }
         //对lambda的用途：
         //赋初值
         if(fabs(eval[x_current_idx]) <= 1.0)
         {
             //如果lambda <= 1.0, rhs = lambda * rhs
-            ops->VecAxpby(0.0, rhs, eval[x_current_idx], rhs);
+            ops->VecAxpby(0.0, rhs, eval[x_current_idx], rhs, ops);
             //给CG迭代赋初值： w = x; (A*x = lambda *B *x)
-            ops->VecAxpby(1.0, x_current, 0.0, w_current);	  
+            ops->VecAxpby(1.0, x_current, 0.0, w_current, ops);	  
         }
         else
         {
             //当lambda>1.0的时候，定义初值解为: 1/lambda*x; 
             //线性方程: (A*(x/lambda) = B * x)
-            ops->VecAxpby(1.0/eval[x_current_idx], x_current, 0.0, w_current);	  
+            ops->VecAxpby(1.0/eval[x_current_idx], x_current, 0.0, w_current, ops);	  
         }
         //再把x_current 和 w_current 返回回去
-        ops->RestoreVecForMultiVec(V, x_current_idx, &x_current);
-        ops->RestoreVecForMultiVec(V, w_current_idx, &w_current);
+        ops->RestoreVecForMultiVec(V, x_current_idx, &x_current, ops);
+        ops->RestoreVecForMultiVec(V, w_current_idx, &w_current, ops);
         //把rhs返回回去
-        ops->RestoreVecForMultiVec(V_tmp, idx, &rhs);
+        ops->RestoreVecForMultiVec(V_tmp, idx, &rhs, ops);
     }//for(idx=0; idx<w_length; idx++)
 
     //下面统一进行线性方程的求解           
@@ -179,12 +179,12 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
         //这里是直接调用用户的解法器，期望未来用户也能提供块形式的解法器（统一进行数据广播的形式）
         for(idx=0; idx<w_length; idx++)
         {
-            ops->GetVecFromMultiVec(V_tmp, idx, &rhs);
+            ops->GetVecFromMultiVec(V_tmp, idx, &rhs, ops);
             w_current_idx = w_start + idx;	
-            ops->GetVecFromMultiVec(V, w_current_idx, &w_current);
+            ops->GetVecFromMultiVec(V, w_current_idx, &w_current, ops);
             ops->LinearSolver(A, rhs, w_current, ops);
-            ops->RestoreVecForMultiVec(V, w_current_idx, &w_current);
-            ops->RestoreVecForMultiVec(V_tmp, idx, &rhs);
+            ops->RestoreVecForMultiVec(V, w_current_idx, &w_current, ops);
+            ops->RestoreVecForMultiVec(V_tmp, idx, &rhs, ops);
         }//end for idx_p      
 	    //如果有外部求解器, 解完后继续用BCG求解. 如果不要用BCG, 可以将cg_max_it设为0
         //GCGE_BCG(A, V_tmp, V, w_start,w_length, ops, para,workspace);
@@ -205,12 +205,12 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
             //如果不使用BCG, 因为在GCGE_CG中还要取出三个向量使用, 所以使用slepc时不能使用这种普通CG
             for(idx=0; idx<w_length; idx++)
             {
-                ops->GetVecFromMultiVec(V_tmp, idx, &rhs);
+                ops->GetVecFromMultiVec(V_tmp, idx, &rhs, ops);
                 w_current_idx = w_start + idx;	
-                ops->GetVecFromMultiVec(V, w_current_idx, &w_current);
+                ops->GetVecFromMultiVec(V, w_current_idx, &w_current, ops);
                 GCGE_CG(A, rhs, w_current, ops, para, workspace->V_tmp, workspace->evec);
-                ops->RestoreVecForMultiVec(V, w_current_idx, &w_current);
-                ops->RestoreVecForMultiVec(V_tmp, idx, &rhs);
+                ops->RestoreVecForMultiVec(V, w_current_idx, &w_current, ops);
+                ops->RestoreVecForMultiVec(V_tmp, idx, &rhs, ops);
             }//end for idx_p      
         }
     }//end for LinearSolver    

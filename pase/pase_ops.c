@@ -58,7 +58,7 @@ void PASE_DefaultVecSetRandomValue(void *vec, PASE_INT seed, struct PASE_OPS_ *o
     PASE_REAL *aux_h      = ((PASE_Vector)vec)->aux_h;
     PASE_INT  num_aux_vec = ((PASE_Vector)vec)->num_aux_vec;
     //b_H部分调用GCGE_OPS赋随机初值
-    ops->gcge_ops->VecSetRandomValue(b_H);
+    ops->gcge_ops->VecSetRandomValue(b_H, ops->gcge_ops);
     //aux_h部分直接赋随机初值
     PASE_INT  i = 0;
     srand(seed);
@@ -88,7 +88,7 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
  
     //计算 r_b_H = A_H * x_b_H + aux_Hh * aux_h
     //计算 r_b_H = A_H * x_b_H
-    ops->gcge_ops->MatDotVec(A_H, x_b_H, r_b_H);
+    ops->gcge_ops->MatDotVec(A_H, x_b_H, r_b_H, ops->gcge_ops);
     //计算 r_b_H += aux_Hh * aux_h
     mv_s[0] = 0;
     mv_e[0] = num_aux_vec;
@@ -134,7 +134,7 @@ void PASE_DefaultVecAxpby(PASE_REAL a, void *x, PASE_REAL b, void *y,
     PASE_REAL *y_aux_h    = ((PASE_Vector)y)->aux_h;
     PASE_INT  num_aux_vec = ((PASE_Vector)y)->num_aux_vec;
     //y->b_H = a * x->b_H + b * y->b_H
-    ops->gcge_ops->VecAxpby(a, x_b_H, b, y_b_H);
+    ops->gcge_ops->VecAxpby(a, x_b_H, b, y_b_H, ops->gcge_ops);
     //y->aux_h = a * x->aux_h + b * y->aux_h
     ops->gcge_ops->ArrayAXPBY(a, x_aux_h, b, y_aux_h, num_aux_vec);
 }
@@ -149,7 +149,7 @@ void PASE_DefaultVecInnerProd(void *x, void *y, PASE_REAL *value_ip, struct PASE
     PASE_INT  num_aux_vec = ((PASE_Vector)y)->num_aux_vec;
     //value_ip = x->b_H * y->b_H + x->aux_h * y->aux_h
     //value_ip = x->b_H * y->b_H
-    ops->gcge_ops->VecInnerProd(x_b_H, y_b_H, value_ip);
+    ops->gcge_ops->VecInnerProd(x_b_H, y_b_H, value_ip, ops->gcge_ops);
     //value_ip += x->aux_h * y->aux_h
     *value_ip += ops->gcge_ops->ArrayDotArray(x_aux_h, y_aux_h, num_aux_vec);
 }
@@ -165,7 +165,7 @@ void PASE_DefaultVecLocalInnerProd(void *x, void *y, PASE_REAL *value_ip, struct
     PASE_INT  num_aux_vec = ((PASE_Vector)y)->num_aux_vec;
     //value_ip = x->b_H * y->b_H + x->aux_h * y->aux_h
     //value_ip = x->b_H * y->b_H
-    ops->gcge_ops->VecLocalInnerProd(x_b_H, y_b_H, value_ip);
+    ops->gcge_ops->VecLocalInnerProd(x_b_H, y_b_H, value_ip, ops->gcge_ops);
     //value_ip += x->aux_h * y->aux_h
     //0号进行进行计算
 #if GCGE_USE_MPI
@@ -188,7 +188,7 @@ void PASE_DefaultVecCreateByVec(void **des_vec, void *src_vec, struct PASE_OPS_ 
 
     //des_vec->b_H 通过gcge_ops由 src_vec->b_H创建
     vec->num_aux_vec = num_aux_vec;
-    ops->gcge_ops->VecCreateByVec(&(vec->b_H), b_H);
+    ops->gcge_ops->VecCreateByVec(&(vec->b_H), b_H, ops->gcge_ops);
     //des_vec->aux_h 直接分配空间
     vec->aux_h = (PASE_REAL*)calloc(num_aux_vec, sizeof(PASE_REAL));
     *des_vec = (void*)vec;
@@ -203,7 +203,7 @@ void PASE_DefaultVecCreateByMat(void **vec, void *mat, struct PASE_OPS_ *ops)
 
     //des_vec->b_H 通过gcge_ops由 mat->A_H创建
     v->num_aux_vec = num_aux_vec;
-    ops->gcge_ops->VecCreateByMat(&(v->b_H), A_H);
+    ops->gcge_ops->VecCreateByMat(&(v->b_H), A_H, ops->gcge_ops);
     //des_vec->aux_h 直接分配空间
     v->aux_h = (PASE_REAL*)calloc(num_aux_vec, sizeof(PASE_REAL));
     *vec = (void*)v;
@@ -213,7 +213,7 @@ void PASE_DefaultVecCreateByMat(void **vec, void *mat, struct PASE_OPS_ *ops)
 void PASE_DefaultVecDestroy(void **vec, struct PASE_OPS_ *ops)
 {
     //通过gcge_ops释放vec->b_H空间
-    ops->gcge_ops->VecDestroy(&(((PASE_Vector)(*vec))->b_H));
+    ops->gcge_ops->VecDestroy(&(((PASE_Vector)(*vec))->b_H), ops->gcge_ops);
     //释放vec->aux_h空间
     free(((PASE_Vector)(*vec))->aux_h); 
     ((PASE_Vector)(*vec))->aux_h = NULL; 
@@ -501,7 +501,7 @@ void PASE_DefaultGetVecFromMultiVec(void **V, PASE_INT j, void **x, struct PASE_
     PASE_Vector vec         = (PASE_Vector)malloc(sizeof(pase_Vector));
     vec->num_aux_vec = num_aux_vec;
     //从V_b_H中获取b_H
-    ops->gcge_ops->GetVecFromMultiVec(V_b_H, j, &(vec->b_H));
+    ops->gcge_ops->GetVecFromMultiVec(V_b_H, j, &(vec->b_H), ops->gcge_ops);
     //将vec->aux_h的指针指向相应的位置
     vec->aux_h = V_aux_h+j*num_aux_vec;
     *x = vec;
@@ -515,7 +515,7 @@ void PASE_DefaultRestoreVecForMultiVec(void **V, PASE_INT j, void **x, struct PA
     PASE_REAL *V_aux_h    = ((PASE_MultiVector)V)->aux_h;
     PASE_INT  num_aux_vec = ((PASE_MultiVector)V)->num_aux_vec;
     //由b_H返回V_b_H
-    ops->gcge_ops->RestoreVecForMultiVec(V_b_H, j, &(((PASE_Vector)(*x))->b_H));
+    ops->gcge_ops->RestoreVecForMultiVec(V_b_H, j, &(((PASE_Vector)(*x))->b_H), ops->gcge_ops);
     free((PASE_Vector)(*x));
     *x = NULL;
     //memcpy(V_aux_h+j*num_aux_vec, ((PASE_Vector)(*x))->aux_h, num_aux_vec*sizeof(PASE_SCALAR));

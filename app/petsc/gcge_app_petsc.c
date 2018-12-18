@@ -56,7 +56,7 @@ void PETSC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
     ierr = KSPSetFromOptions(*ksp);
 }
 
-void PETSC_VecLocalInnerProd(Vec x, Vec y, double *value)
+void PETSC_VecLocalInnerProd(Vec x, Vec y, double *value, GCGE_OPS *ops)
 {
     PetscErrorCode     ierr;
     const PetscScalar *local_x;
@@ -76,12 +76,12 @@ void PETSC_VecLocalInnerProd(Vec x, Vec y, double *value)
 }
 
 
-void GCGE_PETSC_VecCreateByVec(void **d_vec, void *s_vec)
+void GCGE_PETSC_VecCreateByVec(void **d_vec, void *s_vec, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr;
     ierr = VecDuplicate((Vec)s_vec, (Vec*)d_vec);
 }
-void GCGE_PETSC_VecCreateByMat(void **vec, void *mat)
+void GCGE_PETSC_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr;
     ierr = MatCreateVecs((Mat)mat, NULL, (Vec*)vec);
@@ -93,7 +93,7 @@ void GCGE_PETSC_MultiVecCreateByMat(void ***multi_vec, GCGE_INT n_vec, void *mat
     ierr = MatCreateVecs((Mat)mat, NULL, &vector);
     ierr = VecDuplicateVecs(vector, n_vec, (Vec**)multi_vec);
 }
-void GCGE_PETSC_VecDestroy(void **vec)
+void GCGE_PETSC_VecDestroy(void **vec, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr;
     ierr = VecDestroy((Vec*)vec);
@@ -104,7 +104,7 @@ void GCGE_PETSC_MultiVecDestroy(void ***MultiVec, GCGE_INT n_vec, struct GCGE_OP
     ierr = VecDestroyVecs(n_vec, (Vec**)MultiVec);
 }
 
-void GCGE_PETSC_VecSetRandomValue(void *vec)
+void GCGE_PETSC_VecSetRandomValue(void *vec, GCGE_OPS *ops)
 {
     PetscRandom    rctx;
     PetscErrorCode ierr;
@@ -127,11 +127,11 @@ void GCGE_PETSC_MultiVecSetRandomValue(void **multi_vec, GCGE_INT start, GCGE_IN
     ierr = PetscRandomDestroy(&rctx);
 }
 
-void GCGE_PETSC_MatDotVec(void *mat, void *x, void *r)
+void GCGE_PETSC_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
     PetscErrorCode ierr = MatMult((Mat)mat, (Vec)x, (Vec)r);
 }
-void GCGE_PETSC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y)
+void GCGE_PETSC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
     PetscErrorCode ierr;
 	ierr = VecScale((Vec)y, b);
@@ -140,12 +140,12 @@ void GCGE_PETSC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y)
 	    ierr = VecAXPY((Vec)y, a, (Vec)x);
     }
 }
-void GCGE_PETSC_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_PETSC_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr = VecDot((Vec)x, (Vec)y, value_ip);
 }
 
-void GCGE_PETSC_VecLocalInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_PETSC_VecLocalInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
     PETSC_VecLocalInnerProd((Vec)x, (Vec)y, value_ip);
 }

@@ -518,3 +518,6 @@ TODO
    错误原因在于对BV向量组结构使用了x[1]这种操作
    in gcge_ops.c
 2. test/pase文件夹中，添加了test_slepc_pase_ops.c, 其测试是在example中进行的
+
+2018.12.18 zhangning
+1. GCGE_OPS 结构体的函数中都添加了 GCGE_OPS *ops这个形式参数，用于PASE接口使用

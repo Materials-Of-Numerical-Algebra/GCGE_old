@@ -24,7 +24,7 @@
 /* external head file */
 #include "gcge_app_hypre.h"
 
-void GCGE_HYPRE_VecCreateByVec(void **d_vec, void *s_vec)
+void GCGE_HYPRE_VecCreateByVec(void **d_vec, void *s_vec, GCGE_OPS *ops)
 {
   HYPRE_ParVector  x_hypre      = (HYPRE_ParVector)s_vec;
   MPI_Comm         comm         = hypre_ParVectorComm(x_hypre);
@@ -36,7 +36,7 @@ void GCGE_HYPRE_VecCreateByVec(void **d_vec, void *s_vec)
   hypre_ParVectorSetPartitioningOwner(y_hypre, 0);
   *d_vec = (void *)y_hypre;
 }
-void GCGE_HYPRE_VecCreateByMat(void **vec, void *mat)
+void GCGE_HYPRE_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 {
   HYPRE_ParCSRMatrix A_hypre      = (HYPRE_ParCSRMatrix)mat;
   MPI_Comm           comm         = hypre_ParCSRMatrixComm(A_hypre);
@@ -55,31 +55,31 @@ void GCGE_HYPRE_VecCreateByMat(void **vec, void *mat)
   hypre_ParVectorSetPartitioningOwner(y_hypre, 1);
   *vec = (void *)y_hypre;
 }
-void GCGE_HYPRE_VecDestroy(void **vec)
+void GCGE_HYPRE_VecDestroy(void **vec, GCGE_OPS *ops)
 {
    hypre_ParVectorDestroy((HYPRE_ParVector)(*vec));
    *vec = NULL;
 }
 
-void GCGE_HYPRE_VecSetRandomValue(void *vec)
+void GCGE_HYPRE_VecSetRandomValue(void *vec, GCGE_OPS *ops)
 {
    hypre_ParVectorSetRandomValues((HYPRE_ParVector)vec, rand());
 }
-void GCGE_HYPRE_MatDotVec(void *mat, void *x, void *r)
+void GCGE_HYPRE_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
    hypre_ParCSRMatrixMatvec(1.0,  (HYPRE_ParCSRMatrix)mat,  (HYPRE_ParVector)x,  0.0,  (HYPRE_ParVector)r);
 }
-void GCGE_HYPRE_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y)
+void GCGE_HYPRE_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
    hypre_ParVectorScale(b, (HYPRE_ParVector)y);
    hypre_ParVectorAxpy(a, (HYPRE_ParVector)x, (HYPRE_ParVector)y);
 }
-void GCGE_HYPRE_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_HYPRE_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
    HYPRE_ParVectorInnerProd((HYPRE_ParVector)x,  (HYPRE_ParVector)y,  value_ip);
 }
 
-void GCGE_HYPRE_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_HYPRE_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
    hypre_Vector *x_local = hypre_ParVectorLocalVector((HYPRE_ParVector)x);
    hypre_Vector *y_local = hypre_ParVectorLocalVector((HYPRE_ParVector)y);

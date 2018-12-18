@@ -24,41 +24,41 @@
 /* external head file */
 #include "gcge_app_phg.h"
 
-void GCGE_PHG_VecCreateByVec(void **d_vec, void *s_vec)
+void GCGE_PHG_VecCreateByVec(void **d_vec, void *s_vec, GCGE_OPS *ops)
 {
    VEC* x_phg = (VEC*)s_vec;
    VEC* y_phg = phgMapCreateVec(x_phg->map, 1);
    *d_vec = (void *)y_phg;
 }
-void GCGE_PHG_VecCreateByMat(void **vec, void *mat)
+void GCGE_PHG_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 {
   MAT* A_phg = (MAT*)mat;
   VEC* y_phg = phgMapCreateVec(A_phg->cmap, 1);
   *vec = (void *)y_phg;
 }
-void GCGE_PHG_VecDestroy(void **vec)
+void GCGE_PHG_VecDestroy(void **vec, GCGE_OPS *ops)
 {
    phgVecDestroy((VEC**)(vec));
 }
 
-void GCGE_PHG_VecSetRandomValue(void *vec)
+void GCGE_PHG_VecSetRandomValue(void *vec, GCGE_OPS *ops)
 {
    phgVecRandomize((VEC *)vec, rand());
 }
-void GCGE_PHG_MatDotVec(void *mat, void *x, void *r)
+void GCGE_PHG_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
    phgMatVec(0, 1.0, (MAT *)mat, (VEC *)x, 0.0, (VEC **)&r);
 }
-void GCGE_PHG_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y)
+void GCGE_PHG_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
    phgMatVec(0, a, NULL, (VEC *)x, b, (VEC **)&y);
 }
-void GCGE_PHG_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_PHG_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
    phgVecDot((VEC *)x, 0, (VEC *)y, 0,  value_ip);
 }
 
-void GCGE_PHG_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_PHG_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
    int i;
    *value_ip = 0;

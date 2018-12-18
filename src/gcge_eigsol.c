@@ -139,16 +139,16 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
                         omega_F_norm = 0.0;
                         for(i=0; i<nev; i++)
                         {
-                            ops->GetVecFromMultiVec(evec, i, &omega_vec);
-                            ops->VecInnerProd(omega_vec, omega_vec, &init_norm);
-                            ops->VecAxpby(0.0, omega_vec, 1.0/sqrt(init_norm), omega_vec);
-                            ops->RestoreVecForMultiVec(evec, i, &omega_vec);
+                            ops->GetVecFromMultiVec(evec, i, &omega_vec, ops);
+                            ops->VecInnerProd(omega_vec, omega_vec, &init_norm, ops);
+                            ops->VecAxpby(0.0, omega_vec, 1.0/sqrt(init_norm), omega_vec, ops);
+                            ops->RestoreVecForMultiVec(evec, i, &omega_vec, ops);
                         }
                         for(i=0; i<nev; i++)
                         {
-                            ops->GetVecFromMultiVec(evec, i, &omega_vec);
-                            ops->VecInnerProd(omega_vec, omega_vec, &init_norm);
-                            ops->RestoreVecForMultiVec(evec, i, &omega_vec);
+                            ops->GetVecFromMultiVec(evec, i, &omega_vec, ops);
+                            ops->VecInnerProd(omega_vec, omega_vec, &init_norm, ops);
+                            ops->RestoreVecForMultiVec(evec, i, &omega_vec, ops);
                             omega_F_norm += init_norm;
                         }
  
@@ -161,9 +161,9 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
                         A_Omega_F_norm = 0.0;
                         for(i=0; i<nev; i++)
                         {
-                            ops->GetVecFromMultiVec(V, i, &omega_vec);
-                            ops->VecInnerProd(omega_vec, omega_vec, &F_norm);
-                            ops->RestoreVecForMultiVec(V, i, &omega_vec);
+                            ops->GetVecFromMultiVec(V, i, &omega_vec, ops);
+                            ops->VecInnerProd(omega_vec, omega_vec, &F_norm, ops);
+                            ops->RestoreVecForMultiVec(V, i, &omega_vec, ops);
                             A_Omega_F_norm += F_norm;
                         }
                         A_Omega_norm = sqrt(A_Omega_F_norm/omega_F_norm);
@@ -569,27 +569,27 @@ void GCGE_CheckConvergence(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
                 *res = para->res;
     char        *conv_type = para->conv_type;
     void        *tmp1, *tmp2, *ev;
-    ops->GetVecFromMultiVec(workspace->V_tmp, 0, &tmp1);
-    ops->GetVecFromMultiVec(workspace->V_tmp, 1, &tmp2);
+    ops->GetVecFromMultiVec(workspace->V_tmp, 0, &tmp1, ops);
+    ops->GetVecFromMultiVec(workspace->V_tmp, 1, &tmp2, ops);
     for( j=0; j<num_unlock; j++ )
     {
         i = unlock[j];
-        ops->GetVecFromMultiVec(evec, i, &ev);
+        ops->GetVecFromMultiVec(evec, i, &ev, ops);
         //计算残量
-        ops->MatDotVec(A, ev, tmp1);
+        ops->MatDotVec(A, ev, tmp1, ops);
         if(B == NULL)
         {
-            ops->VecAxpby(-eval[i], ev, 1.0, tmp1);
+            ops->VecAxpby(-eval[i], ev, 1.0, tmp1, ops);
         }
         else
         {
-            ops->MatDotVec(B, ev, tmp2);
-            ops->VecAxpby(-eval[i], tmp2, 1.0, tmp1);
+            ops->MatDotVec(B, ev, tmp2, ops);
+            ops->VecAxpby(-eval[i], tmp2, 1.0, tmp1, ops);
         }
         //tmp1是残差向量
-        ops->VecInnerProd(tmp1, tmp1, &res_norm);
+        ops->VecInnerProd(tmp1, tmp1, &res_norm, ops);
         res_norm = sqrt(res_norm);
-        ops->VecInnerProd(ev, ev, &evec_norm);
+        ops->VecInnerProd(ev, ev, &evec_norm, ops);
         evec_norm = sqrt(evec_norm);
         //计算相对/绝对残差
         if(strcmp(conv_type, "R") == 0)
@@ -648,10 +648,10 @@ void GCGE_CheckConvergence(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
         {
             max_conv_idx = j;
         }
-        ops->RestoreVecForMultiVec(evec, i, &ev);
+        ops->RestoreVecForMultiVec(evec, i, &ev, ops);
     }//end for j
-    ops->RestoreVecForMultiVec(workspace->V_tmp, 0, &tmp1);
-    ops->RestoreVecForMultiVec(workspace->V_tmp, 1, &tmp2);
+    ops->RestoreVecForMultiVec(workspace->V_tmp, 0, &tmp1, ops);
+    ops->RestoreVecForMultiVec(workspace->V_tmp, 1, &tmp2, ops);
      //整个0到nev没有收敛特征对的个数
     para->num_unlock = unconv_bs;
      //当前的BLOCK中没有收敛的个数

@@ -139,20 +139,20 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         if((sum_res > 0.0)&&(sum_res < criterion_tol))
         {
             //printf("do the column version!\n");
-            ops->GetVecFromMultiVec(V, current, &vec_current); //vec_current = V[current]
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops); //vec_current = V[current]
             if(B == NULL)
             {
-                ops->VecInnerProd(vec_current, vec_current, &norm_value);      
+                ops->VecInnerProd(vec_current, vec_current, &norm_value, ops);      
                 vout = sqrt(norm_value);          
             }
             else
             {
                 //vec_tmp2 = B*vec_current
-                ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2); //vec_tmp2 = V_tmp[1]
-                ops->MatDotVec(B, vec_current, vec_tmp2); 
-                ops->VecInnerProd(vec_current, vec_tmp2, &norm_value);
+                ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2, ops); //vec_tmp2 = V_tmp[1]
+                ops->MatDotVec(B, vec_current, vec_tmp2, ops); 
+                ops->VecInnerProd(vec_current, vec_tmp2, &norm_value, ops);
                 vout = sqrt(norm_value);
-                ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);      
+                ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2, ops);      
             }
 
             do{
@@ -162,39 +162,39 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
                 //ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2); //vec_tmp2 = V_tmp[1]
                 for (j=0; j<current; j++)
                 {
-                    ops->GetVecFromMultiVec(V, j, &vec_tmp); //vectmp = V(:,j)
+                    ops->GetVecFromMultiVec(V, j, &vec_tmp, ops); //vectmp = V(:,j)
                     //下面做内积
                     if(B == NULL)
                     {
-                        ops->VecInnerProd(vec_current, vec_tmp, &ipv);
+                        ops->VecInnerProd(vec_current, vec_tmp, &ipv, ops);
                     }
                     else
                     {
                         //vec_tmp2 = B*vec_current
-                        ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2); //vec_tmp2 = V_tmp[1]
-                        ops->MatDotVec(B, vec_current, vec_tmp2); 
-                        ops->VecInnerProd(vec_tmp, vec_tmp2, &ipv);        
-                        ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);        
+                        ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2, ops); //vec_tmp2 = V_tmp[1]
+                        ops->MatDotVec(B, vec_current, vec_tmp2, ops); 
+                        ops->VecInnerProd(vec_tmp, vec_tmp2, &ipv, ops);        
+                        ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2, ops);        
                     }//end for if
                     //接下来做： V(:,current) = V(:,current) - ipv*V(:,j)
-                    ops->VecAxpby(-ipv, vec_tmp, 1.0, vec_current);
+                    ops->VecAxpby(-ipv, vec_tmp, 1.0, vec_current, ops);
                     //ops->GetVecFromMultiVec(V, j, &vec_tmp); //vectmp = V(:,j)
-                    ops->RestoreVecForMultiVec(V, j, &vec_tmp);          
+                    ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);          
                 }//end for j
                 vin = vout;       
                 if(B == NULL)
                 {
-                    ops->VecInnerProd(vec_current, vec_current, &norm_value);
+                    ops->VecInnerProd(vec_current, vec_current, &norm_value, ops);
                     //vout = sqrt(norm_value);              
                 }
                 else
                 {
                     //vec_tmp2 = B*vec_current
-                    ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2); //vec_tmp2 = V_tmp[1]
-                    ops->MatDotVec(B, vec_current, vec_tmp2); 
-                    ops->VecInnerProd(vec_current, vec_tmp2, &norm_value);
+                    ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2, ops); //vec_tmp2 = V_tmp[1]
+                    ops->MatDotVec(B, vec_current, vec_tmp2, ops); 
+                    ops->VecInnerProd(vec_current, vec_tmp2, &norm_value, ops);
                     //vout = sqrt(norm_value);
-                    ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);          
+                    ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2, ops);          
                 }//end if(B == NULL)
                 //ops->VecInnerProd(vec_current, vec_current, &norm_value);
                 vout = sqrt(norm_value);
@@ -204,7 +204,7 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
                     && (vout > orth_para->orth_zero_tol) );
             //ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
             //ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);       
-            ops->RestoreVecForMultiVec(V, current, &vec_current); //vec_current = V[current]
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops); //vec_current = V[current]
         }//结束了单个向量的正交化方式
         else
         {
@@ -212,18 +212,18 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             do{
                 // B != NULL, 计算 vec_tmp = B * vec_current
                 // B == NULL, 计算 vec_tmp = vec_current
-                ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp);
-                ops->GetVecFromMultiVec(V, current, &vec_current);
+                ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp, ops);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
                 if(B == NULL)
                 {
-                    ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);      
+                    ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);      
                 }
                 else
                 {
-                    ops->MatDotVec(B, vec_current, vec_tmp);      
+                    ops->MatDotVec(B, vec_current, vec_tmp, ops);      
                 }
-                ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 // 计算 d_tmp = V^T * vec_tmp
                 // 即为 d_tmp[j] = (v_j, vec_current)_B
                 mv_s[0] = 0;
@@ -244,11 +244,11 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
                     ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, current, 0, 1.0, 0.0, ops);
 
                     // 计算 vec_current = vec_current - V_tmp[0]
-                    ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp);
-                    ops->GetVecFromMultiVec(V, current, &vec_current);
-                    ops->VecAxpby(-1.0, vec_tmp, 1.0, vec_current);
-                    ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
-                    ops->RestoreVecForMultiVec(V, current, &vec_current);      
+                    ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp, ops);
+                    ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                    ops->VecAxpby(-1.0, vec_tmp, 1.0, vec_current, ops);
+                    ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, current, &vec_current, ops);      
                 }//end if(current != 0)        
 
                 // d_tmp[current] 即为 (v_current_in, vec_current_in)_B
@@ -277,9 +277,9 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         if(vout > orth_para->orth_zero_tol)
         {
             //如果vec_current不为0，就做归一化
-            ops->GetVecFromMultiVec(V, current, &vec_current);
-            ops->VecAxpby(0.0, vec_current, 1/vout, vec_current);     
-            ops->RestoreVecForMultiVec(V, current, &vec_current);
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+            ops->VecAxpby(0.0, vec_current, 1/vout, vec_current, ops);     
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             //ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
             //ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);      
         }
@@ -374,34 +374,34 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
     //先计算 evec = B*V（：，1：nev），可以在正交化的过程中一直存着
     for(j=0;j<nev;j++)
     {
-        ops->GetVecFromMultiVec(V, j, &vec_current);
-        ops->GetVecFromMultiVec(evec,j, &vec_tmp);
+        ops->GetVecFromMultiVec(V, j, &vec_current, ops);
+        ops->GetVecFromMultiVec(evec,j, &vec_tmp, ops);
         if(B == NULL)
         {
-            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);          
+            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);          
         }
         else
         {
-            ops->MatDotVec(B, vec_current, vec_tmp);          
+            ops->MatDotVec(B, vec_current, vec_tmp, ops);          
         }
-        ops->RestoreVecForMultiVec(evec, j, &vec_tmp);
-        ops->RestoreVecForMultiVec(V, j, &vec_current);
+        ops->RestoreVecForMultiVec(evec, j, &vec_tmp, ops);
+        ops->RestoreVecForMultiVec(V, j, &vec_current, ops);
     }//end for(j=0;j<nev;j++)
     //用V_tmp存储s剩下来的 B*V(:,nev+1:dim_xp)
     for(j=nev;j<dim_xp;j++)
     {
-        ops->GetVecFromMultiVec(V, j, &vec_current);
-        ops->GetVecFromMultiVec(V_tmp,j-nev, &vec_tmp);
+        ops->GetVecFromMultiVec(V, j, &vec_current, ops);
+        ops->GetVecFromMultiVec(V_tmp,j-nev, &vec_tmp, ops);
         if(B == NULL)
         {
-            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);          
+            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);          
         }
         else
         {
-            ops->MatDotVec(B, vec_current, vec_tmp);	  	
+            ops->MatDotVec(B, vec_current, vec_tmp, ops);	  	
         }
-        ops->RestoreVecForMultiVec(V_tmp, j-nev, &vec_tmp);
-        ops->RestoreVecForMultiVec(V, j, &vec_current);
+        ops->RestoreVecForMultiVec(V_tmp, j-nev, &vec_tmp, ops);
+        ops->RestoreVecForMultiVec(V, j, &vec_current, ops);
     }//end for(j=nev;j<dim_xp;j++)
 
     //开始进行正交化
@@ -424,13 +424,13 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //减去相应的分量
             for(j=start;j<*(end);j++)
             {
-                ops->GetVecFromMultiVec(V, current, &vec_current);
-                ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                 //vec_tmp = vec_tmp - d_tmp[j-start]*vec_current
                 //printf("j=%d, xty = %e\n",j, d_tmp[j-start]);
-                ops->VecAxpby(-d_tmp[j-start], vec_current, 1.0, vec_tmp);
-                ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(-d_tmp[j-start], vec_current, 1.0, vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             }
         }//end for(current = 0; current < nev; ++current)
 
@@ -449,12 +449,12 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //减去相应的分量
             for(j=start;j<*(end);j++)
             {
-                ops->GetVecFromMultiVec(V, current, &vec_current);
-                ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                 //vec_tmp = vec_tmp - d_tmp[j-start] *vec_current 
-                ops->VecAxpby(-d_tmp[j-start], vec_current, 1.0, vec_tmp);
-                ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(-d_tmp[j-start], vec_current, 1.0, vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             }
         }//end for for(current = nev; current < dim_xp; ++current)
 
@@ -462,18 +462,18 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         for(current=start;current<*(end);current++)
         {
             //vec_current = W(:,current)
-            ops->GetVecFromMultiVec(V, current, &vec_current);
-            ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp);
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+            ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp, ops);
             if(B == NULL)
             {
-                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);	    
+                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);	    
             }
             else
             {
-                ops->MatDotVec(B, vec_current, vec_tmp);	  		    
+                ops->MatDotVec(B, vec_current, vec_tmp, ops);	  		    
             }
-            ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp);
-            ops->RestoreVecForMultiVec(V, current, &vec_current);
+            ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp, ops);
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             // 计算 d_tmp = V^T * vec_tmp
             // 即为 d_tmp[j] = (v_j, vec_current)_B
             mv_s[0] = current;
@@ -490,18 +490,18 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             if(norm_value > (orth_para->orth_zero_tol))
             {
                 //如果vec_current不为0，就做归一化
-                ops->GetVecFromMultiVec(V, current, &vec_current);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
                 //vec_current = 1/norm_value * vec_current
-                ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current);	
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current, ops);	
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 for(j=current+1;j<*(end);j++)
                 {
-                    ops->GetVecFromMultiVec(V, current, &vec_current);
-                    ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                    ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                    ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                     //vec_tmp = vec_tmp - d_tmp[j-current]/norm_value *vec_current
-                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp);
-                    ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                    ops->RestoreVecForMultiVec(V, current, &vec_current);
+                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 }//end for(j=current+1;j<*(end);j++)
             }
             else
@@ -850,18 +850,18 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         //计算 V_tmp = B * V3 
         for(j=0;j<w_length;j++)
         {
-            ops->GetVecFromMultiVec(V, j+start, &vec_current);
-            ops->GetVecFromMultiVec(V_tmp, j, &vec_tmp);
+            ops->GetVecFromMultiVec(V, j+start, &vec_current, ops);
+            ops->GetVecFromMultiVec(V_tmp, j, &vec_tmp, ops);
             if(B == NULL)
             {
-                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);	  	
+                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);	  	
             }
             else
             {
-                ops->MatDotVec(B, vec_current, vec_tmp);	  	
+                ops->MatDotVec(B, vec_current, vec_tmp, ops);	  	
             }
-            ops->RestoreVecForMultiVec(V_tmp, j, &vec_tmp);
-            ops->RestoreVecForMultiVec(V, j+start, &vec_current);
+            ops->RestoreVecForMultiVec(V_tmp, j, &vec_tmp, ops);
+            ops->RestoreVecForMultiVec(V, j+start, &vec_current, ops);
         }//end for(j=0;j<w_length;j++)
 
         //计算 subspace_dtmp = V3^T * V_tmp
@@ -1213,18 +1213,18 @@ void GCGE_SCBOrth_Self(void **V, GCGE_INT start, GCGE_INT *end,
       for(current=start;current<*(end);current++)
       {
            //vec_current = W(:,current)
-           ops->GetVecFromMultiVec(V, current, &vec_current);
-           ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp);
+           ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+           ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp, ops);
            if(B == NULL)
            {
-               ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);	    
+               ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);	    
            }
            else
            {
-               ops->MatDotVec(B, vec_current, vec_tmp);	  		    
+               ops->MatDotVec(B, vec_current, vec_tmp, ops);	  		    
            }
-           ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp);
-           ops->RestoreVecForMultiVec(V, current, &vec_current);
+           ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp, ops);
+           ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
            // 计算 d_tmp = V^T * vec_tmp
            // 即为 d_tmp[j] = (v_j, vec_current)_B
            mv_s[0] = current;
@@ -1241,18 +1241,18 @@ void GCGE_SCBOrth_Self(void **V, GCGE_INT start, GCGE_INT *end,
            if(norm_value > (orth_para->orth_zero_tol))
            {
                //如果vec_current不为0，就做归一化
-               ops->GetVecFromMultiVec(V, current, &vec_current);
+               ops->GetVecFromMultiVec(V, current, &vec_current, ops);
                //vec_current = 1/norm_value * vec_current
-               ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current);	
-               ops->RestoreVecForMultiVec(V, current, &vec_current);
+               ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current, ops);	
+               ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                for(j=current+1;j<*(end);j++)
                {
-                    ops->GetVecFromMultiVec(V, current, &vec_current);
-                    ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                    ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                    ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                     //vec_tmp = vec_tmp - d_tmp[j-current]/norm_value *vec_current
-                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp);
-                    ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                    ops->RestoreVecForMultiVec(V, current, &vec_current);
+                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 }//end for(j=current+1;j<*(end);j++)
             }
             else
@@ -1394,18 +1394,18 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         for(current=start;current<*(end);current++)
         {
             //vec_current = W(:,current)
-            ops->GetVecFromMultiVec(V, current, &vec_current);
-            ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp);
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+            ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp, ops);
             if(B == NULL)
             {
-                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);	    
+                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);	    
             }
             else
             {
-                ops->MatDotVec(B, vec_current, vec_tmp);	  		    
+                ops->MatDotVec(B, vec_current, vec_tmp, ops);	  		    
             }
-            ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp);
-            ops->RestoreVecForMultiVec(V, current, &vec_current);
+            ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp, ops);
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             // 计算 d_tmp = V^T * vec_tmp
             // 即为 d_tmp[j] = (v_j, vec_current)_B
             mv_s[0] = current;
@@ -1422,18 +1422,18 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             if(norm_value > (orth_para->orth_zero_tol))
             {
                 //如果vec_current不为0，就做归一化
-                ops->GetVecFromMultiVec(V, current, &vec_current);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
                 //vec_current = 1/norm_value * vec_current
-                ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current);	
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current, ops);	
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 for(j=current+1;j<*(end);j++)
                 {
-                    ops->GetVecFromMultiVec(V, current, &vec_current);
-                    ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                    ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                    ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                     //vec_tmp = vec_tmp - d_tmp[j-current]/norm_value *vec_current
-                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp);
-                    ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                    ops->RestoreVecForMultiVec(V, current, &vec_current);
+                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 }//end for(j=current+1;j<*(end);j++)
             }
             else
@@ -2050,18 +2050,18 @@ void GCGE_SubOrthonormalizationSelfBGS(void **V, GCGE_INT start, GCGE_INT *end,
     for(current=start;current<*(end);current++)
     {
         //vec_current = W(:,current)
-        ops->GetVecFromMultiVec(V, current, &vec_current);
-        ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp);
+        ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+        ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp, ops);
         if(B == NULL)
         {
-            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);        
+            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);        
         }
         else
         {
-            ops->MatDotVec(B, vec_current, vec_tmp);                  
+            ops->MatDotVec(B, vec_current, vec_tmp, ops);                  
         }
-        ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
-        ops->RestoreVecForMultiVec(V, current, &vec_current);
+        ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp, ops);
+        ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
         // 计算 d_tmp = V^T * vec_tmp
         // 即为 d_tmp[j] = (v_j, vec_current)_B
         mv_s[0] = current;
@@ -2078,18 +2078,18 @@ void GCGE_SubOrthonormalizationSelfBGS(void **V, GCGE_INT start, GCGE_INT *end,
         if(norm_value > orth_zero_tol)
         {
             //如果vec_current不为0，就做归一化
-            ops->GetVecFromMultiVec(V, current, &vec_current);
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops);
             //vec_current = 1/norm_value * vec_current
-            ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current);    
-            ops->RestoreVecForMultiVec(V, current, &vec_current);
+            ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current, ops);    
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             for(j=current+1;j<*end;j++)
             {
-                ops->GetVecFromMultiVec(V, current, &vec_current);
-                ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                 //vec_tmp = vec_tmp - d_tmp[j-current]/norm_value *vec_current
-                ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp);
-                ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             }//end for(j=current+1;j<*(end);j++)
         }
         else

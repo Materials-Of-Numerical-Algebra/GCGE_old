@@ -28,14 +28,17 @@
 
 typedef struct GCGE_OPS_ {
 
-    void (*VecSetRandomValue)       (void *vec);
-    void (*MatDotVec)               (void *Matrix, void *x, void *r);
-    void (*VecAxpby)                (GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y); /* y = ax+by */
-    void (*VecInnerProd)            (void *x, void *y, GCGE_DOUBLE *value_ip);
-    void (*VecLocalInnerProd)       (void *x, void *y, GCGE_DOUBLE *value_ip);
-    void (*VecCreateByVec)          (void **des_vec, void *src_vec);
-    void (*VecCreateByMat)          (void **vec, void *mat);
-    void (*VecDestroy)              (void **vec);
+    //添加一个空型的ops
+    void *ops;
+
+    void (*VecSetRandomValue)       (void *vec, struct GCGE_OPS_ *ops);
+    void (*MatDotVec)               (void *Matrix, void *x, void *r, struct GCGE_OPS_ *ops);
+    void (*VecAxpby)                (GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, struct GCGE_OPS_ *ops); /* y = ax+by */
+    void (*VecInnerProd)            (void *x, void *y, GCGE_DOUBLE *value_ip, struct GCGE_OPS_ *ops);
+    void (*VecLocalInnerProd)       (void *x, void *y, GCGE_DOUBLE *value_ip, struct GCGE_OPS_ *ops);
+    void (*VecCreateByVec)          (void **des_vec, void *src_vec, struct GCGE_OPS_ *ops);
+    void (*VecCreateByMat)          (void **vec, void *mat, struct GCGE_OPS_ *ops);
+    void (*VecDestroy)              (void **vec, struct GCGE_OPS_ *ops);
 
 
     /* option */
@@ -88,8 +91,8 @@ typedef struct GCGE_OPS_ {
     void (*MultiVecPrint)           (void **x, GCGE_INT n);
 
     /* TODO kernal function should use this op to get j-th vector */
-    void (*GetVecFromMultiVec)      (void **V, GCGE_INT j, void **x);
-    void (*RestoreVecForMultiVec)   (void **V, GCGE_INT j, void **x);
+    void (*GetVecFromMultiVec)      (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);
+    void (*RestoreVecForMultiVec)   (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);
     void (*SetDirichletBoundary)    (void**Vecs, GCGE_INT nev, void* A, void* B);
 
 
@@ -195,6 +198,12 @@ typedef struct GCGE_OPS_ {
      * ifail: -----不要设，跳过这个参数------
      * info
      */
+#if 0
+    void (*DenseMatEigenSolver)     (GCGE_INT *nrows, GCGE_DOUBLE *a, GCGE_INT *lda, 
+                                     GCGE_INT *il, GCGE_INT *iu,
+                                     GCGE_DOUBLE *eval, GCGE_DOUBLE *evec, GCGE_INT *lde, 
+                                     GCGE_INT *iwork, GCGE_DOUBLE *dwork);
+#endif
     void (*DenseMatEigenSolver)     (char *jobz, char *range, char *uplo, 
                                      GCGE_INT *nrows, GCGE_DOUBLE *a, GCGE_INT *lda, 
                                      GCGE_DOUBLE *vl, GCGE_DOUBLE *vu, GCGE_INT *il, GCGE_INT *iu, 

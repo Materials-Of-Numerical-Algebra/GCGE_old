@@ -54,7 +54,7 @@ void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
     ierr = KSPSetFromOptions(*ksp);
 }
 
-void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value)
+void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value, GCGE_OPS *ops)
 {
     PetscErrorCode     ierr;
     const PetscScalar *local_x;
@@ -74,23 +74,23 @@ void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value)
 }
 
 
-void GCGE_SLEPC_VecCreateByVec(void **d_vec, void *s_vec)
+void GCGE_SLEPC_VecCreateByVec(void **d_vec, void *s_vec, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr;
     ierr = VecDuplicate((Vec)s_vec, (Vec*)d_vec);
 }
-void GCGE_SLEPC_VecCreateByMat(void **vec, void *mat)
+void GCGE_SLEPC_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr;
     ierr = MatCreateVecs((Mat)mat, NULL, (Vec*)vec);
 }
-void GCGE_SLEPC_VecDestroy(void **vec)
+void GCGE_SLEPC_VecDestroy(void **vec, GCGE_OPS *ops, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr;
     ierr = VecDestroy((Vec*)vec);
 }
 
-void GCGE_SLEPC_VecSetRandomValue(void *vec)
+void GCGE_SLEPC_VecSetRandomValue(void *vec, GCGE_OPS *ops)
 {
     PetscRandom    rctx;
     PetscErrorCode ierr;
@@ -116,11 +116,11 @@ void GCGE_SLEPC_MultiVecSetRandomValue(void **multi_vec, GCGE_INT start, GCGE_IN
     ierr = PetscRandomDestroy(&rctx);
 }
 
-void GCGE_SLEPC_MatDotVec(void *mat, void *x, void *r)
+void GCGE_SLEPC_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
     PetscErrorCode ierr = MatMult((Mat)mat, (Vec)x, (Vec)r);
 }
-void GCGE_SLEPC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y)
+void GCGE_SLEPC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
     PetscErrorCode ierr;
 	ierr = VecScale((Vec)y, b);
@@ -129,12 +129,12 @@ void GCGE_SLEPC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y)
 	    ierr = VecAXPY((Vec)y, a, (Vec)x);
     }
 }
-void GCGE_SLEPC_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_SLEPC_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
 	PetscErrorCode ierr = VecDot((Vec)x, (Vec)y, value_ip);
 }
 
-void GCGE_SLEPC_VecLocalInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_SLEPC_VecLocalInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
     SLEPC_VecLocalInnerProd((Vec)x, (Vec)y, value_ip);
 }
@@ -145,12 +145,12 @@ void GCGE_SLEPC_LinearSolver(void *Matrix, void *b, void *x, struct GCGE_OPS_ *o
     ierr = KSPSolve((KSP)(ops->linear_solver_workspace), (Vec)b, (Vec)x);
 }
 
-void GCGE_SLEPC_GetVecFromMultiVec(void **V, GCGE_INT j, void **x)
+void GCGE_SLEPC_GetVecFromMultiVec(void **V, GCGE_INT j, void **x, GCGE_OPS *ops)
 {
     PetscErrorCode ierr = BVGetColumn((BV)V, j, (Vec*)x);
 }
 
-void GCGE_SLEPC_RestoreVecForMultiVec(void **V, GCGE_INT j, void **x)
+void GCGE_SLEPC_RestoreVecForMultiVec(void **V, GCGE_INT j, void **x, GCGE_OPS *ops)
 {
     PetscErrorCode ierr = BVRestoreColumn((BV)V, j, (Vec*)x);
 }

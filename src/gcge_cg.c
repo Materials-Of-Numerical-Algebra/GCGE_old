@@ -34,12 +34,12 @@ void GCGE_CG(void *Matrix, void *b, void *x, GCGE_OPS *ops, GCGE_PARA *para,
     GCGE_DOUBLE tmp1, tmp2, alpha, beta, rho1, rho2, error, last_error, pTw, wTw;
 
     //CG迭代中用到的临时向量
-    ops->GetVecFromMultiVec(V_tmp1, 1, &r); //记录残差向量
-    ops->GetVecFromMultiVec(V_tmp2, 0, &p); //记录下降方向
-    ops->GetVecFromMultiVec(V_tmp2, 1, &w); //记录tmp=A*p
-    ops->MatDotVec(Matrix,x,r); //tmp = A*x
-    ops->VecAxpby(1.0, b, -1.0, r);  
-    ops->VecInnerProd(r, r, &rho2);//用残量的模来判断误差
+    ops->GetVecFromMultiVec(V_tmp1, 1, &r, ops); //记录残差向量
+    ops->GetVecFromMultiVec(V_tmp2, 0, &p, ops); //记录下降方向
+    ops->GetVecFromMultiVec(V_tmp2, 1, &w, ops); //记录tmp=A*p
+    ops->MatDotVec(Matrix,x,r, ops); //tmp = A*x
+    ops->VecAxpby(1.0, b, -1.0, r, ops);  
+    ops->VecInnerProd(r, r, &rho2, ops);//用残量的模来判断误差
     error = sqrt(rho2);
     /* TODO */
     //这里应该判断以下如果error充分小就直接返回!!!
@@ -55,7 +55,7 @@ void GCGE_CG(void *Matrix, void *b, void *x, GCGE_OPS *ops, GCGE_PARA *para,
         if(niter == 1)
         {
             //set the direction as r
-            ops->VecAxpby(1.0, r, 0.0, p);
+            ops->VecAxpby(1.0, r, 0.0, p, ops);
             //p = r;
         }
         else
@@ -64,38 +64,38 @@ void GCGE_CG(void *Matrix, void *b, void *x, GCGE_OPS *ops, GCGE_PARA *para,
             //compute the value of beta
             beta = rho2/rho1; 
             //compute the new direction: p = r + beta * p
-            ops->VecAxpby(1.0, r, beta, p);
+            ops->VecAxpby(1.0, r, beta, p, ops);
         }//end for if(niter == 1)
         //compute the vector w = A*p
-        ops->MatDotVec(Matrix,p,w);
+        ops->MatDotVec(Matrix,p,w, ops);
         if(type == 1)
         {
             //compute the value pTw = p^T * w 
-            ops->VecInnerProd(p, w, &pTw);
+            ops->VecInnerProd(p, w, &pTw, ops);
             //compute the value of alpha
             //printf("pTw=%e\n",pTw);
             alpha = rho2/pTw; 
             //compute the new solution x = alpha * p + x
-            ops->VecAxpby(alpha, p, 1.0, x);
+            ops->VecAxpby(alpha, p, 1.0, x, ops);
             //compute the new residual: r = - alpha*w + r
-            ops->VecAxpby(-alpha, w, 1.0, r);
+            ops->VecAxpby(-alpha, w, 1.0, r, ops);
             //set rho1 as rho2
             rho1 = rho2;
             //compute the new rho2
-            ops->VecInnerProd(r, r, &rho2); 
+            ops->VecInnerProd(r, r, &rho2, ops); 
         }
         else
         {    
             //这里我们把两个向量内积放在一起计算，这样可以减少一次的向量内积的全局通讯，提高可扩展性
             //compute the value pTw = p^T * w, wTw = w^T*w 
-            ops->VecInnerProd(p, w, &pTw);
-            ops->VecInnerProd(w, w, &wTw);
+            ops->VecInnerProd(p, w, &pTw, ops);
+            ops->VecInnerProd(w, w, &wTw, ops);
 
             alpha = rho2/pTw; 
             //compute the new solution x = alpha * p + x
-            ops->VecAxpby(alpha, p, 1.0, x);
+            ops->VecAxpby(alpha, p, 1.0, x, ops);
             //compute the new residual: r = - alpha*w + r
-            ops->VecAxpby(-alpha, w, 1.0, r);
+            ops->VecAxpby(-alpha, w, 1.0, r, ops);
             //set rho1 as rho2
             rho1 = rho2;
             //compute the new rho2	
@@ -107,9 +107,9 @@ void GCGE_CG(void *Matrix, void *b, void *x, GCGE_OPS *ops, GCGE_PARA *para,
         //update the iteration time
         niter++;   
     }//end while((last_error/error >= rate)&&(niter<max_it))
-    ops->RestoreVecForMultiVec(V_tmp1, 1, &r); 
-    ops->RestoreVecForMultiVec(V_tmp2, 0, &p);
-    ops->RestoreVecForMultiVec(V_tmp2, 1, &w);
+    ops->RestoreVecForMultiVec(V_tmp1, 1, &r, ops); 
+    ops->RestoreVecForMultiVec(V_tmp2, 0, &p, ops);
+    ops->RestoreVecForMultiVec(V_tmp2, 1, &w, ops);
 }//end for the CG program
 
 
@@ -160,16 +160,16 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start, GCGE_INT x_le
 
     for(idx=0; idx<x_length; idx++)
     {
-      ops->GetVecFromMultiVec(CG_X, x_start+idx, &x);   //取出初始值 x      
-      ops->GetVecFromMultiVec(CG_W, idx, &r); //取出暂存残差r的变量
-      ops->MatDotVec(Matrix,x,r); //r = A*x
-      ops->RestoreVecForMultiVec(CG_X, x_start+idx, &x);
+      ops->GetVecFromMultiVec(CG_X, x_start+idx, &x, ops);   //取出初始值 x      
+      ops->GetVecFromMultiVec(CG_W, idx, &r, ops); //取出暂存残差r的变量
+      ops->MatDotVec(Matrix,x,r, ops); //r = A*x
+      ops->RestoreVecForMultiVec(CG_X, x_start+idx, &x, ops);
       // b = b- r;
-      ops->GetVecFromMultiVec(CG_R, idx, &b);   //取出右端项 b
-      ops->VecAxpby(-1.0, r, 1.0, b);  
-      ops->VecLocalInnerProd(b, b, rho2+idx);    //用残量的模来判断误差    
-      ops->RestoreVecForMultiVec(CG_R, idx, &b); //把b相应的位置设为残差
-      ops->RestoreVecForMultiVec(CG_W, idx, &r); //把r返回
+      ops->GetVecFromMultiVec(CG_R, idx, &b, ops);   //取出右端项 b
+      ops->VecAxpby(-1.0, r, 1.0, b, ops);  
+      ops->VecLocalInnerProd(b, b, rho2+idx, ops);    //用残量的模来判断误差    
+      ops->RestoreVecForMultiVec(CG_R, idx, &b, ops); //把b相应的位置设为残差
+      ops->RestoreVecForMultiVec(CG_W, idx, &r, ops); //把r返回
       
       unlock[idx] = idx;
       num_unlock ++;
@@ -201,12 +201,12 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start, GCGE_INT x_le
 	  for(id =0; id< num_unlock;id++)
 	  {
 	    idx = unlock[id];
-	    ops->GetVecFromMultiVec(CG_P, idx, &p);   //取出初始值 x
-	    ops->GetVecFromMultiVec(CG_R, idx, &r);   //取出右端项 r
+	    ops->GetVecFromMultiVec(CG_P, idx, &p, ops);   //取出初始值 x
+	    ops->GetVecFromMultiVec(CG_R, idx, &r, ops);   //取出右端项 r
 	    //set the direction as r: p = r
-	    ops->VecAxpby(1.0, r, 0.0, p);
-	    ops->RestoreVecForMultiVec(CG_P, idx, &p);
-	    ops->RestoreVecForMultiVec(CG_R, idx, &r); 
+	    ops->VecAxpby(1.0, r, 0.0, p, ops);
+	    ops->RestoreVecForMultiVec(CG_P, idx, &p, ops);
+	    ops->RestoreVecForMultiVec(CG_R, idx, &r, ops); 
 	  }//end for idx    
 	}
 	else
@@ -218,26 +218,26 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start, GCGE_INT x_le
 	    //compute the value of beta
 	    beta = rho2[idx]/rho1[idx]; 
 	    //compute the new direction: p = r + beta * p
-	    ops->GetVecFromMultiVec(CG_R, idx, &r);   //取出右端项 r
-	    ops->GetVecFromMultiVec(CG_P, idx, &p);   //取出初始值 x
+	    ops->GetVecFromMultiVec(CG_R, idx, &r, ops);   //取出右端项 r
+	    ops->GetVecFromMultiVec(CG_P, idx, &p, ops);   //取出初始值 x
 	    //p = r + beta * p
-	    ops->VecAxpby(1.0, r, beta, p);
-	    ops->RestoreVecForMultiVec(CG_P, idx, &p);
-	    ops->RestoreVecForMultiVec(CG_R, idx, &r);
+	    ops->VecAxpby(1.0, r, beta, p, ops);
+	    ops->RestoreVecForMultiVec(CG_P, idx, &p, ops);
+	    ops->RestoreVecForMultiVec(CG_R, idx, &r, ops);
 	  }//end for idx
 	}//end for if(niter == 1)
 	//compute the vector w = A*p和p^Tw = ptw
 	for(id = 0; id < num_unlock; id++)
 	{
 	  idx = unlock[id];
-	  ops->GetVecFromMultiVec(CG_P, idx, &p);   //取出 p
-	  ops->GetVecFromMultiVec(CG_W, idx, &w);   //取出 w
-	  ops->MatDotVec(Matrix,p,w);  //w = A*p
+	  ops->GetVecFromMultiVec(CG_P, idx, &p, ops);   //取出 p
+	  ops->GetVecFromMultiVec(CG_W, idx, &w, ops);   //取出 w
+	  ops->MatDotVec(Matrix,p,w,ops);  //w = A*p
 	  //做局部内积（在每个进程内部做局部的内积）
-	  ops->VecLocalInnerProd(p,w,ptw+idx);
+	  ops->VecLocalInnerProd(p,w,ptw+idx, ops);
 	  //ops->VecLocalInnerProd(w,w,wtw+idx);	   
-	  ops->RestoreVecForMultiVec(CG_P, idx, &p); 
-	  ops->RestoreVecForMultiVec(CG_W, idx, &w);
+	  ops->RestoreVecForMultiVec(CG_P, idx, &p, ops); 
+	  ops->RestoreVecForMultiVec(CG_W, idx, &w, ops);
 	}//end for idx
 	//这里我们把两个向量内积放在一起计算，这样可以减少一次的向量内积的全局通讯，提高可扩展性
 	//compute the value pTw = p^T * w
@@ -253,25 +253,25 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start, GCGE_INT x_le
        //计算alpha
        alpha = rho2[idx]/ptw[idx];
        //compute the new solution x = alpha * p + x
-       ops->GetVecFromMultiVec(CG_P, idx, &p);   //取出 p
+       ops->GetVecFromMultiVec(CG_P, idx, &p, ops);   //取出 p
 
-       ops->GetVecFromMultiVec(CG_X, x_start+idx, &x); //取出初始值 x 
+       ops->GetVecFromMultiVec(CG_X, x_start+idx, &x, ops); //取出初始值 x 
        //  x = alpha*p +x 
-       ops->VecAxpby(alpha, p, 1.0, x);
-       ops->RestoreVecForMultiVec(CG_P, idx, &p); 
-       ops->RestoreVecForMultiVec(CG_X, x_start+idx, &x);
+       ops->VecAxpby(alpha, p, 1.0, x, ops);
+       ops->RestoreVecForMultiVec(CG_P, idx, &p, ops); 
+       ops->RestoreVecForMultiVec(CG_X, x_start+idx, &x, ops);
        
        
-       ops->GetVecFromMultiVec(CG_R, idx, &r);   //取出 r
-       ops->GetVecFromMultiVec(CG_W, idx, &w);   //取出 w
+       ops->GetVecFromMultiVec(CG_R, idx, &r, ops);   //取出 r
+       ops->GetVecFromMultiVec(CG_W, idx, &w, ops);   //取出 w
        //r = -alpha*w + r
-       ops->VecAxpby(-alpha, w, 1.0, r);
+       ops->VecAxpby(-alpha, w, 1.0, r, ops);
        //set rho1 as rho2
        rho1[idx] = rho2[idx];
        //计算新的r的局部内积
-       ops->VecLocalInnerProd(r, r, rho2+idx);       
-       ops->RestoreVecForMultiVec(CG_R, idx, &r); 
-       ops->RestoreVecForMultiVec(CG_W, idx, &w);
+       ops->VecLocalInnerProd(r, r, rho2+idx, ops);       
+       ops->RestoreVecForMultiVec(CG_R, idx, &r, ops); 
+       ops->RestoreVecForMultiVec(CG_W, idx, &w, ops);
 
      }//end for idx
      //统一进行数据传输  

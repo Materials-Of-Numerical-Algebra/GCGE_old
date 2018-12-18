@@ -9,7 +9,7 @@ HEADERS = pase_config.h pase_matvec.h pase_mg.h pase_solver.h pase_ops.h pase.h
 OBJS    = ${FILES:.c=.o}
 
 INC     = -I$(GCGEINC)
-LIB     = $(LIBGCGEPASE)
+LIB     = $(LIBPASE)
 
 ########################################################################
 all:    help

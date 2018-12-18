@@ -67,6 +67,7 @@ LDFLAGS      =
 GCGEBIN       = $(GCGEHOME)/bin
 GCGEINC       = $(GCGEHOME)/include
 GCGEPASEINC   = $(GCGEHOME)/pase
+GCGEPASEAPPINC= $(GCGEHOME)/app/pase
 GCGELIB       = $(GCGEHOME)/lib
 GCGESRC       = $(GCGEHOME)/src
 
@@ -78,6 +79,7 @@ version       = 3.0
 ############################################################
 
 LIBGCGE       = $(GCGELIB)/libgcge_core-$(version).a
+LIBPASE       = $(GCGELIB)/libgcge_pase_core-$(version).a
 
 LIBGCGECSR    = $(GCGELIB)/libgcge_csr-$(version).a
 LIBGCGEHYPRE  = $(GCGELIB)/libgcge_hypre-$(version).a
