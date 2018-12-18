@@ -8,7 +8,7 @@ WITHMPI = $(findstring mpi, $(CC))
 
 install_libs =
 install_libs += $(if $(WITHMPI),  with-mpi, without-mpi) 
-install_libs += libgcge_core libgcge_csr
+install_libs += libgcge_core libgcge_csr libgcge_pase_core libgcge_pase
 install_libs += $(if $(HYPREINC), libgcge_hypre) 
 install_libs += $(if $(PETSCINC), libgcge_petsc) 
 install_libs += $(if $(SLEPCINC), libgcge_slepc) 
@@ -42,6 +42,11 @@ libgcge_core:
 	@echo "        Making library GCGE CORE       "
 	@cd $(GCGEHOME)/src;        $(MAKE) lib
 
+libgcge_pase_core:
+	@echo "======================================="
+	@echo "        Making library GCGE CORE       "
+	@cd $(GCGEHOME)/pase;       $(MAKE) lib
+
 libgcge_csr:
 	@echo "======================================="
 	@echo "        Making library CSR             "
@@ -66,6 +71,11 @@ libgcge_phg:
 	@echo "======================================="
 	@echo "        Making library PHG             "
 	@cd $(GCGEHOME)/app/phg;    $(MAKE) lib
+
+libgcge_pase:
+	@echo "======================================="
+	@echo "        Making library PHG             "
+	@cd $(GCGEHOME)/app/pase;   $(MAKE) lib
 
 liblapack:
 	@echo "======================================="

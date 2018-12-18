@@ -72,7 +72,7 @@ int main(int argc, char* argv[])
 
     int nev = 3;
     GCGE_SOLVER *csr_pase_solver = GCGE_PASE_Solver_Init(pase_mat_A, 
-            pase_mat_A, nev, argc, argv);
+            NULL, nev, argc, argv, gcge_ops);
 
     GCGE_SOLVER_Free_All(&csr_pase_solver);
 
