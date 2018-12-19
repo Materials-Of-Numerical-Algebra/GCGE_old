@@ -463,13 +463,12 @@ void GCGE_ComputeSubspaceEigenpairs(GCGE_DOUBLE *subspace_matrix,
         //如果rr_eigen_start==0, 将特征值和特征向量分两次进行消息传输
         if(m > 0)
         {
-            ops->DenseMatEigenSolver("V", "I", "U", &nrows, 
-                    temp_matrix+rr_eigen_start*ncols+rr_eigen_start, &ncols, 
-                    &vl, &vu, &il, &iu, &abstol, 
-                    &m, eval+real_eigen_start, 
-                    subspace_evec+real_eigen_start*ldm+rr_eigen_start, &ldm, 
-                    isuppz, dwork_space, &lwork,
-                    subspace_itmp, &liwork, ifail, &info);
+            ops->DenseMatEigenSolver(
+                    temp_matrix+rr_eigen_start*ncols+rr_eigen_start, 
+                    ncols, nrows, 
+                    eval+real_eigen_start, 
+                    subspace_evec+real_eigen_start*ldm+rr_eigen_start, ldm, 
+                    il, iu, subspace_itmp, dwork_space);
         }
 #if GCGE_USE_MPI
         memcpy(temp_matrix, eval+real_eigen_start, m*sizeof(GCGE_DOUBLE));
@@ -550,13 +549,10 @@ void GCGE_ComputeSubspaceEigenpairs(GCGE_DOUBLE *subspace_matrix,
             nrows -= rr_eigen_start;
             il -= rr_eigen_start;
             iu -= rr_eigen_start;
-            ops->DenseMatEigenSolver("V", "I", "U", &nrows, 
-                temp_matrix+rr_eigen_start*ncols+rr_eigen_start, &ncols, 
-                &vl, &vu, &il, &iu, &abstol, 
-                &m, eval+rr_eigen_start, 
-            subspace_evec+rr_eigen_start*ldm+rr_eigen_start, &ldm, 
-                isuppz, dwork_space, &lwork,
-                subspace_itmp, &liwork, ifail, &info);
+            ops->DenseMatEigenSolver( temp_matrix+rr_eigen_start*ncols+rr_eigen_start, 
+                    ncols, nrows, eval+rr_eigen_start, 
+                    subspace_evec+rr_eigen_start*ldm+rr_eigen_start, ldm, 
+                    il, iu, subspace_itmp, dwork_space);
             iu += rr_eigen_start;
         }
         if(para->use_mpi_bcast)

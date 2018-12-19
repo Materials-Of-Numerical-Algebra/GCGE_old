@@ -21,7 +21,9 @@ PARA = -file_A $(MAT_A) -file_B $(MAT_M)
 
 all:	help
 
-exe:    $(EXE1)
+exe1:    $(EXE1)
+
+exe2:    $(EXE2)
 
 clean:
 	@$(RM) $(RMFLAGS) *.o *.exe
@@ -60,6 +62,12 @@ run-debug:
 
 ############################################################
 $(EXE1): $(OBJS1)
+	@echo ''
+	@echo 'Creating executable bin/xx.exe'
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS)
+	@echo ''
+
+$(EXE2): $(OBJS2)
 	@echo ''
 	@echo 'Creating executable bin/xx.exe'
 	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS)
