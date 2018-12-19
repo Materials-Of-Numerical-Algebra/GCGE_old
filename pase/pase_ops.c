@@ -337,7 +337,7 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
     beta  = 1.0;
     mv_s[0] = 0;
     mv_e[0] = num_aux_vec;
-    mv_s[1] = 0;
+    mv_s[1] = start[1];
     mv_e[1] = end[1];
     ops->gcge_ops->MultiVecLinearComb(aux_Hh, y_b_H, 
             mv_s, mv_e, x_aux_h+start[0]*num_aux_vec+start[1], num_aux_vec, 
@@ -350,8 +350,9 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
         mv_e[0] = num_aux_vec;
         mv_s[1] = start[0];
         mv_e[1] = end[0];
-        ops->gcge_ops->MultiVecInnerProd(aux_Hh, x_b_H, y_aux_h,
-                "nonsym", mv_s, mv_e, num_aux_vec, 0, ops->gcge_ops);
+        ops->gcge_ops->MultiVecInnerProd(aux_Hh, x_b_H, 
+                y_aux_h+start[1]*num_aux_vec, "nonsym", 
+                mv_s, mv_e, num_aux_vec, 0, ops->gcge_ops);
     } else {
         memset(y_aux_h+start[1]*num_aux_vec, 0.0, 
                 (end[1]-start[1])*num_aux_vec*sizeof(PASE_SCALAR));
@@ -363,7 +364,8 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
     beta  = 1.0;
     ops->gcge_ops->DenseMatDotDenseMat("T", "N", &num_aux_vec, &ncols, 
             &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
-            x_aux_h+start[0]*num_aux_vec, &num_aux_vec, &beta, y_aux_h, &num_aux_vec);
+            x_aux_h+start[0]*num_aux_vec, &num_aux_vec, &beta, 
+            y_aux_h+start[1]*num_aux_vec, &num_aux_vec);
 }
 
 //多向量的Axpby, yy = a * xx + b * yy
@@ -423,8 +425,8 @@ void PASE_DefaultMultiVecLinearComb(void **x, void **y, PASE_INT *start,
     PASE_INT  ncols = end[1]-start[1];
     //这里不做转置
     ops->gcge_ops->DenseMatDotDenseMat("N", "N", &nrows, &ncols, 
-            &mid, &alpha, x_aux_h, &num_aux_vec, 
-            a, &lda, &beta, y_aux_h, &num_aux_vec);
+            &mid, &alpha, x_aux_h+start[0]*num_aux_vec, &num_aux_vec, 
+            a, &lda, &beta, y_aux_h+start[1]*num_aux_vec, &num_aux_vec);
 }
 
 //计算向量组内积, a = VV^T * WW

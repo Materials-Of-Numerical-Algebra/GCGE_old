@@ -40,7 +40,8 @@ int main(int argc, char* argv[])
     //创建矩阵
     //const char *file_A = "../data/test_csr_pase_A_3";
     //const char *file_A = "../data/testA";
-    const char *file_A = "../data/A_3.txt";
+    //const char *file_A = "../data/A_3.txt";
+    const char *file_A = "../data/A_5.txt";
     CSR_MAT *A = CSR_ReadMatFile(file_A);
 
     //创建gcge_ops
@@ -74,8 +75,8 @@ int main(int argc, char* argv[])
     pase_mat_A->aux_hh[3] = 20;
 #else
 
-    memset(vecs[0]->Entries, 0.0, 81*sizeof(double));
-    memset(vecs[1]->Entries, 0.0, 81*sizeof(double));
+    memset(vecs[0]->Entries, 0.0, 1089*sizeof(double));
+    memset(vecs[1]->Entries, 0.0, 1089*sizeof(double));
     pase_mat_A->aux_hh[0] = 1.0;
     pase_mat_A->aux_hh[1] = 0.0;
     pase_mat_A->aux_hh[2] = 0.0;
