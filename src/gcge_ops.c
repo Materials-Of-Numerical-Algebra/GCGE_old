@@ -301,21 +301,128 @@ void GCGE_Default_MultiVecSwap(void **V_1, void **V_2, GCGE_INT *start, GCGE_INT
 }
 
 //进行稠密矩阵特征值求解 (这里还是按照Laplack的要求进行设置的)
-void GCGE_Default_DenseMatEigenSolver(char *jobz, char *range, char *uplo, 
-        GCGE_INT *nrows, GCGE_DOUBLE *a, GCGE_INT *lda, 
-        GCGE_DOUBLE *vl, GCGE_DOUBLE *vu, GCGE_INT *il, GCGE_INT *iu, 
-        GCGE_DOUBLE *abstol, GCGE_INT *nev, 
-        GCGE_DOUBLE *eval, GCGE_DOUBLE *evec, GCGE_INT *lde, 
-        GCGE_INT *isuppz, GCGE_DOUBLE *work, GCGE_INT *lwork, 
-        GCGE_INT *iwork, GCGE_INT *liwork, 
-        GCGE_INT *ifail, GCGE_INT *info)
+void GCGE_Default_DenseMatEigenSolver( GCGE_DOUBLE *a, GCGE_INT lda, 
+        GCGE_INT nrows, GCGE_DOUBLE *eval, GCGE_DOUBLE *evec, GCGE_INT lde, 
+        GCGE_INT il, GCGE_INT iu, GCGE_INT *iwork, GCGE_DOUBLE *dwork)
 {
     //调用Laplack的subroutine进行计算dsyevx_
-    //未来还可以测试dsyevd_
-    dsyevx_(jobz, range, uplo, nrows, a, lda, vl, vu, il, iu, 
-            abstol, nev, eval, evec, lde, work, lwork, 
-            iwork, ifail, info);
+    
+    char        *jobz  = "V";
+    char        *range = "I";
+    char        *uplo  = "U";
+    GCGE_DOUBLE vl     = 0.0;
+    GCGE_DOUBLE vu     = 0.0;
+    GCGE_DOUBLE abstol = 0.0;
+    GCGE_INT    nev    = iu-il+1;
+    GCGE_INT    lwork  = 8*nrows;
+    GCGE_INT    liwork = 5*nrows;
+    GCGE_INT    *ifail = iwork+5*nrows;
+    GCGE_INT    info   = 0;
 
+    dsyevx_(jobz, range, uplo, &nrows, a, &lda, &vl, &vu, &il, &iu, 
+            &abstol, &nev, eval, evec, &lde, dwork, &lwork, 
+            iwork, ifail, &info);
+
+    //对dsyevx:
+    /* param:
+     * jobz: "V"，表示计算特征值及特征向量
+     * range: "I"，表示计算第il到iu个特征对
+     * uplo: "U"，表示给的是对称矩阵对上三角部分
+     * nrows: 矩阵A的行数
+     * a: 矩阵A
+     * lda: 矩阵A的leading dimension
+     * vl: 不用
+     * vu: 不用
+     * il: 个数的起始位置
+     * iu: 个数的终点位置
+     * abstol:
+     * nev: 特征值个数
+     * eval: 特征值
+     * evec: 特征向量
+     * lde: evec的leading dimension
+     * isuppz: -----不要设，跳过这个参数------
+     * work, 
+     * lwork: 8*N
+     * iwork, 
+     * liwork: -----不要设，跳过这个参数------
+     * ifail: int*, 长度2*nev
+     * info
+     */
+    //对dsyevr:
+    /* param:
+     * jobz: "V"，表示计算特征值及特征向量
+     * range: "I"，表示计算第il到iu个特征对
+     * uplo: "U"，表示给的是对称矩阵对上三角部分
+     * nrows: 矩阵A的行数
+     * a: 矩阵A
+     * lda: 矩阵A的leading dimension
+     * vl: 不用
+     * vu: 不用
+     * il: 个数的起始位置
+     * iu: 个数的终点位置
+     * abstol:
+     * nev: 特征值个数
+     * eval: 特征值
+     * evec: 特征向量
+     * lde: evec的leading dimension
+     * isuppz: int *
+     * work, 
+     * lwork: 26*N
+     * iwork, 
+     * liwork: 10*N
+     * ifail: -----不要设，跳过这个参数------
+     * info
+     */
+    //对dsyev:
+    /* param:
+     * jobz: "V"，表示计算特征值及特征向量
+     * range: -----不要设，跳过这个参数------
+     * uplo: "U"，表示给的是对称矩阵对上三角部分
+     * nrows: 矩阵A的行数
+     * a: 矩阵A
+     * lda: 矩阵A的leading dimension
+     * vl: -----不要设，跳过这个参数------
+     * vu: -----不要设，跳过这个参数------
+     * il: -----不要设，跳过这个参数------
+     * iu: -----不要设，跳过这个参数------
+     * abstol:-----不要设，跳过这个参数------
+     * nev: -----不要设，跳过这个参数------
+     * eval: 特征值
+     * evec: -----不要设，跳过这个参数------
+     * lde: -----不要设，跳过这个参数------
+     * isuppz: -----不要设，跳过这个参数------
+     * work, 
+     * lwork: 3*N
+     * iwork, -----不要设，跳过这个参数------
+     * liwork: -----不要设，跳过这个参数------
+     * ifail: -----不要设，跳过这个参数------
+     * info
+     */
+    //对dsyevd:
+    /* param:
+     * jobz: "V"，表示计算特征值及特征向量
+     * range: -----不要设，跳过这个参数------
+     * uplo: "U"，表示给的是对称矩阵对上三角部分
+     * nrows: 矩阵A的行数
+     * a: 矩阵A
+     * lda: 矩阵A的leading dimension
+     * vl: -----不要设，跳过这个参数------
+     * vu: -----不要设，跳过这个参数------
+     * il: -----不要设，跳过这个参数------
+     * iu: -----不要设，跳过这个参数------
+     * abstol:-----不要设，跳过这个参数------
+     * nev: -----不要设，跳过这个参数------
+     * eval: 特征值
+     * evec: -----不要设，跳过这个参数------
+     * lde: -----不要设，跳过这个参数------
+     * isuppz: -----不要设，跳过这个参数------
+     * work, 
+     * lwork: 1+6*N+2*N**2
+     * iwork, 
+     * liwork: 3+5*N
+     * ifail: -----不要设，跳过这个参数------
+     * info
+     */
     /*
      *lwork = 26*nrows;
      *liwork = 10*nrows;

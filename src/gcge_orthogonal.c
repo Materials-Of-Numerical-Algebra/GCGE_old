@@ -899,11 +899,16 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //那么, 如果 rank==0, 就计算特征值问题, 否则不用计算, 等待广播
             if(rank == 0)
             {
+#if 0
                 ops->DenseMatEigenSolver("V", "I", "U", &w_length, d_tmp, 
                         &w_length, &vl, &vu, &il, &iu, &abstol, 
                         &m, tmp_eval, tmp_evec, &w_length, 
                         isuppz, dwork_space, &lwork,
                         subspace_itmp, &liwork, ifail, &info);
+#endif
+                ops->DenseMatEigenSolver(d_tmp, w_length, w_length, 
+                        tmp_eval, tmp_evec, w_length, 
+                        il, iu, subspace_itmp, dwork_space);
             }
             if(para->use_mpi_bcast)
             {

@@ -97,121 +97,14 @@ typedef struct GCGE_OPS_ {
 
 
     /* DEEP option */
-    //DenseMatEigenSolver可取lapack中的dsyev,dsyevx,dsyevr,dsyevd
-    //对dsyevx:
-    /* param:
-     * jobz: "V"，表示计算特征值及特征向量
-     * range: "I"，表示计算第il到iu个特征对
-     * uplo: "U"，表示给的是对称矩阵对上三角部分
-     * nrows: 矩阵A的行数
-     * a: 矩阵A
-     * lda: 矩阵A的leading dimension
-     * vl: 不用
-     * vu: 不用
-     * il: 个数的起始位置
-     * iu: 个数的终点位置
-     * abstol:
-     * nev: 特征值个数
-     * eval: 特征值
-     * evec: 特征向量
-     * lde: evec的leading dimension
-     * isuppz: -----不要设，跳过这个参数------
-     * work, 
-     * lwork: 8*N
-     * iwork, 
-     * liwork: -----不要设，跳过这个参数------
-     * ifail: int*, 长度2*nev
-     * info
-     */
-    //对dsyevr:
-    /* param:
-     * jobz: "V"，表示计算特征值及特征向量
-     * range: "I"，表示计算第il到iu个特征对
-     * uplo: "U"，表示给的是对称矩阵对上三角部分
-     * nrows: 矩阵A的行数
-     * a: 矩阵A
-     * lda: 矩阵A的leading dimension
-     * vl: 不用
-     * vu: 不用
-     * il: 个数的起始位置
-     * iu: 个数的终点位置
-     * abstol:
-     * nev: 特征值个数
-     * eval: 特征值
-     * evec: 特征向量
-     * lde: evec的leading dimension
-     * isuppz: int *
-     * work, 
-     * lwork: 26*N
-     * iwork, 
-     * liwork: 10*N
-     * ifail: -----不要设，跳过这个参数------
-     * info
-     */
-    //对dsyev:
-    /* param:
-     * jobz: "V"，表示计算特征值及特征向量
-     * range: -----不要设，跳过这个参数------
-     * uplo: "U"，表示给的是对称矩阵对上三角部分
-     * nrows: 矩阵A的行数
-     * a: 矩阵A
-     * lda: 矩阵A的leading dimension
-     * vl: -----不要设，跳过这个参数------
-     * vu: -----不要设，跳过这个参数------
-     * il: -----不要设，跳过这个参数------
-     * iu: -----不要设，跳过这个参数------
-     * abstol:-----不要设，跳过这个参数------
-     * nev: -----不要设，跳过这个参数------
-     * eval: 特征值
-     * evec: -----不要设，跳过这个参数------
-     * lde: -----不要设，跳过这个参数------
-     * isuppz: -----不要设，跳过这个参数------
-     * work, 
-     * lwork: 3*N
-     * iwork, -----不要设，跳过这个参数------
-     * liwork: -----不要设，跳过这个参数------
-     * ifail: -----不要设，跳过这个参数------
-     * info
-     */
-    //对dsyevd:
-    /* param:
-     * jobz: "V"，表示计算特征值及特征向量
-     * range: -----不要设，跳过这个参数------
-     * uplo: "U"，表示给的是对称矩阵对上三角部分
-     * nrows: 矩阵A的行数
-     * a: 矩阵A
-     * lda: 矩阵A的leading dimension
-     * vl: -----不要设，跳过这个参数------
-     * vu: -----不要设，跳过这个参数------
-     * il: -----不要设，跳过这个参数------
-     * iu: -----不要设，跳过这个参数------
-     * abstol:-----不要设，跳过这个参数------
-     * nev: -----不要设，跳过这个参数------
-     * eval: 特征值
-     * evec: -----不要设，跳过这个参数------
-     * lde: -----不要设，跳过这个参数------
-     * isuppz: -----不要设，跳过这个参数------
-     * work, 
-     * lwork: 1+6*N+2*N**2
-     * iwork, 
-     * liwork: 3+5*N
-     * ifail: -----不要设，跳过这个参数------
-     * info
-     */
-#if 0
-    void (*DenseMatEigenSolver)     (GCGE_INT *nrows, GCGE_DOUBLE *a, GCGE_INT *lda, 
-                                     GCGE_INT *il, GCGE_INT *iu,
-                                     GCGE_DOUBLE *eval, GCGE_DOUBLE *evec, GCGE_INT *lde, 
+    //a为要计算特征值的矩阵，lda为a的leading dimension, nrows为要计算前nrows行，
+    //eval,evec为特征对，从第1个位置开始存,lde为evec的leading dimension
+    //il, iu为要求a的第il到第iu个特征值
+    //iwork为要提供的int型工作空间,dwork为要提供的double型工作空间
+    void (*DenseMatEigenSolver)     (GCGE_DOUBLE *a, GCGE_INT lda, GCGE_INT nrows, 
+                                     GCGE_DOUBLE *eval, GCGE_DOUBLE *evec, GCGE_INT lde, 
+                                     GCGE_INT il, GCGE_INT iu,
                                      GCGE_INT *iwork, GCGE_DOUBLE *dwork);
-#endif
-    void (*DenseMatEigenSolver)     (char *jobz, char *range, char *uplo, 
-                                     GCGE_INT *nrows, GCGE_DOUBLE *a, GCGE_INT *lda, 
-                                     GCGE_DOUBLE *vl, GCGE_DOUBLE *vu, GCGE_INT *il, GCGE_INT *iu, 
-                                     GCGE_DOUBLE *abstol, GCGE_INT *nev, 
-                                     GCGE_DOUBLE *eval, GCGE_DOUBLE *evec, GCGE_INT *lde, 
-                                     GCGE_INT *isuppz, GCGE_DOUBLE *work, GCGE_INT *lwork, 
-                                     GCGE_INT *iwork, GCGE_INT *liwork, 
-                                     GCGE_INT *ifail, GCGE_INT *info);
     void (*DenseMatDotDenseMat)     (char *transa, char *transb, GCGE_INT *nrows, GCGE_INT *ncols, 
                                      GCGE_INT *mid, GCGE_DOUBLE *alpha, GCGE_DOUBLE *a,
                                      GCGE_INT *lda, GCGE_DOUBLE *b, GCGE_INT *ldb, 
