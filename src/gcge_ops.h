@@ -88,7 +88,7 @@ typedef struct GCGE_OPS_ {
                                      GCGE_INT *start, GCGE_INT *end, GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops);
     void (*MultiVecSwap)            (void **V_1, void **V_2, GCGE_INT *start, GCGE_INT *end, 
                                      struct GCGE_OPS_ *ops);
-    void (*MultiVecPrint)           (void **x, GCGE_INT n);
+    void (*MultiVecPrint)           (void **x, GCGE_INT n, struct GCGE_OPS_ *ops);
 
     /* TODO kernal function should use this op to get j-th vector */
     void (*GetVecFromMultiVec)      (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);

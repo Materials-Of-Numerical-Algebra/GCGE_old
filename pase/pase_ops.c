@@ -168,14 +168,14 @@ void PASE_DefaultVecLocalInnerProd(void *x, void *y, PASE_REAL *value_ip, struct
     ops->gcge_ops->VecLocalInnerProd(x_b_H, y_b_H, value_ip, ops->gcge_ops);
     //value_ip += x->aux_h * y->aux_h
     //0号进行进行计算
-#if GCGE_USE_MPI
     PASE_INT rank = 0;
+#if GCGE_USE_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+#endif
     if(rank == 0)
     {
         *value_ip += ops->gcge_ops->ArrayDotArray(x_aux_h, y_aux_h, num_aux_vec);
     }
-#endif
 }
     
 //由src_vec单向量创建des_vec单向量
@@ -335,8 +335,12 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
     //计算 r_b_H += aux_Hh * aux_h
     alpha = 1.0;
     beta  = 1.0;
+    mv_s[0] = 0;
+    mv_e[0] = num_aux_vec;
+    mv_s[1] = 0;
+    mv_e[1] = end[1];
     ops->gcge_ops->MultiVecLinearComb(aux_Hh, y_b_H, 
-            start, end, x_aux_h+start[0]*num_aux_vec+start[1], num_aux_vec, 
+            mv_s, mv_e, x_aux_h+start[0]*num_aux_vec+start[1], num_aux_vec, 
             0, alpha, beta,  ops->gcge_ops);
 
     //计算 r->aux_h = aux_Hh^T * x->b_H + aux_hh^T * x->aux_h
@@ -359,7 +363,7 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
     beta  = 1.0;
     ops->gcge_ops->DenseMatDotDenseMat("T", "N", &num_aux_vec, &ncols, 
             &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
-            x_aux_h, &num_aux_vec, &beta, y_aux_h, &num_aux_vec);
+            x_aux_h+start[0]*num_aux_vec, &num_aux_vec, &beta, y_aux_h, &num_aux_vec);
 }
 
 //多向量的Axpby, yy = a * xx + b * yy
@@ -447,8 +451,8 @@ void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a,
     PASE_REAL alpha = 1.0;
     PASE_REAL beta  = 1.0;
     ops->gcge_ops->DenseMatDotDenseMat("T", "N", &nrows, &ncols, 
-            &mid, &alpha, x_aux_h, &num_aux_vec, 
-            y_aux_h, &num_aux_vec, &beta, a, &lda);
+            &mid, &alpha, x_aux_h+start[0]*num_aux_vec, &num_aux_vec, 
+            y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a, &lda);
 }
 
 //多向量组交换，目前GCGE中用到的这个函数都是需要将V_2拷贝给V_1,
@@ -477,7 +481,7 @@ void PASE_DefaultMultiVecPrint(void **x, PASE_INT n, struct PASE_OPS_ *ops)
     PASE_REAL *aux_h      = ((PASE_MultiVector)x)->aux_h;
     PASE_INT  num_aux_vec = ((PASE_MultiVector)x)->num_aux_vec;
     //打印b_H部分
-    ops->gcge_ops->MultiVecPrint(b_H, n);
+    ops->gcge_ops->MultiVecPrint(b_H, n, ops->gcge_ops);
     PASE_INT i = 0;
     PASE_INT j = 0;
     //打印aux_h部分

@@ -29,9 +29,9 @@
 
 void GCGE_PASE_SetOps(GCGE_OPS *ops, PASE_OPS *pase_ops);
 
-void GCGE_SOLVER_SetPASEOps(GCGE_SOLVER *solver, GCGE_OPS *ops);
+void GCGE_SOLVER_SetPASEOps(GCGE_SOLVER *solver, PASE_OPS *pase_ops);
 
-GCGE_SOLVER* GCGE_PASE_Solver_Init(PASE_Matrix A, PASE_Matrix B, int num_eigenvalues, int argc, char* argv[], GCGE_OPS *ops);
+GCGE_SOLVER* GCGE_PASE_Solver_Init(PASE_Matrix A, PASE_Matrix B, int num_eigenvalues, int argc, char* argv[], PASE_OPS *pase_ops);
 
 
 

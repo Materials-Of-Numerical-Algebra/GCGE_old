@@ -58,7 +58,7 @@ void GCGE_CSR_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *op
 {
    CSR_VecInnerProd((CSR_VEC*)x, (CSR_VEC*)y, value_ip);
 }
-void GCGE_CSR_MultiVecPrint(void **x, GCGE_INT n)
+void GCGE_CSR_MultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
 {
    GCGE_INT i = 0;
    for(i=0; i<n; i++)

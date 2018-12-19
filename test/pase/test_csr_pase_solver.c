@@ -38,7 +38,9 @@ int main(int argc, char* argv[])
     srand(1);
 
     //创建矩阵
-    const char *file_A = "../data/testA";
+    //const char *file_A = "../data/test_csr_pase_A_3";
+    //const char *file_A = "../data/testA";
+    const char *file_A = "../data/A_3.txt";
     CSR_MAT *A = CSR_ReadMatFile(file_A);
 
     //创建gcge_ops
@@ -58,6 +60,7 @@ int main(int argc, char* argv[])
     PASE_MatrixCreate(&pase_mat_A, num_aux_vec, A, pase_ops);
 
     CSR_VEC **vecs = (CSR_VEC**)(pase_mat_A->aux_Hh);
+#if 0
     vecs[0]->Entries[0] = 1;
     vecs[0]->Entries[1] = 2;
     vecs[0]->Entries[2] = 3;
@@ -69,10 +72,22 @@ int main(int argc, char* argv[])
     pase_mat_A->aux_hh[1] = 4;
     pase_mat_A->aux_hh[2] = 4;
     pase_mat_A->aux_hh[3] = 20;
+#else
 
-    int nev = 3;
+    memset(vecs[0]->Entries, 0.0, 81*sizeof(double));
+    memset(vecs[1]->Entries, 0.0, 81*sizeof(double));
+    pase_mat_A->aux_hh[0] = 1.0;
+    pase_mat_A->aux_hh[1] = 0.0;
+    pase_mat_A->aux_hh[2] = 0.0;
+    pase_mat_A->aux_hh[3] = 1.0;
+#endif
+
+    int nev = 5;
+    GCGE_Printf("line 74 in main\n");
     GCGE_SOLVER *csr_pase_solver = GCGE_PASE_Solver_Init(pase_mat_A, 
-            NULL, nev, argc, argv, gcge_ops);
+            NULL, nev, argc, argv, pase_ops);
+
+    GCGE_SOLVER_Solve(csr_pase_solver);  
 
     GCGE_SOLVER_Free_All(&csr_pase_solver);
 

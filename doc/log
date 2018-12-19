@@ -522,3 +522,6 @@ TODO
 2018.12.18 zhangning
 1. GCGE_OPS 结构体的函数中都添加了 GCGE_OPS *ops这个形式参数，用于PASE接口使用
 2. 修改了GCGE/Makefile，添加了pase的内容
+
+2018.12.19 zhangning
+1. pase接口一个特征值时可以使用, 需要对多个的情形再调试
