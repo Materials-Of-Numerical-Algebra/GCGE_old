@@ -6,8 +6,8 @@ include $(GCGEHOME)/config/make.inc
 OBJS1  = test_csr_pase_solver.o
 OBJS2  = test_ops.o
 
-EXE1   = test_csr_pase_solver.exe 
-EXE2   = test_ops.exe 
+EXE1   = ./test_csr_pase_solver.exe 
+EXE2   = ./test_ops.exe 
 
 INC    = -I$(GCGEINC) -I$(GCGEPASEINC)
 LIBS   = $(LIBPASE) $(LIBGCGEPASE) $(LIBGCGECSR) $(LIBGCGE) $(LIBLAPACK) $(LIBBLAS) $(LIBF)

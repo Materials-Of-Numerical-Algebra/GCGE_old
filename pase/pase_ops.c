@@ -19,9 +19,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <time.h>
 
 #include "pase_ops.h"
-#include "pase_matvec.h"
 
 void PASE_OPS_Create(PASE_OPS **ops, GCGE_OPS *gcge_ops)
 {

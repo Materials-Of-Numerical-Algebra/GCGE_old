@@ -25,9 +25,9 @@
 //#include "memwatch.h"
 
 #include "gcge.h"
-#include "pase.h"
 #include "gcge_app_csr.h"
 #include "gcge_app_pase.h"
+#include "pase.h"
 
 void PASE_PrintMat(PASE_Matrix pase_matrix);
 void PASE_PrintMultiVec(PASE_MultiVector vecs);

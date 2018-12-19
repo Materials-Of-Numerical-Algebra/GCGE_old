@@ -22,6 +22,7 @@
 #define  _PASE_OPS_H_
 
 #include "gcge_ops.h"
+#include "gcge_utilities.h"
 #include "pase_config.h"
 #include "pase_matvec.h"
 //把每一个操作都写好，这样以后进行算法设计的时候才能方便。

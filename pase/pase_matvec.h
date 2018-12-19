@@ -17,8 +17,8 @@
  * =====================================================================================
  */
 
-#ifndef _pase_matvec_h_
-#define _pase_matvec_h_
+#ifndef _PASE_MATVEC_H_
+#define _PASE_MATVEC_H_
 
 //#include "pase_ops.h"
 #include "pase_config.h"
