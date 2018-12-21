@@ -103,12 +103,13 @@ int main(int argc, char* argv[])
 
     int nev = 5;
     double *eval = (double *)calloc(nev, sizeof(double)); 
+    PASE_MultiVector evec;
     PASE_DefaultMultiVecCreateByMat((void***)(&evec), nev, (void*)pase_mat_A, pase_ops);
 
     //-------------------------------------------------------
     //在pase中调用GCGE时，就用下面三步
     //创建solver
-    GCGE_SOLVER *slepc_pase_solver = GCGE_PASE_Solver_Create(pase_mat_A, 
+    GCGE_SOLVER *slepc_pase_solver = GCGE_SOLVER_PASE_Create(pase_mat_A, 
             NULL, nev, eval, evec, pase_ops);
 
     //求解
@@ -118,9 +119,9 @@ int main(int argc, char* argv[])
     GCGE_SOLVER_Free_Some(&slepc_pase_solver);
     //-------------------------------------------------------
 
-    free(slepc_pase_solver->eval);
-    slepc_pase_solver->eval = NULL;
-    pase_ops->MultiVecDestroy(&(slepc_pase_solver->evec), nev, gcge_ops);
+    free(eval);
+    eval = NULL;
+    PASE_DefaultMultiVecDestroy((void***)(&evec), nev, pase_ops);
 
     PASE_MatrixDestroy(&pase_mat_A, pase_ops);
 

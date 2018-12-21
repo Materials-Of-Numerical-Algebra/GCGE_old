@@ -33,7 +33,7 @@ void GCGE_SOLVER_SetPASEOps(GCGE_SOLVER *solver, PASE_OPS *pase_ops);
 
 GCGE_SOLVER* GCGE_PASE_Solver_Init(PASE_Matrix A, PASE_Matrix B, int num_eigenvalues, int argc, char* argv[], PASE_OPS *pase_ops);
 
-
+GCGE_SOLVER* GCGE_SOLVER_PASE_Create(PASE_Matrix A, PASE_Matrix B, int num_eigenvalues, PASE_REAL *eval, PASE_MultiVector evec, PASE_OPS *pase_ops);
 
 
 #endif
