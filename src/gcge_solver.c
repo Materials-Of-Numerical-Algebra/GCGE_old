@@ -44,6 +44,13 @@ void GCGE_SOLVER_Free(GCGE_SOLVER **solver)
     free(*solver); *solver = NULL;
 }
 
+void GCGE_SOLVER_Free_Some(GCGE_SOLVER **solver)
+{
+    GCGE_WORKSPACE_Free(&(*solver)->workspace, (*solver)->para, (*solver)->ops);
+    GCGE_PARA_Free(&(*solver)->para);
+    free(*solver); *solver = NULL;
+}
+
 //把solver以及其中的特征值和特征向量全部都释放掉
 void GCGE_SOLVER_Free_All(GCGE_SOLVER **solver)
 {    
