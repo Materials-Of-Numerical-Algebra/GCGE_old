@@ -4,8 +4,10 @@ include $(GCGEHOME)/config/make.inc
 .PHONY: all lib clean help
 
 ########################################################################
-FILES   = pase_convert.c pase_matvec.c pase_mg.c pase_solver.c pase_ops.c
-HEADERS = pase_convert.h pase_config.h pase_matvec.h pase_mg.h pase_solver.h pase_ops.h pase.h
+FILES   = pase_matvec.c pase_mg.c pase_ops.c
+HEADERS = pase_config.h pase_matvec.h pase_mg.h pase_ops.h pase.h
+#pase_convert.c pase_solver.c
+#pase_convert.h pase_solver.h 
 OBJS    = ${FILES:.c=.o}
 
 INC     = -I$(GCGEINC) -I$(PETSCINC) -I$(HYPREINC)
@@ -46,6 +48,7 @@ $(LIB): $(OBJS)
 	@echo 'Creating header files $(GCGEINC)/{$(HEADERS)}'
 	@$(ARCH) $(ARCHFLAGS) $(LIB) $(OBJS)
 	@$(RANLIB) $(LIB)
+	@$(CP) -fR $(HEADERS) $(GCGEINC)
 #	@$(CP) -fR pase_*.h $(GCGEINC)
 #	@$(CP) -fR pase.h   $(GCGEINC)
 
