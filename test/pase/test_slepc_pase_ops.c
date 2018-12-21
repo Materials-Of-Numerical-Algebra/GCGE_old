@@ -54,7 +54,6 @@ int main(int argc, char* argv[])
     //创建pase_ops
     PASE_OPS *pase_ops;
     PASE_OPS_Create(&pase_ops, gcge_ops);
-    PASE_OPS_Setup(pase_ops);
 
     PASE_Matrix pase_matrix;
     PASE_INT    num_aux_vec = 2;

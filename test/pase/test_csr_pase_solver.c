@@ -53,7 +53,6 @@ int main(int argc, char* argv[])
     //创建pase_ops
     PASE_OPS *pase_ops;
     PASE_OPS_Create(&pase_ops, gcge_ops);
-    PASE_OPS_Setup(pase_ops);
 
     //创建pase辅助矩阵
     PASE_Matrix pase_mat_A;

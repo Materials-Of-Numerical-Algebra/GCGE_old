@@ -23,34 +23,6 @@
 
 #include "pase_ops.h"
 
-void PASE_OPS_Create(PASE_OPS **ops, GCGE_OPS *gcge_ops)
-{
-    *ops = (PASE_OPS*)malloc(sizeof(PASE_OPS));
-    (*ops)->gcge_ops = gcge_ops;
-    (*ops)->VecSetRandomValue = NULL;
-    (*ops)->MatDotVec = NULL;
-    (*ops)->VecAxpby = NULL;
-    (*ops)->VecInnerProd = NULL;
-    (*ops)->VecLocalInnerProd = NULL;
-    (*ops)->VecCreateByVec = NULL;
-    (*ops)->VecCreateByMat = NULL;
-    (*ops)->VecDestroy = NULL;
-    (*ops)->MultiVecCreateByVec = NULL;
-    (*ops)->MultiVecCreateByMat = NULL;
-    (*ops)->MultiVecCreateByMultiVec = NULL;
-    (*ops)->MultiVecDestroy = NULL;
-    (*ops)->MultiVecSetRandomValue = NULL;
-    (*ops)->MatDotMultiVec = NULL;
-    (*ops)->MultiVecAxpby = NULL;
-    (*ops)->MultiVecAxpbyColumn = NULL;
-    (*ops)->MultiVecLinearComb = NULL;
-    (*ops)->MultiVecInnerProd = NULL;
-    (*ops)->MultiVecSwap = NULL;
-    (*ops)->GetVecFromMultiVec = NULL;
-    (*ops)->RestoreVecForMultiVec = NULL;
-    (*ops)->MultiVecPrint = NULL;
-}
-
 //给单向量设随机初值, seed为随机数种子
 void PASE_DefaultVecSetRandomValue(void *vec, PASE_INT seed, struct PASE_OPS_ *ops)
 {
@@ -527,30 +499,32 @@ void PASE_DefaultRestoreVecForMultiVec(void **V, PASE_INT j, void **x, struct PA
     //memcpy(V_aux_h+j*num_aux_vec, ((PASE_Vector)(*x))->aux_h, num_aux_vec*sizeof(PASE_SCALAR));
 }
 
-PASE_INT PASE_OPS_Setup(PASE_OPS *ops)
+void PASE_OPS_Create(PASE_OPS **ops, GCGE_OPS *gcge_ops)
 {
-    ops->VecSetRandomValue        = PASE_DefaultVecSetRandomValue        ;
-    ops->MatDotVec                = PASE_DefaultMatDotVec                ;
-    ops->VecAxpby                 = PASE_DefaultVecAxpby                 ;
-    ops->VecInnerProd             = PASE_DefaultVecInnerProd             ;
-    ops->VecLocalInnerProd        = PASE_DefaultVecLocalInnerProd        ;
-    ops->VecCreateByVec           = PASE_DefaultVecCreateByVec           ;
-    ops->VecCreateByMat           = PASE_DefaultVecCreateByMat           ;
-    ops->VecDestroy               = PASE_DefaultVecDestroy               ;
-    ops->MultiVecCreateByVec      = PASE_DefaultMultiVecCreateByVec      ;
-    ops->MultiVecCreateByMat      = PASE_DefaultMultiVecCreateByMat      ;
-    ops->MultiVecCreateByMultiVec = PASE_DefaultMultiVecCreateByMultiVec ;
-    ops->MultiVecDestroy          = PASE_DefaultMultiVecDestroy          ;
-    ops->MultiVecSetRandomValue   = PASE_DefaultMultiVecSetRandomValue   ;
-    ops->MatDotMultiVec           = PASE_DefaultMatDotMultiVec           ;
-    ops->MultiVecAxpby            = PASE_DefaultMultiVecAxpby            ;
-    ops->MultiVecAxpbyColumn      = PASE_DefaultMultiVecAxpbyColumn      ;
-    ops->MultiVecLinearComb       = PASE_DefaultMultiVecLinearComb       ;
-    ops->MultiVecInnerProd        = PASE_DefaultMultiVecInnerProd        ;
-    ops->MultiVecSwap             = PASE_DefaultMultiVecSwap             ;
-    ops->GetVecFromMultiVec       = PASE_DefaultGetVecFromMultiVec       ;
-    ops->RestoreVecForMultiVec    = PASE_DefaultRestoreVecForMultiVec    ;
-    ops->MultiVecPrint            = PASE_DefaultMultiVecPrint            ;
+    *ops = (PASE_OPS*)malloc(sizeof(PASE_OPS));
+    (*ops)->gcge_ops = gcge_ops;
+    (*ops)->VecSetRandomValue        = PASE_DefaultVecSetRandomValue       ;
+    (*ops)->MatDotVec                = PASE_DefaultMatDotVec               ;
+    (*ops)->VecAxpby                 = PASE_DefaultVecAxpby                ;
+    (*ops)->VecInnerProd             = PASE_DefaultVecInnerProd            ;
+    (*ops)->VecLocalInnerProd        = PASE_DefaultVecLocalInnerProd       ;
+    (*ops)->VecCreateByVec           = PASE_DefaultVecCreateByVec          ;
+    (*ops)->VecCreateByMat           = PASE_DefaultVecCreateByMat          ;
+    (*ops)->VecDestroy               = PASE_DefaultVecDestroy              ;
+    (*ops)->MultiVecCreateByVec      = PASE_DefaultMultiVecCreateByVec     ;
+    (*ops)->MultiVecCreateByMat      = PASE_DefaultMultiVecCreateByMat     ;
+    (*ops)->MultiVecCreateByMultiVec = PASE_DefaultMultiVecCreateByMultiVec;
+    (*ops)->MultiVecDestroy          = PASE_DefaultMultiVecDestroy         ;
+    (*ops)->MultiVecSetRandomValue   = PASE_DefaultMultiVecSetRandomValue  ;
+    (*ops)->MatDotMultiVec           = PASE_DefaultMatDotMultiVec          ;
+    (*ops)->MultiVecAxpby            = PASE_DefaultMultiVecAxpby           ;
+    (*ops)->MultiVecAxpbyColumn      = PASE_DefaultMultiVecAxpbyColumn     ;
+    (*ops)->MultiVecLinearComb       = PASE_DefaultMultiVecLinearComb      ;
+    (*ops)->MultiVecInnerProd        = PASE_DefaultMultiVecInnerProd       ;
+    (*ops)->MultiVecSwap             = PASE_DefaultMultiVecSwap            ;
+    (*ops)->GetVecFromMultiVec       = PASE_DefaultGetVecFromMultiVec      ;
+    (*ops)->RestoreVecForMultiVec    = PASE_DefaultRestoreVecForMultiVec   ;
+    (*ops)->MultiVecPrint            = PASE_DefaultMultiVecPrint           ;
 }
 
 void PASE_OPS_Free(PASE_OPS **ops)

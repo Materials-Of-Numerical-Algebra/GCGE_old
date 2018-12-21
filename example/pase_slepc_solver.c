@@ -79,7 +79,6 @@ int main(int argc, char* argv[])
     //创建pase_ops
     PASE_OPS *pase_ops;
     PASE_OPS_Create(&pase_ops, gcge_ops);
-    PASE_OPS_Setup(pase_ops);
 
     //创建pase辅助矩阵
     PASE_Matrix pase_mat_A;
@@ -108,7 +107,12 @@ int main(int argc, char* argv[])
 
     GCGE_SOLVER_Solve(slepc_pase_solver);  
 
-    GCGE_SOLVER_Free_All(&slepc_pase_solver);
+    //GCGE_SOLVER_Free_All(&slepc_pase_solver);
+    free(slepc_pase_solver->eval);
+    slepc_pase_solver->eval = NULL;
+    gcge_ops->MultiVecDestroy(&(slepc_pase_solver->evec), nev, gcge_ops);
+    GCGE_SOLVER_Free_Some(&slepc_pase_solver);
+
 
     PASE_MatrixDestroy(&pase_mat_A, pase_ops);
 
@@ -124,7 +128,7 @@ int main(int argc, char* argv[])
     }
 
     GCGE_OPS_Free(&gcge_ops);
-    //PASE_OPS_Free(&pase_ops);
+    PASE_OPS_Free(&pase_ops);
 
     return 0;
 }

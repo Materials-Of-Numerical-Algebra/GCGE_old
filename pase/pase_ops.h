@@ -79,7 +79,6 @@ typedef struct PASE_OPS_ {
 
 //创建PASE_OPS
 void PASE_OPS_Create(PASE_OPS **ops, GCGE_OPS *gcge_ops);
-PASE_INT PASE_OPS_Setup(PASE_OPS *ops);
 void PASE_OPS_Free(PASE_OPS **ops);
 void PASE_MatrixCreate( PASE_Matrix* pase_matrix,
                         PASE_INT num_aux_vec,
