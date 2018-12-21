@@ -15,28 +15,50 @@
       
 typedef struct pase_MultiGrid_struct 
 {
-   PASE_Int           num_levels;
-   void               **A_array;
-   void               **B_array;
-   void               **P_array;
+   PASE_INT num_levels;
+   void     **A_array;
+   void     **B_array;
+   void     **P_array;
    /* P0P1P2  P1P2  P2 */
-   void               **Q_array;
+   void     **Q_array;
    /* rhs and x */
-   void               **U_array;
-   void               **F_array;
+   void     **U_array;
+   void     **F_array;
 
-   GCGE_OPS           *gcge_ops;
+   GCGE_OPS *gcge_ops;
    
 } pase_MultiGrid;
-typedef struct pase_MultiGrid_struct *PASE_MultiGrid;
+typedef struct pase_MultiGrid_struct *PASE_MULTIGRID;
 
-PASE_Int PASE_MultiGridCreate(PASE_MultiGrid* multi_grid, PASE_Int max_levels, 
-   void *A, void *B, GCGE_OPS *pase_ops);
+PASE_INT PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
+        PASE_INT max_levels, void *A, void *B, GCGE_OPS *gcge_ops);
 
-PASE_Int PASE_MultiGridDestroy(PASE_MultiGrid* multi_grid);
+PASE_INT PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid);
 
-PASE_Int PASE_MultiGridFromItoJ(PASE_MultiGrid multi_grid, PASE_Int level_i, PASE_Int level_j, 
-      PASE_Int num, void **pvx_i, void** pvx_j);
+
+/**
+ * TODO
+ * @brief 将多向量从第level_i层 prolong/restrict 到level_j层
+ *
+ * @param multigrid 多重网格结构
+ * @param level_i   起始层
+ * @param level_j   目标层
+ * @param mv_s      多向量pvx_i与pvx_j的起始位置
+ * @param mv_e      多向量pvx_i与pvx_j的终止位置
+ * @param pvx_i     起始多向量
+ * @param pvx_j     目标多向量
+ *
+ * @return 
+ */
+PASE_INT PASE_MULTIGRID_ProlongFromItoJ(PASE_MULTIGRID multi_grid, 
+        PASE_INT level_i, PASE_INT level_j, 
+        PASE_INT *mv_s, PASE_INT *mv_e, 
+        void **pvx_i, void** pvx_j);
+
+PASE_INT PASE_MULTIGRID_RestrictFromItoJ(PASE_MULTIGRID multi_grid, 
+        PASE_INT level_i, PASE_INT level_j, 
+        PASE_INT *mv_s, PASE_INT *mv_e, 
+        void **pvx_i, void** pvx_j);
 
 
 #endif
