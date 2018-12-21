@@ -29,10 +29,9 @@
 #include "gcge_app_pase.h"
 #include "pase.h"
 
-void PASE_PrintMat(PASE_Matrix pase_matrix);
-void PASE_PrintMultiVec(PASE_MultiVector vecs);
-void PASE_PrintVec(PASE_Vector vecs);
+static char help[] = "Use GCGE-SLEPc-PASE to solve an eigensystem Ax=kBx with the matrixes loaded from files.\n";
 
+void PetscGetDifferenceMatrix(Mat *A, PetscInt n, PetscInt m);
 int main(int argc, char* argv[])
 {
     PetscErrorCode ierr;
@@ -101,7 +100,6 @@ int main(int argc, char* argv[])
     pase_mat_A->aux_hh[1] = 0.0;
     pase_mat_A->aux_hh[2] = 0.0;
     pase_mat_A->aux_hh[3] = 1.0;
-#endif
 
     int nev = 5;
     GCGE_Printf("line 74 in main\n");
@@ -131,108 +129,26 @@ int main(int argc, char* argv[])
     return 0;
 }
 
-void PASE_PrintMat(PASE_Matrix pase_matrix)
+void PetscGetDifferenceMatrix(Mat *A, PetscInt n, PetscInt m)
 {
-    CSR_MAT *A_H = (CSR_MAT*)(pase_matrix->A_H);
-    int     num_aux_vec = pase_matrix->num_aux_vec;
-    int     nrows = A_H->N_Rows;
-    int     ldd = nrows+num_aux_vec;
-    double  *dense_mat = (double*)calloc(ldd*ldd, sizeof(double));
-    int     row = 0;
-    int     col = 0;
-    int     i   = 0;
-    int     j   = 0;
-    int     *rowptr  = A_H->RowPtr;
-    int     *kcol    = A_H->KCol;
-    double  *entries = A_H->Entries;
-    //将A_H部分赋值给dense_mat
-    for(row=0; row<nrows; row++)
-    {
-        for(i=rowptr[row]; i<rowptr[row+1]; i++)
-        {
-            col = kcol[i];
-            dense_mat[col*ldd+row] = entries[i];
-        }
+    PetscInt N = n*m;
+    PetscInt Istart, Iend, II, i, j;
+    PetscErrorCode ierr;
+    ierr = MatCreate(PETSC_COMM_WORLD,A);
+    ierr = MatSetSizes(*A,PETSC_DECIDE,PETSC_DECIDE,N,N);
+    ierr = MatSetFromOptions(*A);
+    ierr = MatSetUp(*A);
+    
+    ierr = MatGetOwnershipRange(*A,&Istart,&Iend);
+    for (II=Istart;II<Iend;II++) {
+      i = II/n; j = II-i*n;
+      if (i>0) { ierr = MatSetValue(*A,II,II-n,-1.0,INSERT_VALUES); }
+      if (i<m-1) { ierr = MatSetValue(*A,II,II+n,-1.0,INSERT_VALUES); }
+      if (j>0) { ierr = MatSetValue(*A,II,II-1,-1.0,INSERT_VALUES); }
+      if (j<n-1) { ierr = MatSetValue(*A,II,II+1,-1.0,INSERT_VALUES); }
+      ierr = MatSetValue(*A,II,II,4.0,INSERT_VALUES);
     }
-    //将aux_Hh部分赋值给dense_mat
-    CSR_VEC **vecs = (CSR_VEC**)(pase_matrix->aux_Hh);
-    for(i=0; i<num_aux_vec; i++)
-    {
-        for(row=0; row<nrows; row++)
-        {
-            col = nrows+i;
-            dense_mat[col*ldd+row] = vecs[i]->Entries[row];
-            //对称化
-            dense_mat[row*ldd+col] = vecs[i]->Entries[row];
-        }
-    }
-    //aux_hh部分
-    for(i=0; i<num_aux_vec; i++)
-    {
-        for(j=0; j<num_aux_vec; j++)
-        {
-            col = nrows+i;
-            row = nrows+j;
-            dense_mat[col*ldd+row] = pase_matrix->aux_hh[i*num_aux_vec+j];
-        }
-    }
-    //打印稠密矩阵
-    //printf("pase_matrix: n: %d\n",ldd);
-    for(i=0; i<ldd; i++)
-    {
-        for(j=0; j<ldd; j++)
-        {
-            printf("%f\t", dense_mat[i*ldd+j]);
-        }
-        printf("\n");
-    }
-    free(dense_mat); dense_mat = NULL;
-}
-
-void PASE_PrintMultiVec(PASE_MultiVector vecs)
-{
-    int num_aux_vec = vecs->num_aux_vec;
-    int i = 0;
-    int j = 0;
-    //打印CSR向量组部分
-    CSR_VEC **b_H = (CSR_VEC**)(vecs->b_H);
-    int nrows = b_H[0]->size;
-    for(i=0; i<nrows; i++)
-    {
-        for(j=0; j<num_aux_vec; j++)
-        {
-            printf("%f\t", b_H[j]->Entries[i]);
-        }
-        printf("\n");
-    }
-    double *aux_h = vecs->aux_h;
-    //打印aux_h部分
-    for(i=0; i<num_aux_vec; i++)
-    {
-        for(j=0; j<num_aux_vec; j++)
-        {
-            printf("%f\t", aux_h[j*num_aux_vec+i]);
-        }
-        printf("\n");
-    }
-}
-
-void PASE_PrintVec(PASE_Vector vecs)
-{
-    int i = 0;
-    int j = 0;
-    //打印CSR向量组部分
-    CSR_VEC *b_H = (CSR_VEC*)(vecs->b_H);
-    int nrows = b_H->size;
-    for(i=0; i<nrows; i++)
-    {
-        printf("%f\n", b_H->Entries[i]);
-    }
-    double *aux_h = vecs->aux_h;
-    int num_aux_vec = vecs->num_aux_vec;
-    //打印aux_h部分
-    for(i=0; i<num_aux_vec; i++)
-    {
-        printf("%f\n", aux_h[i]);
-    }
+    
+    ierr = MatAssemblyBegin(*A,MAT_FINAL_ASSEMBLY);
+    ierr = MatAssemblyEnd(*A,MAT_FINAL_ASSEMBLY);
 }

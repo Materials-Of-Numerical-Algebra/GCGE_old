@@ -65,7 +65,7 @@ void GCGE_PHG_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OP
    for (i = 0; i < ((VEC *)x)->map->nlocal; i++)
       *value_ip += ((VEC *)x)->data[i] * ((VEC *)y)->data[i];
 }
-void GCGE_PHG_MultiVecPrint(void **x, GCGE_INT n)
+void GCGE_PHG_MultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
 {
    char file_name[16];
    GCGE_INT i = 0;

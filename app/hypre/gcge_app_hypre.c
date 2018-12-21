@@ -85,7 +85,7 @@ void GCGE_HYPRE_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_
    hypre_Vector *y_local = hypre_ParVectorLocalVector((HYPRE_ParVector)y);
    *value_ip = hypre_SeqVectorInnerProd(x_local, y_local);
 }
-void GCGE_HYPRE_MultiVecPrint(void **x, GCGE_INT n)
+void GCGE_HYPRE_MultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
 {
    char file_name[16];
    GCGE_INT i = 0;
