@@ -1,7 +1,7 @@
 #ifndef _pase_mg_h_
 #define _pase_mg_h_
 
-#include "pase_ops.h"
+#include "pase.h"
 
 
 #define pase_MultiGridDataAArray(data)  ((data)->A_array)
@@ -25,13 +25,18 @@ typedef struct pase_MultiGrid_struct
    void     **U_array;
    void     **F_array;
 
+   PASE_Matrix *aux_A;
+   PASE_Matrix *aux_B;
+
    GCGE_OPS *gcge_ops;
+   PASE_OPS *pase_ops;
    
 } pase_MultiGrid;
 typedef struct pase_MultiGrid_struct *PASE_MULTIGRID;
 
-PASE_INT PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
-        PASE_INT max_levels, void *A, void *B, GCGE_OPS *gcge_ops);
+PASE_INT 
+PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels, 
+        void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops);
 
 PASE_INT PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid);
 
@@ -50,15 +55,9 @@ PASE_INT PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid);
  *
  * @return 
  */
-PASE_INT PASE_MULTIGRID_ProlongFromItoJ(PASE_MULTIGRID multi_grid, 
+PASE_INT PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid, 
         PASE_INT level_i, PASE_INT level_j, 
         PASE_INT *mv_s, PASE_INT *mv_e, 
         void **pvx_i, void** pvx_j);
-
-PASE_INT PASE_MULTIGRID_RestrictFromItoJ(PASE_MULTIGRID multi_grid, 
-        PASE_INT level_i, PASE_INT level_j, 
-        PASE_INT *mv_s, PASE_INT *mv_e, 
-        void **pvx_i, void** pvx_j);
-
 
 #endif

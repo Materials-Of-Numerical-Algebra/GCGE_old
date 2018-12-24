@@ -1,6 +1,4 @@
-
-#undef  __FUNCT__
-#define __FUNCT__ "PASE_Multigrid_create"
+#include "pase_mg.h"
 /**
  * @brief 创建 PASE_MULTIGRID
  *
@@ -11,70 +9,79 @@
  *
  * @return PASE_MULTIGRID
  */
-PASE_MULTIGRID 
-PASE_Multigrid_create(void *A, void *B, PASE_PARAMETER param, PASE_MULTIGRID_OPERATOR ops)
+PASE_INT 
+PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels, 
+        void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops)
 {
-  PASE_MULTIGRID multigrid = (PASE_MULTIGRID)PASE_Malloc(sizeof(PASE_MULTIGRID_PRIVATE));
-  /* TODO */
-#if 0
-  if(NULL != ops) {
-    multigrid->ops = (PASE_MULTIGRID_OPERATOR) PASE_Malloc(sizeof(PASE_MULTIGRID_OPERATOR_PRIVATE));
-    *(multigrid->ops) = *ops;
-  } else {
-    multigrid->ops = PASE_Multigrid_operator_create(A->data_form);
+  *multi_grid = (PASE_MULTIGRID)PASE_Malloc(sizeof(pase_MultiGrid));
+  (*multi_grid)->num_levels = max_levels;
+  (*multi_grid)->gcge_ops = gcge_ops;
+  (*multi_grid)->pase_ops = pase_ops;
+  (*multi_grid)->A_array = (void**)malloc(max_levels*sizeof(void*));
+  (*multi_grid)->B_array = (void**)malloc(max_levels*sizeof(void*));
+  (*multi_grid)->P_array = (void**)malloc(max_levels*sizeof(void*));
+  (*multi_grid)->aux_A   = (PASE_Matrix*)malloc(max_levels*sizeof(PASE_Matrix));
+  (*multi_grid)->aux_B   = (PASE_Matrix*)malloc(max_levels*sizeof(PASE_Matrix));
+  PASE_INT i = 0;
+  for(i=0; i<max_levels; i++)
+  {
+    (*multi_grid)->aux_A[i] = NULL;
+    (*multi_grid)->aux_B[i] = NULL;
   }
-
-  //PASE_Multigrid_set_up(multigrid, A, B, param);
-
-#endif
-  return multigrid;
+  return 0;
 }
 
-#undef  __FUNCT__
-#define __FUNCT__ "PASE_Multigrid_get_amg_array"
+PASE_INT 
+PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
+{
+    free((*multi_grid)->A_array);
+    (*multi_grid)->A_array = NULL;
+    free((*multi_grid)->B_array);
+    (*multi_grid)->B_array = NULL;
+    free((*multi_grid)->P_array);
+    (*multi_grid)->P_array = NULL;
+    PASE_INT i = 0;
+    for(i=0; i<(*multi_grid)->num_levels; i++)
+    {
+        if((*multi_grid)->aux_A[i] != NULL)
+        {
+            PASE_MatrixDestroy(&((*multi_grid)->aux_A[i]), (*multi_grid)->pase_ops);
+        }
+    }
+    free((*multi_grid)->aux_A);
+    (*multi_grid)->aux_A = NULL;
+    for(i=0; i<(*multi_grid)->num_levels; i++)
+    {
+        if((*multi_grid)->aux_B[i] != NULL)
+        {
+            PASE_MatrixDestroy(&((*multi_grid)->aux_B[i]), (*multi_grid)->pase_ops);
+        }
+    }
+    free((*multi_grid)->aux_B);
+    (*multi_grid)->aux_B = NULL;
+    free(*multi_grid); *multi_grid = NULL;
+}
+
 /**
- * @brief AMG 分层
+ * TODO
+ * @brief 将多向量从第level_i层 prolong/restrict 到level_j层
  *
- * @param multigrid  输入/输出参数 
- * @param A          输入参数
- * @param B          输入参数
- * @param param      输入参数, 包含 AMG 分层的各个参数
+ * @param multigrid 多重网格结构
+ * @param level_i   起始层
+ * @param level_j   目标层
+ * @param mv_s      多向量pvx_i与pvx_j的起始位置
+ * @param mv_e      多向量pvx_i与pvx_j的终止位置
+ * @param pvx_i     起始多向量
+ * @param pvx_j     目标多向量
+ *
+ * @return 
  */
-void
-PASE_Multigrid_set_up(PASE_MULTIGRID multigrid, PASE_MATRIX A, PASE_MATRIX B, PASE_PARAMETER param)
+PASE_INT PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid, 
+        PASE_INT level_i, PASE_INT level_j, 
+        PASE_INT *mv_s, PASE_INT *mv_e, 
+        void **pvx_i, void** pvx_j)
 {
-  void **A_array, **P_array, **R_array; 
-  PASE_INT    level = 0;
-  PASE_MATRIX tmp   = NULL;
-  multigrid->ops->get_amg_array(A->matrix_data, 
-                                param, 
-                                &(A_array),
-                                &(P_array),
-                                &(R_array),
-                                &(multigrid->actual_level),
-                                &(multigrid->amg_data));
-  multigrid->A     = (PASE_MATRIX*)PASE_Malloc(multigrid->actual_level*sizeof(PASE_MATRIX));
-  multigrid->B     = (PASE_MATRIX*)PASE_Malloc(multigrid->actual_level*sizeof(PASE_MATRIX));
-  multigrid->P     = (PASE_MATRIX*)PASE_Malloc((multigrid->actual_level-1)*sizeof(PASE_MATRIX));
-  multigrid->R     = (PASE_MATRIX*)PASE_Malloc((multigrid->actual_level-1)*sizeof(PASE_MATRIX));
-  multigrid->aux_A = (PASE_AUX_MATRIX*)calloc(multigrid->actual_level, sizeof(PASE_AUX_MATRIX));
-  multigrid->aux_B = (PASE_AUX_MATRIX*)calloc(multigrid->actual_level, sizeof(PASE_AUX_MATRIX));
-  multigrid->A[0]  = A;
-  multigrid->B[0]  = B;
-  for(level=1; level<multigrid->actual_level; level++) {
-    multigrid->A[level]                         = PASE_Matrix_assign(A_array[level], A->ops);
-    multigrid->A[level]->data_form              = A->data_form;
-    multigrid->P[level-1]                       = PASE_Matrix_assign(P_array[level-1], A->ops);
-    multigrid->P[level-1]->data_form            = A->data_form;
-    multigrid->R[level-1]                       = PASE_Matrix_assign(R_array[level-1], A->ops);
-    multigrid->R[level-1]->is_matrix_data_owner = 1;
-    multigrid->R[level-1]->data_form            = A->data_form;
-
-    /* B1 = R0 * B0 * P0 */
-    tmp                                         = PASE_Matrix_multiply_matrix(multigrid->B[level-1], multigrid->P[level-1]); 
-    multigrid->B[level]                         = PASE_Matrix_multiply_matrix(multigrid->R[level-1], tmp); 
-    PASE_Matrix_destroy(tmp);
-  }
-  PASE_Free(R_array);
+    //如果level_i(0)<level_j(1),从细层到粗层，限制,P[1]存Restrict限制矩阵
+    //如果level_i(1)>level_j(0),从粗层到细层，延拓,P[0]存Prolong延拓矩阵
+    multi_grid->gcge_ops->MatDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
 }
-

@@ -196,7 +196,7 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
         //W存储在 V(:,w_start:w_start+w_length), RHS存储在V_tmp(:,0:w_length)
         if(para->if_use_bcg == 1)
         {
-            GCGE_BCG(A, V_tmp, V, w_start,w_length, ops, para,
+            GCGE_BCG(A, V_tmp, V, w_start,w_length, para->cg_max_it, para->cg_rate, ops, 
                  workspace->CG_p, workspace->evec, 
                  workspace->subspace_dtmp, workspace->subspace_itmp);
         }

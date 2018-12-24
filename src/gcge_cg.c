@@ -134,9 +134,10 @@ void GCGE_CG(void *Matrix, void *b, void *x, GCGE_OPS *ops, GCGE_PARA *para,
  *  subspace_dtmp: input,    double型工作空间
  *  subspace_itmp: input,    int型工作空间
  */
-void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start, GCGE_INT x_length, 
-          GCGE_OPS *ops, GCGE_PARA *para, void *V_tmp1, void **V_tmp2, 
-	  GCGE_DOUBLE *subspace_dtmp, GCGE_INT *subspace_itmp)
+void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start, 
+        GCGE_INT x_length, GCGE_INT max_it, GCGE_DOUBLE rate,
+        GCGE_OPS *ops, void *V_tmp1, void **V_tmp2, 
+        GCGE_DOUBLE *subspace_dtmp, GCGE_INT *subspace_itmp)
 {
   //临时向量
   void        *x,  *r, *p, *w, *b;
@@ -144,8 +145,6 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start, GCGE_INT x_le
   void        **CG_R = RHS, **CG_P = V_tmp1, **CG_W = V_tmp2, 
               **CG_X = V;
   GCGE_INT    id, idx, niter = 0;
-  GCGE_INT    max_it = para->cg_max_it, type = para->cg_type;
-  GCGE_DOUBLE rate = para->cg_rate;
   GCGE_DOUBLE tmp1, tmp2, alpha, beta;
   //GCGE_DOUBLE *rho1 = workspace->subspace_dtmp, 
   GCGE_DOUBLE *rho1 = subspace_dtmp, 
