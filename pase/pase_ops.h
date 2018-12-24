@@ -74,6 +74,7 @@ typedef struct PASE_OPS_ {
     void (*GetVecFromMultiVec)      (void **V, PASE_INT j, void **x, struct PASE_OPS_ *ops);
     void (*RestoreVecForMultiVec)   (void **V, PASE_INT j, void **x, struct PASE_OPS_ *ops);
     void (*MultiVecPrint)           (void **x, PASE_INT n, struct PASE_OPS_ *ops);
+    void (*PrintMat)                (void *mat);
    
 }PASE_OPS;
 

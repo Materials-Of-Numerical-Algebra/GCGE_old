@@ -532,3 +532,14 @@ TODO
 1. 这pase文件夹下对pase_convert.c进行测试，临时将测试函数放在pase文件夹下
 2. 测试了从PETSC矩阵到HYPRE矩阵以及AMG生成一系列HYPRE矩阵, 再转化为PETSC矩阵，然后生成对应一系列向量
    并且做了完备的矩阵向量测试，以待后期使用
+
+2018.12.24 zhangning
+1. 修改了GCGE_BCG的参数，使得不依赖于GCGE_PARA，可以在pase中调用
+2. 目前 test/pase/test_pase_1.c 是一个简单的二网格pase测试例子，可以运行，
+没有内存错误，但是结果有问题，使用的是CSR格式
+   1）复合矩阵构造没问题，对确定的限制矩阵R，近似特征向量x，粗细矩阵Af,Ac,与matlab对比过，构造的矩阵
+      [Ac,        R*Af*x;
+       x'*Af'*R', x'*Af*x]
+      是相同的
+   2）对上述复合矩阵，用GCGE-PASE求解的特征向量是没问题的
+   3）但这样使用GCGE求解后，残差反而比初始的x变大
