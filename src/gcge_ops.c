@@ -122,7 +122,7 @@ void GCGE_Default_MatDotMultiVec(void *mat, void **x, void **y,
     {
         ops->GetVecFromMultiVec(x, start[0]+i, &xs, ops);
         ops->GetVecFromMultiVec(y, start[1]+i, &ys, ops);
-        ops->MatTransposeDotVec(mat, xs, ys, ops);
+        ops->MatDotVec(mat, xs, ys, ops);
         ops->RestoreVecForMultiVec(x, start[0]+i, &xs, ops);
         ops->RestoreVecForMultiVec(y, start[1]+i, &ys, ops);
     }
@@ -139,7 +139,7 @@ void GCGE_Default_MatTransposeDotMultiVec(void *mat, void **x, void **y,
     {
         ops->GetVecFromMultiVec(x, start[0]+i, &xs, ops);
         ops->GetVecFromMultiVec(y, start[1]+i, &ys, ops);
-        ops->MatDotVec(mat, xs, ys, ops);
+        ops->MatTransposeDotVec(mat, xs, ys, ops);
         ops->RestoreVecForMultiVec(x, start[0]+i, &xs, ops);
         ops->RestoreVecForMultiVec(y, start[1]+i, &ys, ops);
     }
