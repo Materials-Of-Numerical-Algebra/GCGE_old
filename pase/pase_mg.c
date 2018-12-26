@@ -20,14 +20,8 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels,
   (*multi_grid)->A_array = (void**)malloc(max_levels*sizeof(void*));
   (*multi_grid)->B_array = (void**)malloc(max_levels*sizeof(void*));
   (*multi_grid)->P_array = (void**)malloc(max_levels*sizeof(void*));
-  (*multi_grid)->aux_A   = (PASE_Matrix*)malloc(max_levels*sizeof(PASE_Matrix));
-  (*multi_grid)->aux_B   = (PASE_Matrix*)malloc(max_levels*sizeof(PASE_Matrix));
-  PASE_INT i = 0;
-  for(i=0; i<max_levels; i++)
-  {
-    (*multi_grid)->aux_A[i] = NULL;
-    (*multi_grid)->aux_B[i] = NULL;
-  }
+  (*multi_grid)->aux_A   = NULL;
+  (*multi_grid)->aux_B   = NULL;
   return 0;
 }
 
@@ -40,25 +34,12 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
     (*multi_grid)->B_array = NULL;
     free((*multi_grid)->P_array);
     (*multi_grid)->P_array = NULL;
-    PASE_INT i = 0;
-    for(i=0; i<(*multi_grid)->num_levels; i++)
-    {
-        if((*multi_grid)->aux_A[i] != NULL)
-        {
-            PASE_MatrixDestroy(&((*multi_grid)->aux_A[i]), (*multi_grid)->pase_ops);
-        }
+    if((*multi_grid)->aux_A != NULL) {
+        PASE_MatrixDestroy(&((*multi_grid)->aux_A), (*multi_grid)->pase_ops);
     }
-    free((*multi_grid)->aux_A);
-    (*multi_grid)->aux_A = NULL;
-    for(i=0; i<(*multi_grid)->num_levels; i++)
-    {
-        if((*multi_grid)->aux_B[i] != NULL)
-        {
-            PASE_MatrixDestroy(&((*multi_grid)->aux_B[i]), (*multi_grid)->pase_ops);
-        }
+    if((*multi_grid)->aux_B != NULL) {
+        PASE_MatrixDestroy(&((*multi_grid)->aux_B), (*multi_grid)->pase_ops);
     }
-    free((*multi_grid)->aux_B);
-    (*multi_grid)->aux_B = NULL;
     free(*multi_grid); *multi_grid = NULL;
 }
 

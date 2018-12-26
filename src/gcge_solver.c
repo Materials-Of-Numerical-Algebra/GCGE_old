@@ -36,6 +36,26 @@ void GCGE_SOLVER_Create(GCGE_SOLVER **solver)
     (*solver)->evec = NULL;
     //return error;
 }
+
+GCGE_SOLVER *GCGE_SOLVER_CreateByOps(void *A, void *B, GCGE_INT nev, 
+        GCGE_DOUBLE *eval, void **evec, GCGE_OPS *ops)
+{
+    GCGE_SOLVER *solver = (GCGE_SOLVER*)malloc(sizeof(GCGE_SOLVER));
+    GCGE_PARA_Create(&(solver->para));
+    solver->para->nev = nev;
+    solver->ops = ops;
+    //GCGE_INT error = GCGE_PARA_SetFromCommandLine((*solver)->para, argc, argv);
+    /* TODO should set NULL and Setup to modify */
+    GCGE_WORKSPACE_Create(&(solver->workspace));
+    solver->A = A;
+    solver->B = B;
+    solver->eval = eval;
+    solver->evec = evec;
+    GCGE_SOLVER_Setup(solver);
+    return solver;
+    //return error;
+}
+
 void GCGE_SOLVER_Free(GCGE_SOLVER **solver)
 {
     GCGE_WORKSPACE_Free(&(*solver)->workspace, (*solver)->para, (*solver)->ops);

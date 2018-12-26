@@ -39,8 +39,8 @@ int main(int argc, char* argv[])
     srand(1);
     GCGE_DOUBLE t_start = GCGE_GetTime();
 
-    const char *file_A = "/home/zhangning/MATRIX/fem_csr_mat/Stiff_289.txt";
-    const char *file_B = "/home/zhangning/MATRIX/fem_csr_mat/Mass_289.txt";
+    const char *file_A = "/home/zhangning/MATRIX/fem_csr_mat/Stiff_1089.txt";
+    const char *file_B = "/home/zhangning/MATRIX/fem_csr_mat/Mass_1089.txt";
     CSR_MAT *A = CSR_ReadMatFile(file_A);
     CSR_MAT *B = CSR_ReadMatFile(file_B);
 
@@ -55,8 +55,12 @@ int main(int argc, char* argv[])
     int nev = 5;
     GCGE_SOLVER_SetNumEigen(csr_solver, nev);//设置特征值个数
     csr_solver->para->print_eval = 0;//设置是否打印每次迭代的特征值
+    csr_solver->para->ev_max_it  = 20;
+    csr_solver->para->print_result = 0;
+    csr_solver->para->print_para = 0;
+    csr_solver->para->conv_type = "A";
     //暂时用GCGE获取初值，残差1e-4
-    csr_solver->para->ev_tol = 1e-4;
+    csr_solver->para->ev_tol = 1e-2;
 
     //从命令行读入GCGE_PARA中的一些参数
     error = GCGE_PARA_SetFromCommandLine(csr_solver->para, argc, argv);
@@ -91,7 +95,7 @@ int main(int argc, char* argv[])
     PASE_PARAMETER param   = (PASE_PARAMETER) PASE_Malloc(sizeof(PASE_PARAMETER_PRIVATE));
     param->cycle_type      = 0;   //二网格
     param->block_size      = nev; //特征值个数
-    param->max_cycle       = 1;  //二网格迭代次数
+    param->max_cycle       = 2;  //二网格迭代次数
     param->max_pre_iter    = 1;   //前光滑次数
     param->max_post_iter   = 1;   //后光滑次数
     param->atol            = 1e-10;
@@ -103,12 +107,12 @@ int main(int argc, char* argv[])
     //param->min_coarse_size = 500;
     PrintParameter(param);
 
-    const char *file_Ac = "/home/zhangning/MATRIX/fem_csr_mat/Stiff_81.txt";
-    const char *file_Bc = "/home/zhangning/MATRIX/fem_csr_mat/Mass_81.txt";
+    const char *file_Ac = "/home/zhangning/MATRIX/fem_csr_mat/Stiff_289.txt";
+    const char *file_Bc = "/home/zhangning/MATRIX/fem_csr_mat/Mass_289.txt";
     CSR_MAT *Ac = CSR_ReadMatFile(file_Ac);
     CSR_MAT *Bc = CSR_ReadMatFile(file_Bc);
-    const char *file_P = "/home/zhangning/MATRIX/fem_csr_mat/Prolong_289_81.txt";
-    const char *file_R = "/home/zhangning/MATRIX/fem_csr_mat/Restrict_289_81.txt";
+    const char *file_P = "/home/zhangning/MATRIX/fem_csr_mat/Prolong_289_1089.txt";
+    const char *file_R = "/home/zhangning/MATRIX/fem_csr_mat/Restrict_289_1089.txt";
     CSR_MAT *P = CSR_ReadMatFile(file_P);
     CSR_MAT *R = CSR_ReadMatFile(file_R);
 

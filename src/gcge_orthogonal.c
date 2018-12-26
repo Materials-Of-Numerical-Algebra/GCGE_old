@@ -2107,7 +2107,10 @@ void GCGE_SubOrthonormalizationSelfBGS(void **V, GCGE_INT start, GCGE_INT *end,
             mv_e[0] = current + 1; //表示swap中第一个向量组的终止位置
             mv_e[1] = *end; //表示swap中第二个向量组的终止位置
             //向量移动（由用户提供），目的: V(:,current:end-1) = V(:, )
-            ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+            if(current < (*end)-1)
+            {
+                ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+            }
             (*end)--;
             current--;
             if(para->orth_para->print_orth_zero == 1)
