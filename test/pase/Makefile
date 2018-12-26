@@ -5,12 +5,14 @@ include $(GCGEHOME)/config/make.inc
 ############################################################
 OBJS1  = test_csr_pase_solver.o
 OBJS2  = test_ops.o
+OBJS3  = test_pase_1.o
 
 EXE1   = ./test_csr_pase_solver.exe 
 EXE2   = ./test_ops.exe 
+EXE3   = ./test_pase_1.exe 
 
-INC    = -I$(GCGEINC) -I$(GCGEPASEINC)
-LIBS   = $(LIBPASE) $(LIBGCGEPASE) $(LIBGCGECSR) $(LIBGCGE) $(LIBLAPACK) $(LIBBLAS) $(LIBF)
+INC    = -I$(GCGEINC)
+LIBS   = $(LIBPASE) $(LIBGCGECSR) $(LIBGCGE) $(LIBLAPACK) $(LIBBLAS) $(LIBF)
 
 ############################################################
 MAT_A = $(GCGEHOME)/test/data/testA
@@ -24,6 +26,8 @@ all:	help
 exe1:    $(EXE1)
 
 exe2:    $(EXE2)
+
+exe3:    $(EXE3)
 
 clean:
 	@$(RM) $(RMFLAGS) *.o *.exe
@@ -68,6 +72,12 @@ $(EXE1): $(OBJS1)
 	@echo ''
 
 $(EXE2): $(OBJS2)
+	@echo ''
+	@echo 'Creating executable bin/xx.exe'
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS)
+	@echo ''
+
+$(EXE3): $(OBJS3)
 	@echo ''
 	@echo 'Creating executable bin/xx.exe'
 	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS)
