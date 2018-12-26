@@ -117,8 +117,7 @@ PASE_INT PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
    else if (level_i == level_j - 1) /* level_i < level_j : 从细层到粗层 */
    {
       /* OPS 中需要加入 矩阵转置乘以向量 */
-      //multi_grid->gcge_ops->MatTansposeDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
-      multi_grid->gcge_ops->MatDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
+      multi_grid->gcge_ops->MatTransposeDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
    }
    else if (level_i == level_j)
    {
