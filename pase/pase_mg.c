@@ -1,4 +1,6 @@
 #include "pase_mg.h"
+
+void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat);
 /**
  * @brief 创建 PASE_MULTIGRID
  *
@@ -13,34 +15,79 @@ PASE_INT
 PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels, 
         void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops)
 {
-  *multi_grid = (PASE_MULTIGRID)PASE_Malloc(sizeof(pase_MultiGrid));
-  (*multi_grid)->num_levels = max_levels;
-  (*multi_grid)->gcge_ops = gcge_ops;
-  (*multi_grid)->pase_ops = pase_ops;
-  (*multi_grid)->A_array = (void**)malloc(max_levels*sizeof(void*));
-  (*multi_grid)->B_array = (void**)malloc(max_levels*sizeof(void*));
-  (*multi_grid)->P_array = (void**)malloc(max_levels*sizeof(void*));
-  (*multi_grid)->aux_A   = NULL;
-  (*multi_grid)->aux_B   = NULL;
-  return 0;
+   /* P 是行多列少, P*v是从粗到细 */
+   *multi_grid = (PASE_MULTIGRID)PASE_Malloc(sizeof(pase_MultiGrid));
+   (*multi_grid)->num_levels = max_levels;
+   (*multi_grid)->gcge_ops = gcge_ops;
+   (*multi_grid)->pase_ops = pase_ops;
+   (*multi_grid)->A_array = NULL;
+   (*multi_grid)->B_array = NULL;
+   (*multi_grid)->P_array = NULL;
+   (*multi_grid)->aux_A   = NULL;
+   (*multi_grid)->aux_B   = NULL;
+
+   /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
+   Mat *petsc_A, *petsc_B;
+   Mat *A_array, *B_array, *P_array;
+   HYPRE_IJMatrix     hypre_ij_mat;
+   HYPRE_ParCSRMatrix hypre_parcsr_mat;
+   petsc_A = (Mat*)A; petsc_B = (Mat*)B;
+   MatrixConvertPETSC2HYPRE(&hypre_ij_mat, *petsc_A);
+   HYPRE_IJMatrixGetObject(hypre_ij_mat, (void**) &hypre_parcsr_mat);
+   /* Will malloc for A and P */
+   GetMultigridMatFromHypreToPetsc(&A_array, &P_array, &((*multi_grid)->num_levels), hypre_parcsr_mat);
+   HYPRE_IJMatrixDestroy(hypre_ij_mat);
+   B_array = malloc((*multi_grid)->num_levels*sizeof(Mat));
+   int level; 
+   MatDuplicate(*petsc_B, MAT_COPY_VALUES, &B_array[0]);
+   /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
+   for ( level = 1; level < (*multi_grid)->num_levels; ++level )
+   {
+      MatPtAP(B_array[level-1], P_array[level-1], 
+	    MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(B_array[level]));
+   }
+   /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
+
+   (*multi_grid)->A_array = (void**)(&A_array);
+   (*multi_grid)->B_array = (void**)(&B_array);
+   (*multi_grid)->P_array = (void**)(&P_array);
+   return 0;
 }
 
 PASE_INT 
 PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
 {
-    free((*multi_grid)->A_array);
-    (*multi_grid)->A_array = NULL;
-    free((*multi_grid)->B_array);
-    (*multi_grid)->B_array = NULL;
-    free((*multi_grid)->P_array);
-    (*multi_grid)->P_array = NULL;
-    if((*multi_grid)->aux_A != NULL) {
-        PASE_MatrixDestroy(&((*multi_grid)->aux_A), (*multi_grid)->pase_ops);
-    }
-    if((*multi_grid)->aux_B != NULL) {
-        PASE_MatrixDestroy(&((*multi_grid)->aux_B), (*multi_grid)->pase_ops);
-    }
-    free(*multi_grid); *multi_grid = NULL;
+   PetscErrorCode ierr;
+   /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
+   Mat *A_array, *B_array, *P_array;
+   A_array = (Mat *)(*((*multi_grid)->A_array));
+   B_array = (Mat *)(*((*multi_grid)->B_array));
+   P_array = (Mat *)(*((*multi_grid)->P_array));
+   int level; 
+   for ( level = 0; level < (*multi_grid)->num_levels; ++level )
+   {
+      ierr = MatDestroy(&A_array[level]);
+      ierr = MatDestroy(&B_array[level]);
+   }
+   free(A_array); 
+   free(B_array); 
+   for ( level = 0; level < (*multi_grid)->num_levels - 1; ++level )
+   {
+      ierr = MatDestroy(&P_array[level]);
+   }
+   free(P_array);
+   /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
+   (*multi_grid)->A_array = NULL;
+   (*multi_grid)->B_array = NULL;
+   (*multi_grid)->P_array = NULL;
+
+   if((*multi_grid)->aux_A != NULL) {
+      PASE_MatrixDestroy(&((*multi_grid)->aux_A), (*multi_grid)->pase_ops);
+   }
+   if((*multi_grid)->aux_B != NULL) {
+      PASE_MatrixDestroy(&((*multi_grid)->aux_B), (*multi_grid)->pase_ops);
+   }
+   free(*multi_grid); *multi_grid = NULL;
 }
 
 /**
@@ -62,7 +109,76 @@ PASE_INT PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
         PASE_INT *mv_s, PASE_INT *mv_e, 
         void **pvx_i, void** pvx_j)
 {
-    //如果level_i(0)<level_j(1),从细层到粗层，限制,P[1]存Restrict限制矩阵
-    //如果level_i(1)>level_j(0),从粗层到细层，延拓,P[0]存Prolong延拓矩阵
-    multi_grid->gcge_ops->MatDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
+   /* P 是行多列少, P*v是从粗到细 */
+   if (level_i == level_j + 1) /* level_i > level_j : 从粗层到细层 */
+   {
+      multi_grid->gcge_ops->MatDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
+   }
+   else if (level_i == level_j - 1) /* level_i < level_j : 从细层到粗层 */
+   {
+      /* OPS 中需要加入 矩阵转置乘以向量 */
+      //multi_grid->gcge_ops->MatTansposeDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
+      multi_grid->gcge_ops->MatDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
+   }
+   else if (level_i == level_j)
+   {
+      multi_grid->gcge_ops->MultiVecAxpby(1.0, pvx_i, 0.0, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
+   }
+   else /* 其它情况需要借助辅助向量，这个比较希望在 PASE_MULTIGRID 结构中在每一层中生成一组多向量 */
+   {
+      printf ( "NO SUPPORT\n" );
+      return 1;
+   }
+   return 0;
+}
+
+
+
+/* -------------------------- 利用AMG生成各个层的矩阵------------------ */
+void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat)
+{
+   /* Create solver */
+   HYPRE_Solver      amg;
+   HYPRE_BoomerAMGCreate(&amg);
+   /* Set some parameters (See Reference Manual for more parameters) */
+   HYPRE_BoomerAMGSetPrintLevel (amg, 0);         /* print solve info + parameters */
+   HYPRE_BoomerAMGSetInterpType (amg, 0);
+   HYPRE_BoomerAMGSetPMaxElmts  (amg, 0);
+   HYPRE_BoomerAMGSetCoarsenType(amg, 6);
+   HYPRE_BoomerAMGSetMaxLevels  (amg, *num_levels);  /* maximum number of levels */
+   /* Create a HYPRE_ParVector by HYPRE_ParCSRMatrix */
+   MPI_Comm           comm         = hypre_ParCSRMatrixComm(hypre_parcsr_mat);
+   HYPRE_Int          global_size  = hypre_ParCSRMatrixGlobalNumRows(hypre_parcsr_mat);
+   HYPRE_Int         *partitioning = NULL;
+#ifdef HYPRE_NO_GLOBAL_PARTITION
+   partitioning = hypre_CTAlloc(HYPRE_Int,  2);
+   hypre_ParCSRMatrixGetLocalRange(hypre_parcsr_mat, partitioning, partitioning+1, partitioning, partitioning+1);
+   partitioning[1] += 1;
+#else
+   HYPRE_ParCSRMatrixGetRowPartitioning(hypre_parcsr_mat, &partitioning);
+#endif
+   HYPRE_ParVector    hypre_par_vec = hypre_ParVectorCreate(comm, global_size, partitioning);
+   hypre_ParVectorInitialize(hypre_par_vec);
+   hypre_ParVectorSetPartitioningOwner(hypre_par_vec, 1);
+   /* Now setup AMG */
+   HYPRE_BoomerAMGSetup(amg, hypre_parcsr_mat, hypre_par_vec, hypre_par_vec);
+   hypre_ParAMGData* amg_data = (hypre_ParAMGData*) amg;
+   *num_levels = hypre_ParAMGDataNumLevels(amg_data);
+   /* Create PETSC Mat */
+   *A_array = malloc(sizeof(Mat)*(*num_levels));
+   *P_array = malloc(sizeof(Mat)*(*num_levels-1));
+   hypre_ParCSRMatrix **hypre_mat;
+   HYPRE_Int idx;
+   hypre_mat = hypre_ParAMGDataAArray(amg_data);
+   for (idx = 0; idx < *num_levels; ++idx)
+   {
+      MatrixConvertHYPRE2PETSC((*A_array)+idx, hypre_mat[idx]);
+   }
+   hypre_mat = hypre_ParAMGDataPArray(amg_data);
+   for (idx = 0; idx < *num_levels-1; ++idx)
+   {
+      MatrixConvertHYPRE2PETSC((*P_array)+idx, hypre_mat[idx]);
+   }
+   HYPRE_BoomerAMGDestroy(amg);	
+   hypre_ParVectorDestroy(hypre_par_vec);
 }

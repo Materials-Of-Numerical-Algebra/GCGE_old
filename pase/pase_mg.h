@@ -3,6 +3,8 @@
 
 #include "pase.h"
 
+#include "pase_convert.h"
+#include "_hypre_parcsr_ls.h"
 
 #define pase_MultiGridDataAArray(data)  ((data)->A_array)
 #define pase_MultiGridDataBArray(data)  ((data)->B_array)
