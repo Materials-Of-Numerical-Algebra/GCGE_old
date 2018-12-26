@@ -18,4 +18,6 @@ typedef double PASE_SCALAR;
 #define PASE_NO    0
 #define PASE_YES   1
 
+#define CLK_TCK 1000000
+
 #endif
