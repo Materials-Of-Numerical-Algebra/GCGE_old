@@ -122,6 +122,23 @@ void GCGE_Default_MatDotMultiVec(void *mat, void **x, void **y,
     {
         ops->GetVecFromMultiVec(x, start[0]+i, &xs, ops);
         ops->GetVecFromMultiVec(y, start[1]+i, &ys, ops);
+        ops->MatTransposeDotVec(mat, xs, ys, ops);
+        ops->RestoreVecForMultiVec(x, start[0]+i, &xs, ops);
+        ops->RestoreVecForMultiVec(y, start[1]+i, &ys, ops);
+    }
+}
+
+//矩阵 mat 的转置 乘多个向量: y(:,start[1]:end[1]) = mat * x(:, start[0]:end[0]) 
+void GCGE_Default_MatTransposeDotMultiVec(void *mat, void **x, void **y, 
+        GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops)
+{
+    GCGE_INT i = 0;
+    GCGE_INT n_vec = end[0]-start[0];
+    void     *xs, *ys;
+    for(i=0; i<n_vec; i++)
+    {
+        ops->GetVecFromMultiVec(x, start[0]+i, &xs, ops);
+        ops->GetVecFromMultiVec(y, start[1]+i, &ys, ops);
         ops->MatDotVec(mat, xs, ys, ops);
         ops->RestoreVecForMultiVec(x, start[0]+i, &xs, ops);
         ops->RestoreVecForMultiVec(y, start[1]+i, &ys, ops);

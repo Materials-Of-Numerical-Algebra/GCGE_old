@@ -131,6 +131,12 @@ void GCGE_PETSC_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
     PetscErrorCode ierr = MatMult((Mat)mat, (Vec)x, (Vec)r);
 }
+
+void GCGE_PETSC_MatTransposeDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
+{
+    PetscErrorCode ierr = MatMultTranspose((Mat)mat, (Vec)x, (Vec)r);
+}
+
 void GCGE_PETSC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
     PetscErrorCode ierr;

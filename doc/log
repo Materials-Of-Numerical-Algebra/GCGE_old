@@ -548,3 +548,9 @@ TODO
 1. 需要在OPS中填加矩阵转置乘以向量的操作.
 2. MultiGrid结构中[ABP]_array都是重新生成的Mat型数组, 应该与传入的A和B相同
 3. 还未测试MultiGrid
+
+2018.12.25 zhangning
+1. GCGE_OPS中添加了MatTransposeDotVec
+                   MatTransposeDotMultiVec
+   修改了 gcge_app_slepc.c gcge_app_petsc.c gcge_ops.c gcge_ops.h
+

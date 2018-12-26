@@ -33,6 +33,7 @@ typedef struct GCGE_OPS_ {
 
     void (*VecSetRandomValue)       (void *vec, struct GCGE_OPS_ *ops);
     void (*MatDotVec)               (void *Matrix, void *x, void *r, struct GCGE_OPS_ *ops);
+    void (*MatTransposeDotVec)      (void *Matrix, void *x, void *r, struct GCGE_OPS_ *ops);
     void (*VecAxpby)                (GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, struct GCGE_OPS_ *ops); /* y = ax+by */
     void (*VecInnerProd)            (void *x, void *y, GCGE_DOUBLE *value_ip, struct GCGE_OPS_ *ops);
     void (*VecLocalInnerProd)       (void *x, void *y, GCGE_DOUBLE *value_ip, struct GCGE_OPS_ *ops);
@@ -68,6 +69,8 @@ typedef struct GCGE_OPS_ {
     /* TODO */
     void (*MultiVecSetRandomValue)  (void **multi_vec, GCGE_INT start, GCGE_INT n_vec, struct GCGE_OPS_ *ops);
     void (*MatDotMultiVec)          (void *mat, void **x, void **y, GCGE_INT *start, GCGE_INT *end, 
+                                     struct GCGE_OPS_ *ops);
+    void (*MatTransposeDotMultiVec) (void *mat, void **x, void **y, GCGE_INT *start, GCGE_INT *end, 
                                      struct GCGE_OPS_ *ops);
     void (*MultiVecAxpby)           (GCGE_DOUBLE a, void **x, GCGE_DOUBLE b, void **y, 
                                      GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops);
