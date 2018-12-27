@@ -321,11 +321,12 @@ void GCGE_SLEPC_SetOps(GCGE_OPS *ops)
     ops->VecCreateByMat     = GCGE_SLEPC_VecCreateByMat;
     ops->VecDestroy         = GCGE_SLEPC_VecDestroy;
 
-    ops->VecSetRandomValue = GCGE_SLEPC_VecSetRandomValue;
-    ops->MatDotVec         = GCGE_SLEPC_MatDotVec;
-    ops->VecAxpby          = GCGE_SLEPC_VecAxpby;
-    ops->VecInnerProd      = GCGE_SLEPC_VecInnerProd;
-    ops->VecLocalInnerProd = GCGE_SLEPC_VecLocalInnerProd;
+    ops->VecSetRandomValue  = GCGE_SLEPC_VecSetRandomValue;
+    ops->MatDotVec          = GCGE_SLEPC_MatDotVec;
+    ops->MatTransposeDotVec = GCGE_SLEPC_MatTransposeDotVec;
+    ops->VecAxpby           = GCGE_SLEPC_VecAxpby;
+    ops->VecInnerProd       = GCGE_SLEPC_VecInnerProd;
+    ops->VecLocalInnerProd  = GCGE_SLEPC_VecLocalInnerProd;
 
     ops->MultiVecDestroy           = GCGE_SLEPC_MultiVecDestroy;
     ops->MultiVecCreateByMat     = GCGE_SLEPC_MultiVecCreateByMat;

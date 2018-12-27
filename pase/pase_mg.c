@@ -27,19 +27,23 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels,
    (*multi_grid)->aux_B   = NULL;
 
    /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
-   Mat *petsc_A, *petsc_B;
+   Mat petsc_A, petsc_B;
    Mat *A_array, *B_array, *P_array;
    HYPRE_IJMatrix     hypre_ij_mat;
    HYPRE_ParCSRMatrix hypre_parcsr_mat;
-   petsc_A = (Mat*)A; petsc_B = (Mat*)B;
-   MatrixConvertPETSC2HYPRE(&hypre_ij_mat, *petsc_A);
+   petsc_A = (Mat)A; petsc_B = (Mat)B;
+   MatrixConvertPETSC2HYPRE(&hypre_ij_mat, petsc_A);
    HYPRE_IJMatrixGetObject(hypre_ij_mat, (void**) &hypre_parcsr_mat);
    /* Will malloc for A and P */
+   //对输入的hypre格式的A矩阵进行AMG分层, 将得到的各层粗网格矩阵及prolong矩阵转化为petsc矩阵
    GetMultigridMatFromHypreToPetsc(&A_array, &P_array, &((*multi_grid)->num_levels), hypre_parcsr_mat);
+   //将原来的最细层A矩阵指针给A_array
+   A_array[0] = petsc_A;
    HYPRE_IJMatrixDestroy(hypre_ij_mat);
    B_array = malloc((*multi_grid)->num_levels*sizeof(Mat));
    int level; 
-   MatDuplicate(*petsc_B, MAT_COPY_VALUES, &B_array[0]);
+   B_array[0] = petsc_B;
+   //MatDuplicate(petsc_B, MAT_COPY_VALUES, &B_array[0]);
    /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
    for ( level = 1; level < (*multi_grid)->num_levels; ++level )
    {
@@ -48,9 +52,9 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels,
    }
    /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
 
-   (*multi_grid)->A_array = (void**)(&A_array);
-   (*multi_grid)->B_array = (void**)(&B_array);
-   (*multi_grid)->P_array = (void**)(&P_array);
+   (*multi_grid)->A_array = (void**)A_array;
+   (*multi_grid)->B_array = (void**)B_array;
+   (*multi_grid)->P_array = (void**)P_array;
    return 0;
 }
 
@@ -64,19 +68,19 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
    B_array = (Mat *)(*((*multi_grid)->B_array));
    P_array = (Mat *)(*((*multi_grid)->P_array));
    int level; 
-   for ( level = 0; level < (*multi_grid)->num_levels; ++level )
+   for ( level = 1; level < (*multi_grid)->num_levels; ++level )
    {
-      ierr = MatDestroy(&A_array[level]);
-      ierr = MatDestroy(&B_array[level]);
+      ierr = MatDestroy((Mat*)(&((*multi_grid)->A_array[level])));
+      ierr = MatDestroy((Mat*)(&((*multi_grid)->B_array[level])));
    }
-   free(A_array); 
-   free(B_array); 
    for ( level = 0; level < (*multi_grid)->num_levels - 1; ++level )
    {
-      ierr = MatDestroy(&P_array[level]);
+      ierr = MatDestroy((Mat*)(&((*multi_grid)->P_array[level])));
    }
-   free(P_array);
    /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
+   free((*multi_grid)->A_array);
+   free((*multi_grid)->B_array);
+   free((*multi_grid)->P_array);
    (*multi_grid)->A_array = NULL;
    (*multi_grid)->B_array = NULL;
    (*multi_grid)->P_array = NULL;
@@ -117,7 +121,7 @@ PASE_INT PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
    else if (level_i == level_j - 1) /* level_i < level_j : 从细层到粗层 */
    {
       /* OPS 中需要加入 矩阵转置乘以向量 */
-      multi_grid->gcge_ops->MatTransposeDotMultiVec(multi_grid->P_array[level_j], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
+      multi_grid->gcge_ops->MatTransposeDotMultiVec(multi_grid->P_array[level_i], pvx_i, pvx_j, mv_s, mv_e, multi_grid->gcge_ops);
    }
    else if (level_i == level_j)
    {
@@ -134,6 +138,8 @@ PASE_INT PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
 
 
 /* -------------------------- 利用AMG生成各个层的矩阵------------------ */
+//对输入的hypre矩阵进行AMG分层, 将得到的各层粗网格矩阵及prolong矩阵转化为petsc矩阵
+//不产生A0最细层petsc矩阵
 void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat)
 {
    /* Create solver */
@@ -169,7 +175,7 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *nu
    hypre_ParCSRMatrix **hypre_mat;
    HYPRE_Int idx;
    hypre_mat = hypre_ParAMGDataAArray(amg_data);
-   for (idx = 0; idx < *num_levels; ++idx)
+   for (idx = 1; idx < *num_levels; ++idx)
    {
       MatrixConvertHYPRE2PETSC((*A_array)+idx, hypre_mat[idx]);
    }

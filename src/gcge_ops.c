@@ -668,6 +668,10 @@ GCGE_INT GCGE_OPS_Setup(GCGE_OPS *ops)
     {
         ops->MatDotMultiVec = GCGE_Default_MatDotMultiVec;
     }
+    if(ops->MatTransposeDotMultiVec == NULL)
+    {
+        ops->MatTransposeDotMultiVec = GCGE_Default_MatTransposeDotMultiVec;
+    }
     if(ops->MultiVecAxpby == NULL)
     {
         ops->MultiVecAxpby = GCGE_Default_MultiVecAxpby;

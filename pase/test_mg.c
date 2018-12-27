@@ -16,128 +16,143 @@
 
 #include <stdio.h>
 #include "pase_mg.h"
+#include "gcge.h"
+#include "pase.h"
+#include "gcge_app_slepc.h"
 
 
 static char help[] = "Test MultiGrid.\n";
-void GetPetscMat(Mat *A, PetscInt n, PetscInt m);
+void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m);
+void PETSCPrintMat(Mat A, char *name);
+void PETSCPrintVec(Vec x);
+void PETSCPrintBV(BV x, char *name);
 /* 
  *  Description:  测试PASE_MULTIGRID
  */
-   int
+int
 main ( int argc, char *argv[] )
 {
-   /* PetscInitialize */
-   PetscInitialize(&argc,&argv,(char*)0,help);
-   PetscErrorCode ierr;
-   PetscMPIInt rank;
-   PetscViewer viewer;
-   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    /* PetscInitialize */
+    SlepcInitialize(&argc,&argv,(char*)0,help);
+    PetscErrorCode ierr;
+    PetscMPIInt    rank;
+    PetscViewer    viewer;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
 
-   /* 测试矩阵声明 */
-   Mat                petsc_mat_A, petsc_mat_B;
-   PetscInt n = 7, m = 3, row_start, row_end, col_start, col_end;
-   /* 得到一个PETSC矩阵 */
-   GetPetscMat(&petsc_mat_A, n, m);
-   HYPRE_Int idx, j, num_levels = 2;
+    /* 测试矩阵声明 */
+    Mat      petsc_mat_A, petsc_mat_B;
+    PetscInt n = 7, m = 3, row_start, row_end, col_start, col_end;
+    /* 得到一个PETSC矩阵 */
+    GetPetscMat(&petsc_mat_A, &petsc_mat_B, n, m);
+    HYPRE_Int idx, j, num_levels = 2;
 
-   PASE_MULTIGRID multi_grid;
-   PASE_MULTIGRID_Create(&multi_grid, num_levels, 
-        (void *)&petsc_mat_A, (void *)&petsc_mat_B, 
-	/* TODO: 如何给出这两个ops */
-	GCGE_OPS *gcge_ops, PASE_OPS *pase_ops);
+    //创建gcge_ops
+    GCGE_OPS *gcge_ops;
+    GCGE_OPS_Create(&gcge_ops);
+    GCGE_SLEPC_SetOps(gcge_ops);
+    GCGE_OPS_Setup(gcge_ops);
+    //用gcge_ops创建pase_ops
+    PASE_OPS *pase_ops;
+    PASE_OPS_Create(&pase_ops, gcge_ops);
 
-   /* 声明一系列矩阵和向量 */
-   Mat *A_array, *B_array, *P_array;
-   Vec *U_array, *F_array;
+    PASE_MULTIGRID multi_grid;
+    int error = PASE_MULTIGRID_Create(&multi_grid, num_levels, 
+            (void *)petsc_mat_A, (void *)petsc_mat_B, 
+            gcge_ops, pase_ops);
+#if 1
+    //先测试P与PT乘以单向量是否有问题
+    Vec x;
+    Vec y;
+    gcge_ops->VecCreateByMat((void**)&x, multi_grid->A_array[0], gcge_ops);
+    gcge_ops->VecCreateByMat((void**)&y, multi_grid->A_array[1], gcge_ops);
+    gcge_ops->VecSetRandomValue((void*)x, gcge_ops);
+    gcge_ops->VecSetRandomValue((void*)y, gcge_ops);
+    gcge_ops->MatDotVec(multi_grid->P_array[0], (void*)y, (void*)x, gcge_ops);
+    gcge_ops->MatTransposeDotVec(multi_grid->P_array[0], (void*)x, (void*)y, gcge_ops);
+    gcge_ops->VecDestroy((void**)&x, gcge_ops);
+    gcge_ops->VecDestroy((void**)&y, gcge_ops);
+#endif
 
-   A_array = (Mat*)(multi_grid->A_array[0]);
-   B_array = (Mat*)(multi_grid->B_array[0]);
-   P_array = (Mat*)(multi_grid->P_array[0]);
+    PETSCPrintMat((Mat)(multi_grid->P_array[0]), "P0");
+    PETSCPrintMat((Mat)(multi_grid->A_array[0]), "A0");
+    PETSCPrintMat((Mat)(multi_grid->A_array[1]), "A1");
+    PETSCPrintMat((Mat)(multi_grid->B_array[0]), "B0");
+    PETSCPrintMat((Mat)(multi_grid->B_array[1]), "B1");
+    //LSSC4上View类的函数都有点问题，包括MatView, BVView, KSPView
+    //MatView((Mat)(multi_grid->P_array[0]), viewer);
+    //MatView((Mat)(multi_grid->A_array[1]), viewer);
+#if 0
+    /* 打印各层A, B, P矩阵*/
+    //连续打会打不出来，不知道为什么？？？？只打一个可以
+    PetscPrintf(PETSC_COMM_WORLD, "A_array\n");
+    for (idx = 0; idx < num_levels; ++idx)
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
+        MatView((Mat)(multi_grid->A_array[idx]), viewer);
+    }
+    PetscPrintf(PETSC_COMM_WORLD, "B_array\n");
+    for (idx = 0; idx < num_levels-1; ++idx)
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
+        MatView((Mat)(multi_grid->B_array[idx]), viewer);
+    }
+    PetscPrintf(PETSC_COMM_WORLD, "P_array\n");
+    for (idx = 0; idx < num_levels-1; ++idx)
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
+        MatView((Mat)(multi_grid->P_array[idx]), viewer);
+    }
 
-   /* 打印一系列矩阵 */
-   PetscPrintf(PETSC_COMM_WORLD, "A_array\n");
-   for (idx = 0; idx < num_levels; ++idx)
-   {
-//      MatGetOwnershipRange(A_array[idx], &row_start, &row_end);
-//      MatGetOwnershipRangeColumn(A_array[idx], &col_start, &col_end);
-//      printf("%d: row_start = %d, row_end = %d, col_start = %d, col_end = %d\n", 
-//	    rank, row_start, row_end, col_start, col_end);
-      PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
-      MatView(A_array[idx], viewer);
-   }
-   PetscPrintf(PETSC_COMM_WORLD, "P_array\n");
-   for (idx = 0; idx < num_levels-1; ++idx)
-   {
-      PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
-//      MatGetOwnershipRange(P_array[idx], &row_start, &row_end);
-//      MatGetOwnershipRangeColumn(P_array[idx], &col_start, &col_end);
-//      printf("%d: row_start = %d, row_end = %d, col_start = %d, col_end = %d\n", 
-//	    rank, row_start, row_end, col_start, col_end);
-      MatView(P_array[idx], viewer);
-   }
-   /* 通过一系列矩阵生成对应的一系列向量 */
-   U_array = malloc(sizeof(Vec)*num_levels);
-   F_array = malloc(sizeof(Vec)*num_levels);
-   for (idx = 0; idx < num_levels; ++idx)
-   {
-      MatCreateVecs(A_array[idx], PETSC_NULL, U_array+idx);
-      MatCreateVecs(A_array[idx], F_array+idx, PETSC_NULL);
-      VecGetOwnershipRange(U_array[idx], &row_start, &row_end);
-      for (j = row_start; j < row_end; ++j)
-      {
-	 VecSetValue(U_array[idx], j, 1.0, INSERT_VALUES);
-      }
-      VecAssemblyBegin(U_array[idx]);
-      VecAssemblyEnd(U_array[idx]);
-   }
-   /* 测试矩阵向量乘 F[idx] = A[idx] U[idx] */
-   for (idx = 0; idx < num_levels; ++idx)
-   {
-      PetscPrintf(PETSC_COMM_WORLD, "F[%d] = A[%d] U[%d]\n", idx, idx, idx);
-      MatMult(A_array[idx], U_array[idx], F_array[idx]);
-      VecView(F_array[idx], viewer);
-   }
-   /* 测试向量插值 U[idx-1] = P[idx-1] U[idx] */
-   for (idx = num_levels-1; idx > 0 ; --idx)
-   {
-      PetscPrintf(PETSC_COMM_WORLD, "U[%d] = P[%d] U[%d]\n", idx-1, idx-1, idx);
-      MatMult(P_array[idx-1], U_array[idx], U_array[idx-1]);
-      VecView(U_array[idx-1], viewer);
-   }
-   /* 测试矩阵向量乘 F[idx] = A[idx] U[idx] */
-   for (idx = 0; idx < num_levels; ++idx)
-   {
-      PetscPrintf(PETSC_COMM_WORLD, "F[%d] = A[%d] U[%d]\n", idx, idx, idx);
-      MatMult(A_array[idx], U_array[idx], F_array[idx]);
-      VecView(F_array[idx], viewer);
-   }
-   /* 测试向量限制 U[idx+1] = P[idx]' U[idx] */
-   for (idx = 0; idx < num_levels-1; ++idx)
-   {
-      PetscPrintf(PETSC_COMM_WORLD, "U[%d] = P[%d]' U[%d]\n", idx+1, idx, idx);
-      MatMultTranspose(P_array[idx], U_array[idx], U_array[idx+1]);
-      VecView(U_array[idx+1], viewer);
-   }
+#endif
+    /* TODO: 测试BV结构的向量进行投影插值 */
+    int level_i = 0;
+    int level_j = 1;
+    int num_vecs = 3;
+    BV vecs_i;
+    BV vecs_j;
+    gcge_ops->MultiVecCreateByMat((void***)(&vecs_i), num_vecs, multi_grid->A_array[level_i], gcge_ops);
+    gcge_ops->MultiVecCreateByMat((void***)(&vecs_j), num_vecs, multi_grid->A_array[level_j], gcge_ops);
+    gcge_ops->MultiVecSetRandomValue((void**)vecs_i, 0, num_vecs, gcge_ops);
+    gcge_ops->MultiVecSetRandomValue((void**)vecs_j, 0, num_vecs, gcge_ops);
 
-   /* TODO: 测试BV结构的向量进行投影插值 */
-   PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid, 
-	 PASE_INT level_i, PASE_INT level_j, 
-	 PASE_INT *mv_s, PASE_INT *mv_e, 
-	 void **pvx_i, void** pvx_j)
+    int mv_s[2];
+    int mv_e[2];
+    mv_s[0] = 1;
+    mv_e[0] = 2;
+    mv_s[1] = 1;
+    mv_e[1] = 2;
+    //gcge_ops->MatDotMultiVec(multi_grid->P_array[0], (void**)vecs_j, 
+    //	  (void**)vecs_i, mv_s, mv_e, gcge_ops);
+    //gcge_ops->MatTransposeDotMultiVec(multi_grid->P_array[0], (void**)vecs_i, 
+    //	  (void**)vecs_j, mv_s, mv_e, gcge_ops);
+    PASE_MULTIGRID_FromItoJ(multi_grid, level_j, level_i, mv_s, mv_e, 
+            (void**)vecs_j, (void**)vecs_i);
+    PETSCPrintBV(vecs_i, "Pto");
+    PETSCPrintBV(vecs_j, "Pfrom");
+    PASE_MULTIGRID_FromItoJ(multi_grid, level_i, level_j, mv_s, mv_e, 
+            (void**)vecs_i, (void**)vecs_j);
+    PETSCPrintBV(vecs_i, "Rfrom");
+    PETSCPrintBV(vecs_j, "Rto");
 
-   /* 销毁矩阵向量 */
-   for (idx = 0; idx < num_levels; ++idx)
-   {
-      ierr = VecDestroy(&U_array[idx]);
-      ierr = VecDestroy(&F_array[idx]);
-   }
-   free(U_array); 
-   free(F_array); 
-   ierr = MatDestroy(&petsc_mat_A);
-   ierr = MatDestroy(&petsc_mat_B);
-   /* PetscFinalize */
-   ierr = PetscFinalize();
-   return 0;
+    //GCGE_Printf("vecs_i\n");
+    //BVView(vecs_i, viewer);
+    //GCGE_Printf("vecs_j\n");
+    //BVView(vecs_j, viewer);
+
+    gcge_ops->MultiVecDestroy((void***)(&vecs_i), num_vecs, gcge_ops);
+    gcge_ops->MultiVecDestroy((void***)(&vecs_j), num_vecs, gcge_ops);
+
+    //注释掉Destroy不报错memory access out of range, 说明是Destroy时用错
+    error = PASE_MULTIGRID_Destroy(&multi_grid);
+
+    ierr = MatDestroy(&petsc_mat_A);
+    ierr = MatDestroy(&petsc_mat_B);
+
+    PASE_OPS_Free(&pase_ops); 
+    GCGE_OPS_Free(&gcge_ops);
+    /* PetscFinalize */
+    ierr = SlepcFinalize();
+    return 0;
 }
 
 void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m)
@@ -172,4 +187,53 @@ void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m)
     ierr = MatAssemblyBegin(*B,MAT_FINAL_ASSEMBLY);
     ierr = MatAssemblyEnd(*B,MAT_FINAL_ASSEMBLY);
 
+}
+
+void PETSCPrintMat(Mat A, char *name)
+{
+    PetscErrorCode ierr;
+    int nrows = 0, ncols = 0;
+    ierr = MatGetSize(A, &nrows, &ncols);
+    int row = 0, col = 0;
+    const PetscInt *cols;
+    const PetscScalar *vals;
+    for(row=0; row<nrows; row++) {
+        ierr = MatGetRow(A, row, &ncols, &cols, &vals);
+        for(col=0; col<ncols; col++) {
+            GCGE_Printf("%s(%d, %d) = %18.15e;\n", name, row+1, cols[col]+1, vals[col]);
+        }
+        ierr = MatRestoreRow(A, row, &ncols, &cols, &vals);
+    }
+}
+
+void PETSCPrintVec(Vec x)
+{
+    PetscErrorCode ierr;
+    int size = 0;
+    int i = 0;
+    ierr = VecGetSize(x, &size);
+    const PetscScalar *array;
+    ierr = VecGetArrayRead(x, &array);
+    for(i=0; i<size; i++)
+    {
+        GCGE_Printf("%18.15e\t", array[i]);
+    }
+    ierr = VecRestoreArrayRead(x, &array);
+    GCGE_Printf("\n");
+}
+
+void PETSCPrintBV(BV x, char *name)
+{
+    PetscErrorCode ierr;
+    int n = 0, i = 0;
+    ierr = BVGetSizes(x, NULL, NULL, &n);
+    Vec xs;
+    GCGE_Printf("%s = [\n", name);
+    for(i=0; i<n; i++)
+    {
+        ierr = BVGetColumn(x, i, &xs);
+	PETSCPrintVec(xs);
+        ierr = BVRestoreColumn(x, i, &xs);
+    }
+    GCGE_Printf("];\n");
 }

@@ -554,3 +554,7 @@ TODO
                    MatTransposeDotMultiVec
    修改了 gcge_app_slepc.c gcge_app_petsc.c gcge_ops.c gcge_ops.h
 
+2018.12.27 zhangning
+2. test_mg.c pase_mg.c
+   两层的Multigrid测试没有问题
+

@@ -169,11 +169,12 @@ void GCGE_PETSC_SetOps(GCGE_OPS *ops)
     ops->VecCreateByMat     = GCGE_PETSC_VecCreateByMat;
     ops->VecDestroy           = GCGE_PETSC_VecDestroy;
 
-    ops->VecSetRandomValue = GCGE_PETSC_VecSetRandomValue;
-    ops->MatDotVec         = GCGE_PETSC_MatDotVec;
-    ops->VecAxpby          = GCGE_PETSC_VecAxpby;
-    ops->VecInnerProd      = GCGE_PETSC_VecInnerProd;
-    ops->VecLocalInnerProd = GCGE_PETSC_VecLocalInnerProd;
+    ops->VecSetRandomValue  = GCGE_PETSC_VecSetRandomValue;
+    ops->MatDotVec          = GCGE_PETSC_MatDotVec;
+    ops->MatTransposeDotVec = GCGE_PETSC_MatTransposeDotVec;
+    ops->VecAxpby           = GCGE_PETSC_VecAxpby;
+    ops->VecInnerProd       = GCGE_PETSC_VecInnerProd;
+    ops->VecLocalInnerProd  = GCGE_PETSC_VecLocalInnerProd;
 
     ops->MultiVecDestroy           = GCGE_PETSC_MultiVecDestroy;
     ops->MultiVecCreateByMat     = GCGE_PETSC_MultiVecCreateByMat;

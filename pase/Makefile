@@ -58,3 +58,7 @@ $(OBJS): $(HEADERS)
 test:
 	$(CC)  $(CFLAGS) -c ./test_convert.c -o ./test_convert.o $(INC)
 	$(CLINKER)  $(LDFLAGS)  -o ./test_convert.exe ./test_convert.o $(LIBPASE) $(LIBPETSC) $(LIBHYPRE) 
+
+test_mg:
+	$(CC)  $(CFLAGS) -c ./test_mg.c -o ./test_mg.o $(INC)
+	$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBPASE) $(LIBPETSC) $(LIBHYPRE) 
