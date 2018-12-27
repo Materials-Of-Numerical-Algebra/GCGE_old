@@ -26,6 +26,7 @@ typedef struct pase_MultiGrid_struct
    /* rhs and x */
    void     **U_array;
    void     **F_array;
+   void     ***u_tmp;
 
    PASE_Matrix aux_A;
    PASE_Matrix aux_B;

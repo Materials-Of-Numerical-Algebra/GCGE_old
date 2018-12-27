@@ -44,7 +44,7 @@ main ( int argc, char *argv[] )
     PetscInt n = 7, m = 3, row_start, row_end, col_start, col_end;
     /* 得到一个PETSC矩阵 */
     GetPetscMat(&petsc_mat_A, &petsc_mat_B, n, m);
-    HYPRE_Int idx, j, num_levels = 2;
+    HYPRE_Int idx, j, num_levels = 3;
 
     //创建gcge_ops
     GCGE_OPS *gcge_ops;
@@ -59,6 +59,8 @@ main ( int argc, char *argv[] )
     int error = PASE_MULTIGRID_Create(&multi_grid, num_levels, 
             (void *)petsc_mat_A, (void *)petsc_mat_B, 
             gcge_ops, pase_ops);
+    multi_grid->u_tmp = (void***)malloc(num_levels*sizeof(void**));
+    gcge_ops->MultiVecCreateByMat(&(multi_grid->u_tmp[1]), 3, multi_grid->A_array[1], gcge_ops);
 #if 1
     //先测试P与PT乘以单向量是否有问题
     Vec x;
@@ -74,6 +76,7 @@ main ( int argc, char *argv[] )
 #endif
 
     PETSCPrintMat((Mat)(multi_grid->P_array[0]), "P0");
+    PETSCPrintMat((Mat)(multi_grid->P_array[1]), "P1");
     PETSCPrintMat((Mat)(multi_grid->A_array[0]), "A0");
     PETSCPrintMat((Mat)(multi_grid->A_array[1]), "A1");
     PETSCPrintMat((Mat)(multi_grid->B_array[0]), "B0");
@@ -106,7 +109,7 @@ main ( int argc, char *argv[] )
 #endif
     /* TODO: 测试BV结构的向量进行投影插值 */
     int level_i = 0;
-    int level_j = 1;
+    int level_j = 2;
     int num_vecs = 3;
     BV vecs_i;
     BV vecs_j;
@@ -117,10 +120,10 @@ main ( int argc, char *argv[] )
 
     int mv_s[2];
     int mv_e[2];
-    mv_s[0] = 1;
-    mv_e[0] = 2;
-    mv_s[1] = 1;
-    mv_e[1] = 2;
+    mv_s[0] = 0;
+    mv_e[0] = num_vecs;
+    mv_s[1] = 0;
+    mv_e[1] = num_vecs;
     //gcge_ops->MatDotMultiVec(multi_grid->P_array[0], (void**)vecs_j, 
     //	  (void**)vecs_i, mv_s, mv_e, gcge_ops);
     //gcge_ops->MatTransposeDotMultiVec(multi_grid->P_array[0], (void**)vecs_i, 
@@ -143,6 +146,7 @@ main ( int argc, char *argv[] )
     gcge_ops->MultiVecDestroy((void***)(&vecs_j), num_vecs, gcge_ops);
 
     //注释掉Destroy不报错memory access out of range, 说明是Destroy时用错
+    gcge_ops->MultiVecDestroy(&(multi_grid->u_tmp[1]), 3, gcge_ops);
     error = PASE_MULTIGRID_Destroy(&multi_grid);
 
     ierr = MatDestroy(&petsc_mat_A);
