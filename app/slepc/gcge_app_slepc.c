@@ -334,7 +334,7 @@ void GCGE_SLEPC_SetOps(GCGE_OPS *ops)
 
     ops->GetVecFromMultiVec = GCGE_SLEPC_GetVecFromMultiVec;
     ops->RestoreVecForMultiVec = GCGE_SLEPC_RestoreVecForMultiVec;
-    ops->MatDotMultiVec = GCGE_SLEPC_MatDotMultiVec;
+    //ops->MatDotMultiVec = GCGE_SLEPC_MatDotMultiVec;
 
     ops->MultiVecLinearComb = GCGE_SLEPC_MultiVecLinearComb;
     ops->MultiVecInnerProd = GCGE_SLEPC_MultiVecInnerProd;

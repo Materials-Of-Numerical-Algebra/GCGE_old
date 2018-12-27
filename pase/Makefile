@@ -4,13 +4,11 @@ include $(GCGEHOME)/config/make.inc
 .PHONY: all lib clean help
 
 ########################################################################
-FILES   = gcge_app_pase.c pase_solver.c pase_matvec.c pase_ops.c pase_mg.c 
-HEADERS = gcge_app_pase.h pase_solver.h pase_config.h pase_matvec.h pase_mg.h pase_ops.h pase.h pase_param.h
-#pase_convert.c 
-#pase_convert.h 
+FILES   = pase_convert.c gcge_app_pase.c pase_solver.c pase_matvec.c pase_ops.c pase_mg.c 
+HEADERS = pase_convert.h gcge_app_pase.h pase_solver.h pase_config.h pase_matvec.h pase_mg.h pase_ops.h pase.h pase_param.h
 OBJS    = ${FILES:.c=.o}
 
-INC     = -I$(GCGEINC) -I$(PETSCINC) -I$(HYPREINC)
+INC     = -I$(GCGEINC) -I$(SLEPCINC) -I$(HYPREINC) -I$(PETSCINC)
 LIB     = $(LIBPASE)
 
 ########################################################################
@@ -60,5 +58,5 @@ test:
 	$(CLINKER)  $(LDFLAGS)  -o ./test_convert.exe ./test_convert.o $(LIBPASE) $(LIBPETSC) $(LIBHYPRE) 
 
 test_mg:
-	$(CC)  $(CFLAGS) -c ./test_mg.c -o ./test_mg.o $(INC)
-	$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBPASE) $(LIBPETSC) $(LIBHYPRE) 
+	@$(CC)  $(CFLAGS) -c ./test_mg.c -o ./test_mg.o $(INC)
+	@$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBHYPRE) $(LIBGCGE) 
