@@ -24,4 +24,5 @@
 #define  _PASE_H_
 #include "pase_matvec.h"
 #include "pase_ops.h"
+#include "pase_config.h"
 #endif

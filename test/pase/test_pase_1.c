@@ -26,6 +26,7 @@
 #include "gcge_app_pase.h"
 #include "gcge_app_csr.h"
 #include "pase.h"
+#include "pase_mg.h"
 #include "pase_solver.h"
 
 static char help[] = "Use GCGE-SLEPc to solve an eigensystem Ax=kBx with the matrixes loaded from files.\n";
@@ -101,29 +102,49 @@ int main(int argc, char* argv[])
     param->atol            = 1e-10;
     param->rtol            = 1e-12;
     param->print_level     = 1;
-    param->max_level       = 2;   //AMG层数
+    param->max_level       = 3;   //AMG层数
     PASEGetCommandLineInfo(argc, argv, &(param->block_size), &(param->atol), &(param->max_pre_iter));
     param->min_coarse_size = param->block_size * 30; //最粗层网格最少有30*nev维
     //param->min_coarse_size = 500;
     PrintParameter(param);
-
-    const char *file_Ac = "/home/zhangning/MATRIX/fem_csr_mat/Stiff_289.txt";
-    const char *file_Bc = "/home/zhangning/MATRIX/fem_csr_mat/Mass_289.txt";
-    CSR_MAT *Ac = CSR_ReadMatFile(file_Ac);
-    CSR_MAT *Bc = CSR_ReadMatFile(file_Bc);
-    const char *file_P = "/home/zhangning/MATRIX/fem_csr_mat/Prolong_289_1089.txt";
-    const char *file_R = "/home/zhangning/MATRIX/fem_csr_mat/Restrict_289_1089.txt";
-    CSR_MAT *P = CSR_ReadMatFile(file_P);
-    CSR_MAT *R = CSR_ReadMatFile(file_R);
 
     //用gcge_ops创建pase_ops
     PASE_OPS *pase_ops;
     PASE_OPS_Create(&pase_ops, gcge_ops);
     pase_ops->PrintMat = PASE_PrintMat;
 
+    PASE_MULTIGRID multigrid;
+    error = PASE_MULTIGRID_Create(&multigrid, param->max_level, A, B, 
+            gcge_ops, pase_ops);
+
+    const char *file_Ac = "/home/zhangning/MATRIX/fem_csr_mat/Stiff_289.txt";
+    const char *file_Bc = "/home/zhangning/MATRIX/fem_csr_mat/Mass_289.txt";
+    CSR_MAT *A1 = (void*)CSR_ReadMatFile(file_Ac);
+    CSR_MAT *B1 = (void*)CSR_ReadMatFile(file_Bc);
+    multigrid->A_array[1] = (void*)A1;
+    multigrid->B_array[1] = (void*)B1;
+    const char *file_Ac2 = "/home/zhangning/MATRIX/fem_csr_mat/Stiff_81.txt";
+    const char *file_Bc2 = "/home/zhangning/MATRIX/fem_csr_mat/Mass_81.txt";
+    CSR_MAT *A2 = (void*)CSR_ReadMatFile(file_Ac2);
+    CSR_MAT *B2 = (void*)CSR_ReadMatFile(file_Bc2);
+    multigrid->A_array[2] = (void*)A2;
+    multigrid->B_array[2] = (void*)B2;
+    const char *file_P = "/home/zhangning/MATRIX/fem_csr_mat/Prolong_289_1089.txt";
+    const char *file_R = "/home/zhangning/MATRIX/fem_csr_mat/Restrict_289_1089.txt";
+    CSR_MAT *P1 = (void*)CSR_ReadMatFile(file_P);
+    CSR_MAT *R1 = (void*)CSR_ReadMatFile(file_R);
+    multigrid->P_array[1] = (void*)P1;
+    multigrid->R_array[1] = (void*)R1;
+    const char *file_P2 = "/home/zhangning/MATRIX/fem_csr_mat/Prolong_289_81.txt";
+    const char *file_R2 = "/home/zhangning/MATRIX/fem_csr_mat/Restrict_289_81.txt";
+    CSR_MAT *P2 = (void*)CSR_ReadMatFile(file_P2);
+    CSR_MAT *R2 = (void*)CSR_ReadMatFile(file_R2);
+    multigrid->P_array[2] = (void*)P2;
+    multigrid->R_array[2] = (void*)R2;
+
+    GCGE_Printf("line 145\n");
     PASE_EigenSolver((void*)A, (void*)B, eval, (void**)evec, nev, param, 
-            gcge_ops, pase_ops,
-            (void*)Ac, (void*)Bc, (void*)P, (void*)R);
+            gcge_ops, pase_ops, multigrid);
 
     PASE_OPS_Free(&pase_ops); 
     free(param); param = NULL;
@@ -135,10 +156,14 @@ int main(int argc, char* argv[])
     GCGE_OPS_Free(&gcge_ops);
     CSR_MatFree(&A);
     CSR_MatFree(&B);
-    CSR_MatFree(&Ac);
-    CSR_MatFree(&Bc);
-    CSR_MatFree(&P);
-    CSR_MatFree(&R);
+    CSR_MatFree(&A1);
+    CSR_MatFree(&B1);
+    CSR_MatFree(&P1);
+    CSR_MatFree(&R1);
+    CSR_MatFree(&A2);
+    CSR_MatFree(&B2);
+    CSR_MatFree(&P2);
+    CSR_MatFree(&R2);
 
     GCGE_DOUBLE t_end = GCGE_GetTime();
     GCGE_Printf("From ReadMatrix To MatDestroy, Total Time: %f\n", t_end - t_start);

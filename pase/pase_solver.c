@@ -14,8 +14,7 @@
 PASE_INT
 PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec, 
         PASE_INT block_size, PASE_PARAMETER param, GCGE_OPS *gcge_ops,
-        PASE_OPS *pase_ops,
-        void *Ac, void *Bc, void *P, void *R)
+        PASE_OPS *pase_ops)
 {
   PASE_INT i              = 0;
   //目前并没有用到 TODO 看洪怎么用的
@@ -51,7 +50,7 @@ PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec,
   solver->gcge_ops = gcge_ops;
 
   //进行AMG分层，分配工作空间
-  PASE_Mg_set_up(solver, A, B, eval, evec, param, Ac, Bc, P, R);
+  PASE_Mg_set_up(solver, A, B, eval, evec, param);
   PASE_Mg_solve(solver);
   PASE_Mg_solver_destroy(solver);
   //PASE_OPS_Free(&pase_ops); 
@@ -189,20 +188,13 @@ PASE_Mg_function_create(PASE_INT (*get_initial_vector) (void *solver),
  * @return 
  */
 PASE_INT
-PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, PASE_SCALAR *eval, void **x, PASE_PARAMETER param,
-        void *Ac, void *Bc, void *P, void *R)
+PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, PASE_SCALAR *eval, void **x, PASE_PARAMETER param)
 {
   clock_t start, end;
   start = clock();
   PASE_INT i = 0;
   /* TODO 进行AMG分层, 应该要返回已经分层好的max_level层矩阵, 目前只分配了空间，所以这里给各层矩阵赋值 */
   i = PASE_MULTIGRID_Create(&(solver->multigrid), param->max_level, A, B, solver->gcge_ops, solver->pase_ops);
-  solver->multigrid->A_array[0] = A;
-  solver->multigrid->B_array[0] = B;
-  solver->multigrid->A_array[1] = Ac;
-  solver->multigrid->B_array[1] = Bc;
-  solver->multigrid->P_array[0] = P;
-  solver->multigrid->P_array[1] = R;
 
   //把用户(main)中给的eval,evec赋给solver,Solve后再赋值返回给main
   solver->given_eval = eval;
@@ -244,6 +236,7 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, PASE_SCALAR *eval, void 
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_2[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_3[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
   }
+  solver->multigrid->u_tmp = solver->u_tmp_3;
   //--------------------------------------------------------------------
   //--double,int型工作空间-------------------------------------------------
   solver->double_tmp = (PASE_REAL*)PASE_Malloc(6* solver->block_size * sizeof(PASE_REAL));
@@ -358,7 +351,7 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
   clock_t start, end;
   start = clock();
   /* TODO 暂时先不考虑多重网格获取初值 */
-  //PASE_Mg_get_initial_vector(solver);
+  PASE_Mg_get_initial_vector(solver);
   //初始残差
   GCGE_Printf("init residual: \n");
   PASE_Mg_error_estimate(solver);
@@ -1457,8 +1450,8 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
   void       **A              = solver->multigrid->A_array;
   void       **B              = solver->multigrid->B_array;
   PASE_SCALAR *eigenvalues    = solver->eigenvalues;
-  void      ***pase_u         = solver->u_tmp;
-  void      ***rhs            = solver->u_tmp_1;
+  void      ***pase_u         = solver->u_tmp_1;
+  void      ***rhs            = solver->u_tmp;
   PASE_INT     mv_s[2];
   PASE_INT     mv_e[2];
   PASE_INT     idx_level      = 0;
