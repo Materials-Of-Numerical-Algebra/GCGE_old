@@ -16,8 +16,10 @@
 
 #include <stdio.h>
 #include "pase_mg.h"
+#include "pase_solver.h"
 #include "gcge.h"
 #include "pase.h"
+#include "gcge_app_pase.h"
 #include "gcge_app_slepc.h"
 
 
@@ -26,6 +28,8 @@ void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m);
 void PETSCPrintMat(Mat A, char *name);
 void PETSCPrintVec(Vec x);
 void PETSCPrintBV(BV x, char *name);
+void PrintParameter(PASE_PARAMETER param);
+void PASEGetCommandLineInfo(PASE_INT argc, char *argv[], PASE_INT *block_size, PASE_REAL *atol, PASE_INT *nsmooth);
 /* 
  *  Description:  测试PASE_MULTIGRID
  */
@@ -41,7 +45,7 @@ main ( int argc, char *argv[] )
 
     /* 得到细网格矩阵 */
     Mat      A, B;
-    PetscInt n = 7, m = 3;
+    PetscInt n = 30, m = 30;
     GetPetscMat(&A, &B, n, m);
 
     //创建gcge_ops
@@ -67,7 +71,7 @@ main ( int argc, char *argv[] )
     param->atol            = 1e-10;
     param->rtol            = 1e-12;
     param->print_level     = 1;
-    param->max_level       = 3;   //AMG层数
+    param->max_level       = 4;   //AMG层数
     PASEGetCommandLineInfo(argc, argv, &(param->block_size), &(param->atol), &(param->max_pre_iter));
     param->min_coarse_size = param->block_size * 30; //最粗层网格最少有30*nev维
     //param->min_coarse_size = 500;
@@ -83,8 +87,8 @@ main ( int argc, char *argv[] )
     PASE_OPS_Free(&pase_ops); 
     GCGE_OPS_Free(&gcge_ops);
     free(param); param = NULL;
-    ierr = MatDestroy(&petsc_mat_A);
-    ierr = MatDestroy(&petsc_mat_B);
+    ierr = MatDestroy(&A);
+    ierr = MatDestroy(&B);
 
     /* PetscFinalize */
     ierr = SlepcFinalize();
@@ -173,3 +177,65 @@ void PETSCPrintBV(BV x, char *name)
     }
     GCGE_Printf("];\n");
 }
+
+void PASEGetCommandLineInfo(PASE_INT argc, char *argv[], PASE_INT *block_size, PASE_REAL *atol, PASE_INT *nsmooth)
+{
+  PASE_INT arg_index = 0;
+  PASE_INT print_usage = 0;
+
+  while (arg_index < argc)
+  {
+    if ( strcmp(argv[arg_index], "-block_size") == 0 )
+    {
+      arg_index++;
+      *block_size = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-atol") == 0 )
+    {
+      arg_index++;
+      *atol= pow(10, atoi(argv[arg_index++]));
+    }
+    else if ( strcmp(argv[arg_index], "-nsmooth") == 0 )
+    {
+      arg_index++;
+      *nsmooth= atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-help") == 0 )
+    {
+      print_usage = 1;
+      break;
+    }
+    else
+    {
+      arg_index++;
+    }
+  }
+
+  if(print_usage)
+  {
+    GCGE_Printf("\n");
+    GCGE_Printf("Usage: %s [<options>]\n", argv[0]);
+    GCGE_Printf("\n");
+    GCGE_Printf("  -n <n>              : problem size in each direction (default: 33)\n");
+    GCGE_Printf("  -block_size <n>      : eigenproblem block size (default: 3)\n");
+    GCGE_Printf("  -max_levels <n>      : max levels of AMG (default: 5)\n");
+    GCGE_Printf("\n");
+    exit(-1);
+  }
+}
+
+void PrintParameter(PASE_PARAMETER param)
+{
+    GCGE_Printf("PASE (Parallel Auxiliary Space Eigen-solver), parallel version\n"); 
+    GCGE_Printf("Please contact liyu@lsec.cc.ac.cn, if there is any bugs.\n"); 
+    GCGE_Printf("=============================================================\n" );
+    GCGE_Printf("\n");
+    GCGE_Printf("Set parameters:\n");
+    GCGE_Printf("block size      = %d\n", param->block_size);
+    GCGE_Printf("max pre iter    = %d\n", param->max_pre_iter);
+    GCGE_Printf("atol            = %e\n", param->atol);
+    GCGE_Printf("max cycle       = %d\n", param->max_cycle);
+    GCGE_Printf("min coarse size = %d\n", param->min_coarse_size);
+    GCGE_Printf("\n");
+}
+

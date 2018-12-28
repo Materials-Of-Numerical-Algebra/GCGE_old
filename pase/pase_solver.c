@@ -1430,11 +1430,8 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
   //这里i只是需要一个返回值，没有具体意义
   i = PASE_MULTIGRID_FromItoJ(solver->multigrid, cur_level, cur_level-1, 
           mv_s, mv_e, pase_u[cur_level], pase_u[cur_level-1]);
-  mv_s[0] = 0;
-  mv_e[0] = block_size;
-  mv_s[1] = 0;
-  mv_e[1] = block_size;
-  solver->gcge_ops->MultiVecAxpby(1.0, pase_u[0], 0.0, solver->u, mv_s, mv_e, solver->gcge_ops);
+  i = PASE_MULTIGRID_FromItoJ(solver->multigrid, cur_level-1, 0, 
+          mv_s, mv_e, pase_u[cur_level-1], solver->u);
   GCGE_Printf("coarsest GCGE\n");
   PASE_Mg_error_estimate(solver);
   //粗层特征向量延拓到下一层
@@ -1458,11 +1455,8 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
             solver->gcge_ops, solver->u_tmp_2[idx_level], solver->u_tmp_3[idx_level], 
             solver->double_tmp, solver->int_tmp);
     //testtesttest-------------------
-    mv_s[0] = 0;
-    mv_e[0] = block_size;
-    mv_s[1] = 0;
-    mv_e[1] = block_size;
-    solver->gcge_ops->MultiVecAxpby(1.0, pase_u[0], 0.0, solver->u, mv_s, mv_e, solver->gcge_ops);
+    i = PASE_MULTIGRID_FromItoJ(solver->multigrid, idx_level, 0, 
+          mv_s, mv_e, pase_u[idx_level], solver->u);
     GCGE_Printf("level: %d, BCG\n", idx_level);
     PASE_Mg_error_estimate(solver);
     //testtesttest-------------------
