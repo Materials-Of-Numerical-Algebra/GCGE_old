@@ -348,6 +348,13 @@ void GCGE_SOLVER_SetSLEPCOps(GCGE_SOLVER *solver)
     GCGE_SLEPC_SetOps(solver->ops);
 }
 
+void GCGE_OPS_CreateSLEPC(GCGE_OPS **ops)
+{
+    GCGE_OPS_Create(gcge_ops);
+    GCGE_SLEPC_SetOps(*gcge_ops);
+    GCGE_OPS_Setup(*gcge_ops);
+}
+
 //下面是一个对SLEPC 的GCG_Solver的初始化
 //用户只提供要求解特征值问题的矩阵A,B,线性解法器等都用默认值
 //如果用户想在命令行提供特征值个数，需要将num_eigenvalues赋值为-1
