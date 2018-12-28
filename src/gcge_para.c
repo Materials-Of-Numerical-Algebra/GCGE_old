@@ -65,7 +65,7 @@ void GCGE_PARA_Create(GCGE_PARA **para)
     (*para)->if_use_bcg      = 1; //默认使用BCG
 
     (*para)->num_iter        = 0; //output, old:-2
-    (*para)->num_unlock      = 6; //output
+    (*para)->num_unlock      = 0; //output
 
     (*para)->use_mpi_bcast   = 1; //Rayleigh-Ritz广播子空间特征向量
 
@@ -75,6 +75,7 @@ void GCGE_PARA_Create(GCGE_PARA **para)
     (*para)->print_part_time = 0;
     (*para)->print_para      = 1;
     (*para)->print_result    = 1;
+    (*para)->print_conv      = 1;
     /* print_level: 0：什么都不打印
                     1：打印最终结果
                     2：多打印每次迭代的特征值和残差
@@ -272,6 +273,11 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
             arg_index++;
             para->print_para = atoi(argv[arg_index++]);
         }
+        else if(0 == strcmp(argv[arg_index], "-gcge_print_conv")) 
+        {
+            arg_index++;
+            para->print_conv = atoi(argv[arg_index++]);
+        }
         else if(0 == strcmp(argv[arg_index], "-gcge_print_result")) 
         {
             arg_index++;
@@ -334,6 +340,7 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
        GCGE_Printf("  -gcge_print_eval         <i>: print eigenvalue in each iteration or not     (default: 1[0])\n");
        GCGE_Printf("  -gcge_print_part_time    <i>: print time of each part in gcg or not         (default: 0[1])\n");
        GCGE_Printf("  -gcge_print_para         <i>: print the parameters not                      (default: 1[0])\n");
+       GCGE_Printf("  -gcge_print_conv         <i>: print the parameters not                      (default: 1[0])\n");
        GCGE_Printf("  -gcge_print_result       <i>: print the final result or not                 (default: 1[0])\n");
        GCGE_Printf("  -gcge_opt_bcast          <i>: use the optimization before bcast             (default: 1[0])\n");
        GCGE_Printf("  -gcge_opt_allgatherv     <i>: use the optimization before bcast             (default: 1[0])\n");
@@ -359,7 +366,10 @@ void GCGE_PARA_Setup(GCGE_PARA *para)
     GCGE_INT nev = para->nev;
      //设置初始没有收敛的特征值的个数，这里设置成nev呢还是再多算一些特征值？ 
      //应该再多算一些特征值    
-    para->num_unlock = nev;
+    if(para->num_unlock == 0)
+    {
+        para->num_unlock = nev;
+    }
      //分批计算特征值的个数: 默认情况下设置为求解特征值的个数
     if(para->block_size == 0)
     {
@@ -398,10 +408,13 @@ void GCGE_PrintIterationInfo(GCGE_DOUBLE *eval, GCGE_PARA *para)
     GCGE_INT num_iter   = para->num_iter; 
     GCGE_INT num_unlock = para->num_unlock;
     GCGE_STATISTIC_PARA *stat_para = para->stat_para;
-    GCGE_Printf("num_unlock(%3d) = %3d; max_res(%3d) = %e; min_res(%3d) = %e;\n", 
+    if(para->print_conv == 1)
+    {
+        GCGE_Printf("num_unlock(%3d) = %3d; max_res(%3d) = %e; min_res(%3d) = %e;\n", 
             num_iter, num_unlock, 
             num_iter, para->max_res,
             num_iter, para->min_res);
+    }
     if(para->print_eval == 1)
     {
         GCGE_INT     nev = para->nev; 
@@ -554,74 +567,80 @@ void GCGE_PrintFinalInfo(GCGE_DOUBLE *eval, GCGE_PARA *para)
             }
         }
     }
-    GCGE_Printf("\nTotal gcg iteration: %d, total time: %.2lf. ",
-            para->num_iter, total_time);
-    if(para->num_unlock == 0)
+    if(para->print_conv == 1)
     {
-        GCGE_Printf("All %d eigenpairs converged! ", para->nev);
+        GCGE_Printf("\nTotal gcg iteration: %d, total time: %.2lf. ",
+                para->num_iter, total_time);
+        if(para->num_unlock == 0)
+        {
+            GCGE_Printf("All %d eigenpairs converged! ", para->nev);
+        }
+        else
+        {
+            GCGE_Printf("%d converged, %d unconverged. ",
+                    para->nev - para->num_unlock,
+                    para->num_unlock);
+        }
     }
-    else
+    if(para->print_part_time == 1)
     {
-        GCGE_Printf("%d converged, %d unconverged. ",
-                para->nev - para->num_unlock,
-                para->num_unlock);
-    }
-    GCGE_INT num_process = 1;
+        GCGE_INT num_process = 1;
 #if GCGE_USE_MPI
-    MPI_Comm_size(MPI_COMM_WORLD, &num_process);
+        MPI_Comm_size(MPI_COMM_WORLD, &num_process);
 #endif
-    if(num_process == 1)
-        GCGE_Printf("Use 1 process. ");
-    else
-        GCGE_Printf("Use %d processes. ", num_process);
-    GCGE_Printf("block_size: %d", para->block_size);
-    GCGE_Printf("\nDetail time in total gcg iteration:\n"
-            "Section Name "
-            "       x_orth"
-            "       x_axpy"
-            "       p_orth"
-            "       p_axpy"
-            "   check_conv\n"
-            "Section Time "
-            " %12.2lf %12.2lf %12.2lf %12.2lf %12.2lf\n",
-            part_time->x_orth_time,
-            part_time->x_axpy_time,
-            part_time->p_orth_time,
-            part_time->p_axpy_time,
-            part_time->conv_time);
-    if(total_time >= 1e-10)
-    {
-        GCGE_Printf("Section Ratio");
-        GCGE_Printf(" %11.2lf%% %11.2lf%% %11.2lf%% %11.2lf%% %11.2lf%%\n", 
-                100*(part_time->x_orth_time)  /total_time,
-                100*(part_time->x_axpy_time)  /total_time,
-                100*(part_time->p_orth_time)  /total_time,
-                100*(part_time->p_axpy_time)  /total_time,
-                100*(part_time->conv_time)    /total_time);
-    }
-    GCGE_Printf("Section Name "
-            "       w_lsol"
-            "       w_orth"
-            "       rr_eig"
-            "       rr_mat\n"
-            "Section Time "
-            " %12.2lf %12.2lf %12.2lf %12.2lf\n",
-            part_time->w_line_time, 
-            part_time->w_orth_time,
-            part_time->rr_eigen_time,
-            part_time->rr_mat_time);
-    if(total_time < 1e-10)
-    {
-        GCGE_Printf("Total time is less than 1e-10, the percentege is not presented.\n");
-    }
-    else
-    {
-        GCGE_Printf("Section Ratio");
-        GCGE_Printf(" %11.2lf%% %11.2lf%% %11.2lf%% %11.2lf%%\n\n", 
-                100*(part_time->w_line_time)  /total_time,
-                100*(part_time->w_orth_time)  /total_time,
-                100*(part_time->rr_eigen_time)/total_time,
-                100*(part_time->rr_mat_time)  /total_time);
+        if(num_process == 1)
+            GCGE_Printf("Use 1 process. ");
+        else
+            GCGE_Printf("Use %d processes. ", num_process);
+        GCGE_Printf("block_size: %d", para->block_size);
+        GCGE_Printf("\nDetail time in total gcg iteration:\n"
+                "Section Name "
+                "       x_orth"
+                "       x_axpy"
+                "       p_orth"
+                "       p_axpy"
+                "   check_conv\n"
+                "Section Time "
+                " %12.2lf %12.2lf %12.2lf %12.2lf %12.2lf\n",
+                part_time->x_orth_time,
+                part_time->x_axpy_time,
+                part_time->p_orth_time,
+                part_time->p_axpy_time,
+                part_time->conv_time);
+        if(total_time >= 1e-10)
+        {
+            GCGE_Printf("Section Ratio");
+            GCGE_Printf(" %11.2lf%% %11.2lf%% %11.2lf%% %11.2lf%% %11.2lf%%\n", 
+                    100*(part_time->x_orth_time)  /total_time,
+                    100*(part_time->x_axpy_time)  /total_time,
+                    100*(part_time->p_orth_time)  /total_time,
+                    100*(part_time->p_axpy_time)  /total_time,
+                    100*(part_time->conv_time)    /total_time);
+        }
+        GCGE_Printf("Section Name "
+                "       w_lsol"
+                "       w_orth"
+                "       rr_eig"
+                "       rr_mat\n"
+                "Section Time "
+                " %12.2lf %12.2lf %12.2lf %12.2lf\n",
+                part_time->w_line_time, 
+                part_time->w_orth_time,
+                part_time->rr_eigen_time,
+                part_time->rr_mat_time);
+        if(total_time < 1e-10)
+        {
+            GCGE_Printf("Total time is less than 1e-10, the percentege is not presented.\n");
+        }
+        else
+        {
+            GCGE_Printf("Section Ratio");
+            GCGE_Printf(" %11.2lf%% %11.2lf%% %11.2lf%% %11.2lf%%\n\n", 
+                    100*(part_time->w_line_time)  /total_time,
+                    100*(part_time->w_orth_time)  /total_time,
+                    100*(part_time->rr_eigen_time)/total_time,
+                    100*(part_time->rr_mat_time)  /total_time);
+        }
     }
 }
 
@@ -647,6 +666,7 @@ void GCGE_PrintParaInfo(GCGE_PARA *para)
        GCGE_Printf("  print_eval                 : %8d, (print eigenvalue in each iteration or not)\n", para->print_eval     );
        GCGE_Printf("  print_part_time            : %8d, (print time of each part in gcg or not)\n", para->print_part_time);
        GCGE_Printf("  print_para                 : %8d, (print the parameters not)\n", para->print_para     );
+       GCGE_Printf("  print_conv                 : %8d, (print the converge information or not)\n", para->print_conv     );
        GCGE_Printf("  print_result               : %8d, (print the final result or not)\n", para->print_result   );
        GCGE_Printf("  orth_type                  : %8s, (use A norm or B norm orthogonal)\n", para->orth_type      );
        GCGE_Printf("  w_orth_type                : %8s, (use which kind of orthogonalization for W)\n", para->w_orth_type    );

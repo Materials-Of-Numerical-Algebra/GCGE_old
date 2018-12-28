@@ -92,6 +92,7 @@ typedef struct GCGE_PARA_ {
     GCGE_INT    print_matlab;       //如果要用matlab画图，那么就不要打印converged这些
     GCGE_INT    print_part_time;    //是否打印各部分的时间
     GCGE_INT    print_level;        //用打印层级来控制打印多少东西
+    GCGE_INT    print_conv;         //是否打印收敛信息
 
     GCGE_STATISTIC_PARA *stat_para;
 

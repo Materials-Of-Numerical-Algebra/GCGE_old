@@ -292,7 +292,10 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             mv_s[1] = *end-1;
             mv_e[0] = current+1;
             mv_e[1] = *end;
-            ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+	    if(current < *end-1)
+	    {
+                ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+	    }
             (*end)--;
             current--;
             if(orth_para->print_orth_zero == 1)

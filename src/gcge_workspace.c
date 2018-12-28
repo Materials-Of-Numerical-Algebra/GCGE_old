@@ -103,9 +103,10 @@ void GCGE_WORKSPACE_Setup(GCGE_WORKSPACE *workspace, GCGE_PARA *para, GCGE_OPS *
     //存储前nev个特征对中未收敛的特征对编号
     workspace->unlock = (GCGE_INT*)calloc(max_dim_x, sizeof(GCGE_INT));
     //for(i=0; i<nev; i++)
-    for(i=0; i<max_dim_x; i++)
+    GCGE_INT num_locked = nev - para->num_unlock;
+    for(i=0; i<para->num_unlock; i++)
     {
-        workspace->unlock[i] = i;
+        workspace->unlock[i] = i+num_locked;
     }
     //正交化时用到的临时GCGE_INT*型空间,用于临时存储非0的编号
     //workspace->orth_ind = (GCGE_INT*)calloc(max_dim_xpw, sizeof(GCGE_INT));
