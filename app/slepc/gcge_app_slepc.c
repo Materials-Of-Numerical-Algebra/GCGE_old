@@ -281,7 +281,14 @@ void GCGE_SLEPC_MultiVecAxpby(GCGE_DOUBLE a, void **x, GCGE_DOUBLE
     ierr = BVSetActiveColumns((BV)x, start[0], end[0]);
     ierr = BVSetActiveColumns((BV)y, start[1], end[1]);
     //If matrix Q is NULL, then an AXPY operation Y = beta*Y + alpha*X is done
-    ierr = BVMult((BV)y, a, b, (BV)x, NULL);
+    if(x == y)
+    {
+        ierr = BVScale((BV)y, a+b);
+    }
+    else
+    {
+        ierr = BVMult((BV)y, a, b, (BV)x, NULL);
+    }
 }
 
 //把V_1和V_2的相应的列组交换: 即： V_1(:,start[0]:end[0])与V_2(:,start[1]:end[1])相互交换
@@ -350,9 +357,9 @@ void GCGE_SOLVER_SetSLEPCOps(GCGE_SOLVER *solver)
 
 void GCGE_OPS_CreateSLEPC(GCGE_OPS **ops)
 {
-    GCGE_OPS_Create(gcge_ops);
-    GCGE_SLEPC_SetOps(*gcge_ops);
-    GCGE_OPS_Setup(*gcge_ops);
+    GCGE_OPS_Create(ops);
+    GCGE_SLEPC_SetOps(*ops);
+    GCGE_OPS_Setup(*ops);
 }
 
 //下面是一个对SLEPC 的GCG_Solver的初始化

@@ -500,7 +500,7 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver)
   {
     //前光滑
     PASE_Mg_presmoothing(solver);
-    GCGE_Printf("cur_cycle_level: %d, after PASE_Mg_presmoothing\n", cur_cycle_level);
+    GCGE_Printf("cur_cycle_level: %d, max_cycle_level: %d, after PASE_Mg_presmoothing\n", cur_cycle_level, max_cycle_level);
     PASE_Mg_error_estimate(solver);
 
     //-------------------------------------
@@ -511,56 +511,8 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver)
     //直接求解
     PASE_Mg_cycle(solver);
     PASE_INT block_size = solver->block_size;
-#if 0
-    //Prolong前,计算B内积, 仍是B正交归一的
-    PASE_INT mv_s[2];
-    PASE_INT mv_e[2];
-    mv_s[0] = 0;
-    mv_e[0] = block_size;
-    mv_s[1] = 0;
-    mv_e[1] = block_size;
-    PASE_MultiVector aux_u_tmp;
-    solver->pase_ops->MultiVecCreateByMat((void***)(&aux_u_tmp), block_size, solver->multigrid->aux_A, solver->pase_ops);
-    solver->pase_ops->MatDotMultiVec(solver->multigrid->aux_B, (void**)(solver->aux_u), (void**)aux_u_tmp, mv_s, mv_e, solver->pase_ops);
-    solver->pase_ops->MultiVecInnerProd((void**)aux_u_tmp, (void**)solver->aux_u, solver->double_tmp,
-            "nonsym", mv_s, mv_e, block_size, 0, solver->pase_ops);
-    solver->pase_ops->MultiVecDestroy((void***)(&aux_u_tmp), block_size, solver->pase_ops);
-    PASE_INT i = 0;
-    PASE_INT j = 0;
-    GCGE_Printf("before prolong\n");
-    for(i=0; i<solver->block_size; i++) {
-        for(j=0; j<solver->block_size; j++) {
-            GCGE_Printf("%e\t", solver->double_tmp[i* solver->block_size + j]);
-        }
-        GCGE_Printf("\n");
-    }
-    GCGE_Printf("aux_u:\n");
-    solver->pase_ops->MultiVecPrint((void**)(solver->aux_u), block_size, solver->pase_ops);
-    GCGE_Printf("old_uh:\n");
-    solver->gcge_ops->MultiVecPrint(solver->u, block_size, solver->gcge_ops);
-#endif
     //延拓
     PASE_Mg_prolong_from_pase_aux_vector(solver);
-#if 0
-    GCGE_Printf("new_uh:\n");
-    solver->gcge_ops->MultiVecPrint(solver->u, block_size, solver->gcge_ops);
-    GCGE_Printf("aux_A:\n");
-    solver->pase_ops->PrintMat((void*)(solver->multigrid->aux_A));
-    GCGE_Printf("aux_B:\n");
-    solver->pase_ops->PrintMat((void*)(solver->multigrid->aux_B));
-    //Prolong后,计算B内积, 仍是B正交归一的
-    solver->gcge_ops->MatDotMultiVec(solver->multigrid->B_array[0], solver->u, solver->u_tmp[0], mv_s, mv_e, solver->gcge_ops);
-    solver->gcge_ops->MultiVecInnerProd(solver->u, solver->u_tmp[0], solver->double_tmp,
-            "nonsym", mv_s, mv_e, solver->block_size, 0, solver->gcge_ops);
-    GCGE_Printf("after  prolong\n");
-    for(i=0; i<solver->block_size; i++) {
-        for(j=0; j<solver->block_size; j++) {
-            GCGE_Printf("%e\t", solver->double_tmp[i* solver->block_size + j]);
-        }
-        GCGE_Printf("\n");
-    }
-#endif
-    GCGE_Printf("line 493, after direct solve, residual: \n");
     PASE_Mg_error_estimate(solver);
     solver->cur_cycle_level--;
     //二网格中，涉及到aux的部分
@@ -759,15 +711,14 @@ PASE_Mg_set_pase_aux_matrix_by_pase_matrix(PASE_MG_SOLVER solver, PASE_INT i, PA
   //先对向量做边界处理再用其构造矩阵,-----没用
   //solver->gcge_ops->SetDirichletBoundary(u_j, block_size, A[j], B[j]);
   /* TODO 先创建这个矩阵 */
-  //GCGE_Printf("line 719\n");
   //solver->gcge_ops->MultiVecPrint(u_j, 1, solver->gcge_ops);
   error = PASE_Aux_matrix_set_by_pase_matrix(aux_A, A[j], u_j, solver, i, j);
   error = PASE_Aux_matrix_set_by_pase_matrix(aux_B, B[j], u_j, solver, i, j);
   //对复合矩阵做边界处理后，特征值变小
-  solver->gcge_ops->SetDirichletBoundary(aux_A->aux_Hh, block_size, 
-          aux_A->A_H, aux_B->A_H);
-  solver->gcge_ops->SetDirichletBoundary(aux_B->aux_Hh, block_size, 
-          aux_A->A_H, aux_B->A_H);
+  //solver->gcge_ops->SetDirichletBoundary(aux_A->aux_Hh, block_size, 
+  //        aux_A->A_H, aux_B->A_H);
+  //solver->gcge_ops->SetDirichletBoundary(aux_B->aux_Hh, block_size, 
+  //        aux_A->A_H, aux_B->A_H);
   return 0;
 }
 
@@ -1462,6 +1413,7 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
   //使用GCGE在最粗层(cur_level)空间获取初值
   GCGE_SOLVER *gcge_solver = GCGE_SOLVER_CreateByOps(A[cur_level], B[cur_level],
           block_size, eigenvalues, pase_u[cur_level], solver->gcge_ops);
+  gcge_solver->para->print_para = 0;
   gcge_solver->para->print_eval = 0;
   gcge_solver->para->print_result = 1;
   //求解

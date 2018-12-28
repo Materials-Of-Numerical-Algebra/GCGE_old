@@ -168,10 +168,20 @@ void GCGE_Default_MultiVecAxpbyColumn(GCGE_DOUBLE a, void **x, GCGE_INT col_x,
 {
     void     *xs, *ys;
     ops->GetVecFromMultiVec(x, col_x, &xs, ops);
-    ops->GetVecFromMultiVec(y, col_y, &ys, ops);
+    if(col_x == col_y)
+    {
+        ys = xs;
+    }
+    else
+    {
+        ops->GetVecFromMultiVec(y, col_y, &ys, ops);
+    }
     ops->VecAxpby(a, xs, b, ys, ops);
     ops->RestoreVecForMultiVec(x, col_x, &xs, ops);
-    ops->RestoreVecForMultiVec(y, col_y, &ys, ops);
+    if(col_x != col_y)
+    {
+        ops->RestoreVecForMultiVec(y, col_y, &ys, ops);
+    }
 }
 
 /* vec_y[j] = \sum_{i=sx}^{ex} vec_x[i] a[i][j] */
@@ -561,6 +571,7 @@ void GCGE_OPS_Create(GCGE_OPS **ops)
     *ops = (GCGE_OPS*)malloc(sizeof(GCGE_OPS));
     (*ops)->VecSetRandomValue = NULL;
     (*ops)->MatDotVec = NULL;
+    (*ops)->MatTransposeDotVec = NULL;
     (*ops)->VecAxpby = NULL;
     (*ops)->VecInnerProd = NULL;
     (*ops)->VecLocalInnerProd = NULL;
@@ -572,6 +583,7 @@ void GCGE_OPS_Create(GCGE_OPS **ops)
     (*ops)->MultiVecDestroy = NULL;
     (*ops)->MultiVecSetRandomValue = NULL;
     (*ops)->MatDotMultiVec = NULL;
+    (*ops)->MatTransposeDotMultiVec = NULL;
     (*ops)->MultiVecAxpby = NULL;
     (*ops)->MultiVecAxpbyColumn = NULL;
     (*ops)->MultiVecLinearComb = NULL;
