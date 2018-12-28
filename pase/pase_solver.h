@@ -101,8 +101,7 @@ typedef PASE_MG_SOLVER_PRIVATE * PASE_MG_SOLVER;
 PASE_INT
 PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec, 
         PASE_INT block_size, PASE_PARAMETER param, GCGE_OPS *gcge_ops,
-        PASE_OPS *pase_ops,
-        void *Ac, void *Bc, void *P, void *R);
+        PASE_OPS *pase_ops);
 
 //创建solver,给solver中内容赋初值或者NULL,不进行空间分配
 PASE_MG_SOLVER
@@ -119,8 +118,7 @@ PASE_Mg_function_create(PASE_INT (*get_initial_vector) (void *solver),
 
 //创建multigrid,并给各个工作空间分配空间
 PASE_INT
-PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, PASE_SCALAR *eval, void **x, PASE_PARAMETER param,
-        void *Ac, void *Bc, void *P, void *R);
+PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, PASE_SCALAR *eval, void **x, PASE_PARAMETER param);
 
 //销毁工作空间
 PASE_INT 
