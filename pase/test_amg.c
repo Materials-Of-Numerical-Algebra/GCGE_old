@@ -123,7 +123,8 @@ main ( int argc, char *argv[] )
     double rate = 1e-2;
     int nsmooth = 10;
     int max_coarest_nsmooth = 50;
-    PASE_BMG_TEST(multi_grid, 0, (void**)(rhs[0]), (void**)(u[0]), mv_s, mv_e, 
+    //PASE_BMG_TEST(multi_grid, 0, (void**)(rhs[0]), (void**)(u[0]), mv_s, mv_e, 
+    PASE_BMG(multi_grid, 0, (void**)(rhs[0]), (void**)(u[0]), mv_s, mv_e, 
     	  tol, rate, nsmooth, max_coarest_nsmooth);
     //GCGE_BCG(A, (void**)(rhs[0]), (void**)(u[0]), 0, nev, 2*nsmooth, tol,
     //      gcge_ops, (void**)(u_tmp[0]), (void**)(u_tmp_1[0]), 
@@ -390,8 +391,8 @@ void PASE_BMG_TEST( PASE_MULTIGRID mg,
 	//先给coarse_sol赋初值0
 	mg->gcge_ops->MultiVecAxpby(0.0, coarse_sol, 0.0, coarse_sol, 
 	        mv_s, mv_e, mg->gcge_ops);
-        //PASE_BMG_TEST(mg, coarse_level, coarse_residual, coarse_sol, 
-        PASE_BMG(mg, coarse_level, coarse_residual, coarse_sol, 
+        //PASE_BMG(mg, coarse_level, coarse_residual, coarse_sol, 
+        PASE_BMG_TEST(mg, coarse_level, coarse_residual, coarse_sol, 
                 mv_s, mv_e, tol, rate, nsmooth, max_coarest_nsmooth);
         
         // 把粗网格上的解插值到细网格，再加到前光滑得到的近似解上

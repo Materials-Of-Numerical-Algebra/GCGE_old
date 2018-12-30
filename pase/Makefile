@@ -4,8 +4,11 @@ include $(GCGEHOME)/config/make.inc
 .PHONY: all lib clean help
 
 ########################################################################
-FILES   = pase_convert.c gcge_app_pase.c pase_solver.c pase_matvec.c pase_ops.c pase_mg.c 
-HEADERS = pase_convert.h gcge_app_pase.h pase_solver.h pase_config.h pase_matvec.h pase_mg.h pase_ops.h pase.h pase_param.h
+FILES   = pase_convert.c gcge_app_pase.c pase_solver.c pase_matvec.c \
+	  pase_ops.c pase_mg.c pase_amg.c
+HEADERS = pase_convert.h gcge_app_pase.h pase_solver.h pase_config.h \
+	  pase_matvec.h pase_mg.h pase_ops.h pase.h pase_param.h     \
+	  pase_amg.h
 OBJS    = ${FILES:.c=.o}
 
 INC     = -I$(GCGEINC) -I$(SLEPCINC) -I$(HYPREINC) -I$(PETSCINC)
@@ -64,3 +67,7 @@ test_mg:
 test_pase:
 	@$(CC)  $(CFLAGS) -c ./test_pase.c -o ./test_pase.o $(INC)
 	@$(CLINKER)  $(LDFLAGS)  -o ./test_pase.exe ./test_pase.o $(LIBPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBHYPRE) $(LIBGCGE) 
+
+test_amg:
+	@$(CC)  $(CFLAGS) -c ./test_amg.c -o ./test_amg.o $(INC)
+	@$(CLINKER)  $(LDFLAGS)  -o ./test_amg.exe ./test_amg.o $(LIBPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBHYPRE) $(LIBGCGE) 
