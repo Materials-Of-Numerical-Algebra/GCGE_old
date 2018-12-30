@@ -197,7 +197,7 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
         if(para->if_use_bcg == 1)
         {
             GCGE_BCG(A, V_tmp, V, w_start,w_length, para->cg_max_it, para->cg_rate, ops, 
-                 workspace->CG_p, workspace->evec, 
+                 workspace->CG_p, workspace->evec, NULL, 
                  workspace->subspace_dtmp, workspace->subspace_itmp);
         }
         else

@@ -230,17 +230,24 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, PASE_SCALAR *eval, void 
   solver->u_tmp_2 = (void***)malloc(param->max_level * sizeof(void**));
   //u_tmp_3用作 BCG的临时空间
   solver->u_tmp_3 = (void***)malloc(param->max_level * sizeof(void**));
+  solver->u_tmp_4 = (void***)malloc(param->max_level * sizeof(void**));
   for(i=0; i< param->max_level; i++) {
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp[i]),   solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_1[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_2[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_3[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
   }
-  solver->multigrid->u_tmp = solver->u_tmp_3;
+  solver->multigrid->u       = solver->u_tmp_1;
+  solver->multigrid->rhs     = solver->u_tmp;
+  solver->multigrid->u_tmp   = solver->u_tmp_2;
+  solver->multigrid->u_tmp_1 = solver->u_tmp_3;
+  solver->multigrid->u_tmp_2 = solver->u_tmp_4;
   //--------------------------------------------------------------------
   //--double,int型工作空间-------------------------------------------------
   solver->double_tmp = (PASE_REAL*)PASE_Malloc(6* solver->block_size * sizeof(PASE_REAL));
   solver->int_tmp = (PASE_INT*)PASE_Malloc(solver->block_size * sizeof(PASE_INT));
+  solver->multigrid->double_tmp = solver->double_tmp;
+  solver->multigrid->int_tmp = solver->int_tmp;
   //--------------------------------------------------------------
 
   if(0 == solver->cycle_type) {
@@ -1021,7 +1028,7 @@ PASE_Mg_smoothing_by_amg_hypre(void *mg_solver, char *PreOrPost)
   max_iter = 100;
   GCGE_BCG(A, rhs, u, nconv, block_size-nconv, max_iter, cg_rate,
       /* TODO break; */
-          solver->gcge_ops, solver->u_tmp_1[0], solver->u_tmp_2[0], 
+          solver->gcge_ops, solver->u_tmp_1[0], solver->u_tmp_2[0], NULL, 
           solver->double_tmp, solver->int_tmp);
   //double_tmp: 6 * block_size
   //   int_tmp:     block_size
@@ -1458,7 +1465,7 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
     }
     //用GCGE_BCG求解
     GCGE_BCG(A[idx_level], rhs[idx_level], pase_u[idx_level], 0, block_size, max_iter, cg_rate,
-            solver->gcge_ops, solver->u_tmp_2[idx_level], solver->u_tmp_3[idx_level], 
+            solver->gcge_ops, solver->u_tmp_2[idx_level], solver->u_tmp_3[idx_level], NULL, 
             solver->double_tmp, solver->int_tmp);
     //testtesttest-------------------
     i = PASE_MULTIGRID_FromItoJ(solver->multigrid, idx_level, 0, 

@@ -1,0 +1,152 @@
+#include "pase_amg.h" 
+
+/* PASE_BMG 算法过程
+ * 递归求解，给定要求解的层号current_level, 该层右端项rhs, 解sol
+ *
+ * 如果current_level是最细层, 直接求解(暂时用GCGE_BCG多迭代几次)
+ * 否则 coarse_level = current_level + 1
+ *
+ * 1. 前光滑, 使用GCGE_BCG迭代几次, 
+ *    需要两组工作空间，使用mg->u_tmp与mg->u_tmp_1
+ *    (即为 solver->u_tmp_1 与 solver->u_tmp_2)
+ *
+ * 2. 计算当前细层的残差residual = rhs - A * sol
+ *    residual 使用 mg->u_tmp 的工作空间
+ *
+ * 3. 将当前层的残差residual投影到粗一层空间上
+ *    coarse_residual = R * residual
+ *    coarse_residual 使用 mg->rhs 的工作空间(因为是用作下一层的rhs)
+ *    (mg->rhs = solver->u_tmp)
+ *
+ * 4. 给 coarse_sol 赋初值为 0
+ *    coarse_sol 使用 mg->u 的工作空间
+ *
+ * 5. 递归调用 PASE_BMG, 层号为 coarse_level
+ *
+ * 6. 将粗层的解 coarse_sol 插值到current_level层, 并加到sol上
+ *    residual = P * coarse_sol
+ *    sol += residual
+ *
+ * 7. 后光滑, 使用GCGE_BCG迭代几次
+ *
+ * 工作空间总结：
+ *    递归调用过程中, 
+ *    解sol所用空间一直是mg->u(即 solver->u)
+ *    右端项rhs所用空间一直是mg->rhs(即 solver->u_tmp)
+ *    残差residual所用空间一直是mg->u_tmp(即 solver->u_tmp_1)
+ *    GCGE_BCG使用空间为 mg->u_tmp, mg->u_tmp_1(solver->u_tmp_1, 2)
+ */
+/*
+ * mg : 包含需要的工作空间
+ * current_level: 从哪个细层开始进行多重网格计算，都会算到mg中的最粗层
+ * offset: 0 是最细层还是最粗层,默认最细层
+ * rhs: 多个右端项
+ * sol: 多个解向量
+ * start,end: rhs与sol分别计算第几个到第几个向量
+ * tol: 收敛准则
+ * rate: 下降准则，与tol二者满足其一即可提前跳出
+ * nsmooth: 各细层CG迭代次数
+ * max_coarest_smooth : 最粗层最大迭代次数
+ */
+void PASE_BMG( PASE_MULTIGRID mg, 
+               PASE_INT current_level, 
+               void **rhs, void **sol, 
+               PASE_INT *start, PASE_INT *end,
+               PASE_REAL tol, PASE_REAL rate, 
+               PASE_INT nsmooth, PASE_INT max_coarest_nsmooth)
+{
+    PASE_INT nlevel = mg->num_levels;
+    //默认0层为最细层
+    PASE_INT indicator = 1;
+    // obtain the coarsest level
+    PASE_INT coarest_level;
+    if( indicator > 0 )
+        coarest_level = nlevel-1;
+    else
+        coarest_level = 0;
+    //设置最粗层上精确求解的精度
+    PASE_REAL coarest_rate = 1e-8;
+    void *A;
+    PASE_INT mv_s[2];
+    PASE_INT mv_e[2];
+    void **residual = mg->u_tmp[current_level];
+    // obtain the 'enough' accurate solution on the coarest level
+    //direct solving the linear equation
+    if( current_level == coarest_level )
+    {
+        //最粗层？？？？？？？
+        A = mg->A_array[coarest_level];
+        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+                max_coarest_nsmooth, coarest_rate, mg->gcge_ops, 
+                mg->u_tmp[coarest_level], mg->u_tmp_1[coarest_level], 
+                mg->u_tmp_2[coarest_level], 
+                mg->double_tmp, mg->int_tmp);
+    }
+    else
+    {   
+        A = mg->A_array[current_level];
+        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+                nsmooth, rate, mg->gcge_ops, 
+                mg->u_tmp[current_level], mg->u_tmp_1[current_level], 
+		mg->u_tmp_2[current_level], 
+                mg->double_tmp, mg->int_tmp);
+
+        mv_s[0] = start[1];
+        mv_e[0] = end[1];
+        mv_s[1] = 0;
+        mv_e[1] = end[1]-start[1];
+        //计算residual = A*sol
+        mg->gcge_ops->MatDotMultiVec(A, sol, residual, mv_s, mv_e, mg->gcge_ops);
+        //计算residual = rhs-A*sol
+        mv_s[0] = 0;
+        mv_e[0] = end[1]-start[1];
+        mv_s[1] = 0;
+        mv_e[1] = end[1]-start[1];
+        mg->gcge_ops->MultiVecAxpby(1.0, rhs, -1.0, residual, mv_s, mv_e, mg->gcge_ops);
+
+        // 把 residual 投影到粗网格
+        PASE_INT coarse_level = current_level + indicator;
+        void **coarse_residual = mg->rhs[coarse_level];
+        mv_s[0] = 0;
+        mv_e[0] = end[1]-start[1];
+        mv_s[1] = 0;
+        mv_e[1] = end[1]-start[1];
+        PASE_INT error = PASE_MULTIGRID_FromItoJ(mg, current_level, coarse_level, 
+                mv_s, mv_e, residual, coarse_residual);
+        /* TODO coarse_sol????? */
+
+        //求粗网格解问题，利用递归
+        void **coarse_sol = mg->u[coarse_level];
+        mv_s[0] = 0;
+        mv_e[0] = end[1]-start[1];
+        mv_s[1] = 0;
+        mv_e[1] = end[1]-start[1];
+	//先给coarse_sol赋初值0
+	mg->gcge_ops->MultiVecAxpby(0.0, coarse_sol, 0.0, coarse_sol, 
+	        mv_s, mv_e, mg->gcge_ops);
+        PASE_BMG(mg, coarse_level, coarse_residual, coarse_sol, 
+                mv_s, mv_e, tol, rate, nsmooth, max_coarest_nsmooth);
+        
+        // 把粗网格上的解插值到细网格，再加到前光滑得到的近似解上
+        // 可以用 residual 代替
+        mv_s[0] = 0;
+        mv_e[0] = end[1]-start[1];
+        mv_s[1] = 0;
+        mv_e[1] = end[1]-start[1];
+        error = PASE_MULTIGRID_FromItoJ(mg, coarse_level, current_level, 
+                mv_s, mv_e, coarse_sol, residual);
+        //计算residual = rhs-A*sol
+        mv_s[0] = 0;
+        mv_e[0] = end[1]-start[1];
+        mv_s[1] = start[1];
+        mv_e[1] = end[1];
+        mg->gcge_ops->MultiVecAxpby(1.0, residual, 1.0, sol, mv_s, mv_e, mg->gcge_ops);
+        
+	//后光滑
+        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+                nsmooth, rate, mg->gcge_ops, 
+                mg->u_tmp[current_level], mg->u_tmp_1[current_level], 
+		mg->u_tmp_2[current_level], 
+                mg->double_tmp, mg->int_tmp);
+    }//end for (if current_level)
+}

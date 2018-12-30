@@ -136,7 +136,7 @@ void GCGE_CG(void *Matrix, void *b, void *x, GCGE_OPS *ops, GCGE_PARA *para,
  */
 void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start, 
         GCGE_INT x_length, GCGE_INT max_it, GCGE_DOUBLE rate,
-        GCGE_OPS *ops, void *V_tmp1, void **V_tmp2, 
+        GCGE_OPS *ops, void *V_tmp1, void **V_tmp2, void **V_tmp3,
         GCGE_DOUBLE *subspace_dtmp, GCGE_INT *subspace_itmp)
 {
   //临时向量
@@ -144,6 +144,18 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start,
   //void        **CG_R = RHS, **CG_P = workspace->CG_p, **CG_W = workspace->evec, 
   void        **CG_R = RHS, **CG_P = V_tmp1, **CG_W = V_tmp2, 
               **CG_X = V;
+  if(V_tmp3 != NULL)
+  {
+      //使用V_tmp3作为运行中使用的r
+      CG_R = V_tmp3;
+      GCGE_INT mv_s[2];
+      GCGE_INT mv_e[2];
+      mv_s[0] = 0;
+      mv_e[0] = x_length;
+      mv_s[1] = 0;
+      mv_e[1] = x_length;
+      ops->MultiVecAxpby(1.0, RHS, 0.0, V_tmp3, mv_s, mv_e, ops);
+  }
   GCGE_INT    id, idx, niter = 0;
   GCGE_DOUBLE tmp1, tmp2, alpha, beta;
   //GCGE_DOUBLE *rho1 = workspace->subspace_dtmp, 
@@ -277,8 +289,12 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT x_start,
 #if GCGE_USE_MPI
      MPI_Allreduce(MPI_IN_PLACE, rho2, x_length, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 #endif
+
    for(idx=0;idx<x_length;idx++)
+   {
      last_error[idx] = sqrt(fabs(rho2[idx]));  
+   }
+     //GCGE_Printf("iter: %d, error(%d) = %e\n", niter, 0,  last_error[0]);
    
    //printf("niter= %d, Error[%d]=%e, rho2[%d]=%e \n", niter, idx, last_error[idx], idx, rho2[idx]);
     //下面进行收敛性的判断

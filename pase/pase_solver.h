@@ -61,6 +61,7 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   void           ***u_tmp_1;
   void           ***u_tmp_2;
   void           ***u_tmp_3;
+  void           ***u_tmp_4;
   PASE_REAL        *double_tmp;
   PASE_INT         *int_tmp;
   GCGE_OPS         *gcge_ops;

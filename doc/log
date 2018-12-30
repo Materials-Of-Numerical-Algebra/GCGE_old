@@ -564,4 +564,5 @@ TODO
 怎么确认分层是对的？经测试，A_array[0]与A_array[1]的特征值相差很多
 test_mg.c中有打印矩阵的函数，打印后可以直接粘贴到matlab中读入
 
-
+2018.12.30 zhangning
+1. pase_amg.c.h 块AMG，在test_amg.c测试通过
