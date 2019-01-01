@@ -787,23 +787,18 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **u_j,
   // TODO 应该用相应层的u_tmp[j]
   void     **u_tmp = solver->u_tmp[j];
   PASE_INT nlock = solver->nlock;
-  //nlock = 0;
   PASE_INT block_size = solver->block_size;
   PASE_INT mv_s[2];
   PASE_INT mv_e[2];
   mv_s[0]  = nlock;
   mv_e[0]  = block_size;
-  mv_s[1]  = nlock;
-  mv_e[1]  = block_size;
-  //mv_s[1]  = 0;
-  //mv_e[1]  = block_size-nlock;
+  mv_s[1]  = 0;
+  mv_e[1]  = block_size-nlock;
   // u_tmp(:,0:block_size-nlock) = A_h * u_h(:, nlock:block_size) 
   gcge_ops->MatDotMultiVec(A_h, u_j, u_tmp, mv_s, mv_e, gcge_ops);
   //i==1, j==0, 从j限制到1
-  mv_s[0] = nlock;
-  mv_e[0] = block_size;
-  //mv_s[0] = 0;
-  //mv_e[0] = block_size-nlock;
+  mv_s[0] = 0;
+  mv_e[0] = block_size-nlock;
   mv_s[1] = nlock;
   mv_e[1] = block_size;
   /* TODO 简单测试的话这里该用什么？ */
@@ -813,8 +808,8 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **u_j,
   //   = u_h(:, 0:block_size) * A_h * u_h(:, nlock:block_size) 
   mv_s[0] = 0;
   mv_e[0] = block_size;
-  mv_s[1] = nlock;
-  mv_e[1] = block_size;
+  mv_s[1] = 0;
+  mv_e[1] = block_size-nlock;
   PASE_INT num_aux_vec = aux_A->num_aux_vec;
   PASE_REAL *A_aux_hh = aux_A->aux_hh;
   gcge_ops->MultiVecInnerProd(u_j, u_tmp, A_aux_hh+nlock*num_aux_vec,
