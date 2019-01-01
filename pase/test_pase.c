@@ -45,7 +45,7 @@ main ( int argc, char *argv[] )
 
     /* 得到细网格矩阵 */
     Mat      A, B;
-    PetscInt n = 30, m = 30;
+    PetscInt n = 100, m = 100;
     GetPetscMat(&A, &B, n, m);
 
     //创建gcge_ops
@@ -65,15 +65,15 @@ main ( int argc, char *argv[] )
     PASE_PARAMETER param   = (PASE_PARAMETER) PASE_Malloc(sizeof(PASE_PARAMETER_PRIVATE));
     param->cycle_type      = 0;   //二网格
     param->block_size      = nev; //特征值个数
-    param->max_cycle       = 2;  //二网格迭代次数
-    param->max_pre_iter    = 1;   //前光滑次数
-    param->max_post_iter   = 1;   //后光滑次数
-    param->atol            = 1e-10;
-    param->rtol            = 1e-12;
+    param->max_cycle       = 5;  //二网格迭代次数
+    param->max_pre_iter    = 100;   //前光滑次数
+    param->max_post_iter   = 100;   //后光滑次数
+    param->atol            = 1e-8;
+    param->rtol            = 1e-8;
     param->print_level     = 1;
-    param->max_level       = 4;   //AMG层数
+    param->max_level       = 3;   //AMG层数
     PASEGetCommandLineInfo(argc, argv, &(param->block_size), &(param->atol), &(param->max_pre_iter));
-    param->min_coarse_size = param->block_size * 30; //最粗层网格最少有30*nev维
+    param->min_coarse_size = param->block_size * 10; //最粗层网格最少有30*nev维
     //param->min_coarse_size = 500;
     PrintParameter(param);
 

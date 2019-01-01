@@ -236,6 +236,7 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, PASE_SCALAR *eval, void 
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_1[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_2[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
       solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_3[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
+      solver->gcge_ops->MultiVecCreateByMat(&(solver->u_tmp_4[i]), solver->max_block_size, solver->multigrid->A_array[i], solver->gcge_ops);
   }
   solver->multigrid->u       = solver->u_tmp_1;
   solver->multigrid->rhs     = solver->u_tmp;
@@ -321,11 +322,13 @@ PASE_Mg_solver_destroy(PASE_MG_SOLVER solver)
       solver->gcge_ops->MultiVecDestroy(&(solver->u_tmp_1[i]), solver->max_block_size, solver->gcge_ops);
       solver->gcge_ops->MultiVecDestroy(&(solver->u_tmp_2[i]), solver->max_block_size, solver->gcge_ops);
       solver->gcge_ops->MultiVecDestroy(&(solver->u_tmp_3[i]), solver->max_block_size, solver->gcge_ops);
+      solver->gcge_ops->MultiVecDestroy(&(solver->u_tmp_4[i]), solver->max_block_size, solver->gcge_ops);
     }
     free(solver->u_tmp);    solver->u_tmp   = NULL;
     free(solver->u_tmp_1);  solver->u_tmp_1 = NULL;
     free(solver->u_tmp_2);  solver->u_tmp_2 = NULL;
     free(solver->u_tmp_3);  solver->u_tmp_3 = NULL;
+    free(solver->u_tmp_4);  solver->u_tmp_4 = NULL;
     //-----------------------------------------------------
     //释放double,int型工作空间
     if(NULL != solver->double_tmp) {
@@ -360,11 +363,13 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
   /* TODO 暂时先不考虑多重网格获取初值 */
   PASE_Mg_get_initial_vector(solver);
   //初始残差
-  GCGE_Printf("init residual: \n");
-  PASE_Mg_error_estimate(solver);
+  //GCGE_Printf("init residual: \n");
+  //PASE_Mg_error_estimate(solver);
   //PASE_Mg_print(solver);
   do {
     solver->ncycl++;
+    //GCGE_Printf("ncycl: %d, max_cycle: %d, nconv: %d\n", 
+	//  solver->ncycl, solver->max_cycle, solver->nconv);
     //二网格迭代
     PASE_Mg_cycle(solver);
     //一次二网格迭代后计算残差
@@ -421,6 +426,7 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver)
   void            *ui;
   solver->nlock                  = nconv;
 
+
   if(NULL == solver->r_norm) {
     solver->r_norm = (PASE_REAL*)PASE_Malloc(block_size*sizeof(PASE_REAL));
   }
@@ -428,9 +434,9 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver)
   //没用
   //solver->gcge_ops->SetDirichletBoundary(u0, block_size, A0, B0);
 
-  nconv = 0;
   GCGE_OPS *gcge_ops = solver->gcge_ops;
-  for(i = nconv; i < block_size; ++i) {
+  //for(i = nconv; i < block_size; ++i) {
+  for(i = 0; i < block_size; ++i) {
 
     //计算 u_Bnorm = || ui ||_B
     gcge_ops->GetVecFromMultiVec(solver->u_tmp[0], 0, &Bu, gcge_ops);
@@ -464,7 +470,7 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver)
     if(r_norm < atol || (r_norm/eigenvalues[i]) < rtol) {
       if(0 == flag) {
         //solver->nconv++;
-	solver->nconv = i;
+	solver->nconv = i+1;
       }
     } else {
       /* TODO break; */
@@ -509,6 +515,7 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver)
   {
     //前光滑
     PASE_Mg_presmoothing(solver);
+    //GCGE_Printf("cur_cycle_level: %d, presmoothing:\n", cur_cycle_level);
     //PASE_Mg_error_estimate(solver);
 
     //-------------------------------------
@@ -521,13 +528,18 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver)
     PASE_INT block_size = solver->block_size;
     //延拓
     PASE_Mg_prolong_from_pase_aux_vector(solver);
-    //PASE_Mg_error_estimate(solver);
+    //if(cur_cycle_level == max_cycle_level-1)
+    //{
+    //  GCGE_Printf("cur_cycle_level: %d, gcge:\n", cur_cycle_level+1);
+    //  PASE_Mg_error_estimate(solver);
+    //}
     solver->cur_cycle_level--;
     //二网格中，涉及到aux的部分
     //-------------------------------------
 
     //后光滑
     PASE_Mg_postsmoothing(solver);
+    //GCGE_Printf("cur_cycle_level: %d, postsmoothing:\n", cur_cycle_level);
     //PASE_Mg_error_estimate(solver);
   }
   else if( cur_cycle_level == max_cycle_level)
@@ -775,19 +787,23 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **u_j,
   // TODO 应该用相应层的u_tmp[j]
   void     **u_tmp = solver->u_tmp[j];
   PASE_INT nlock = solver->nlock;
-  nlock = 0;
+  //nlock = 0;
   PASE_INT block_size = solver->block_size;
   PASE_INT mv_s[2];
   PASE_INT mv_e[2];
   mv_s[0]  = nlock;
   mv_e[0]  = block_size;
-  mv_s[1]  = 0;
-  mv_e[1]  = block_size-nlock;
+  mv_s[1]  = nlock;
+  mv_e[1]  = block_size;
+  //mv_s[1]  = 0;
+  //mv_e[1]  = block_size-nlock;
   // u_tmp(:,0:block_size-nlock) = A_h * u_h(:, nlock:block_size) 
   gcge_ops->MatDotMultiVec(A_h, u_j, u_tmp, mv_s, mv_e, gcge_ops);
   //i==1, j==0, 从j限制到1
-  mv_s[0] = 0;
-  mv_e[0] = block_size-nlock;
+  mv_s[0] = nlock;
+  mv_e[0] = block_size;
+  //mv_s[0] = 0;
+  //mv_e[0] = block_size-nlock;
   mv_s[1] = nlock;
   mv_e[1] = block_size;
   /* TODO 简单测试的话这里该用什么？ */
@@ -797,8 +813,8 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **u_j,
   //   = u_h(:, 0:block_size) * A_h * u_h(:, nlock:block_size) 
   mv_s[0] = 0;
   mv_e[0] = block_size;
-  mv_s[1] = 0;
-  mv_e[1] = block_size-nlock;
+  mv_s[1] = nlock;
+  mv_e[1] = block_size;
   PASE_INT num_aux_vec = aux_A->num_aux_vec;
   PASE_REAL *A_aux_hh = aux_A->aux_hh;
   gcge_ops->MultiVecInnerProd(u_j, u_tmp, A_aux_hh+nlock*num_aux_vec,
@@ -914,6 +930,8 @@ PASE_Mg_prolong_from_pase_aux_vector_to_pase_vector(PASE_MG_SOLVER solver, PASE_
     PASE_INT mv_s[2];
     PASE_INT mv_e[2];
     PASE_INT nconv = solver->nconv;
+    /* convergence!!! 如果要打开lock, 要把下面这行注释掉 */
+    //nconv = 0;
     PASE_INT block_size = solver->block_size;
     mv_s[0] = nconv;
     mv_e[0] = block_size;
@@ -983,9 +1001,10 @@ PASE_Mg_smoothing_by_amg_hypre(void *mg_solver, char *PreOrPost)
   PASE_MG_SOLVER  solver        = (PASE_MG_SOLVER)mg_solver;
   PASE_INT        block_size	= solver->block_size;
   PASE_INT        nconv         = solver->nconv; 
-  nconv = 0;
+  //nconv = 0;
   PASE_INT        i		= 0;
-  PASE_INT        max_iter      = 1;
+  /* TODO init中后光滑，1次！*/
+  PASE_INT        max_iter      = 50;
   if(0 == strcmp(PreOrPost, "pre")) {
     max_iter = solver->max_pre_iter;
     if(NULL == solver->method_pre) {
@@ -1023,13 +1042,32 @@ PASE_Mg_smoothing_by_amg_hypre(void *mg_solver, char *PreOrPost)
               rhs, i-nconv, gcge_ops);
   }
 
+  PASE_REAL tol = solver->atol;
+  PASE_REAL cg_rate = 1e-2;
+  //max_iter = 10;
+  PASE_INT max_coarest_nsmooth = 10*max_iter;
+  mv_s[0] = 0;
+  mv_e[0] = block_size-nconv;
+  mv_s[1] = nconv;
+  mv_e[1] = block_size;
+
+#if 0
+  GCGE_PARA *para;
+  GCGE_PARA_Create(&para);
+  GCGE_Orthonormalization(solver->u, 0, &block_size, 
+      solver->multigrid->B_array[0], solver->gcge_ops, para, 
+      solver->u_tmp_3[0], solver->double_tmp);
+  GCGE_PARA_Free(&para);
+#endif
+
+
+  PASE_BMG(solver->multigrid, 0, rhs, u, mv_s, mv_e, 
+	tol, cg_rate, max_iter, max_coarest_nsmooth);
   //用GCGE_BCG求解
-  PASE_REAL cg_rate = 1e-8;
-  max_iter = 100;
-  GCGE_BCG(A, rhs, u, nconv, block_size-nconv, max_iter, cg_rate,
-      /* TODO break; */
-          solver->gcge_ops, solver->u_tmp_1[0], solver->u_tmp_2[0], NULL, 
-          solver->double_tmp, solver->int_tmp);
+  //GCGE_BCG(A, rhs, u, nconv, block_size-nconv, max_iter, cg_rate,
+  //        solver->gcge_ops, solver->u_tmp_1[0], solver->u_tmp_2[0], NULL, 
+  //        solver->double_tmp, solver->int_tmp);
+
   //double_tmp: 6 * block_size
   //   int_tmp:     block_size
   //   u_tmp_1:     block_size
@@ -1083,15 +1121,17 @@ PASE_Mg_direct_solve_by_gcg(void *mg_solver)
   //创建solver
   GCGE_SOLVER *gcge_pase_solver = GCGE_SOLVER_PASE_Create(aux_A, 
           aux_B, block_size, eigenvalues, aux_u, solver->pase_ops);
+  //TODO 与原pase一致
+  gcge_pase_solver->para->ev_tol    = solver->atol * 1e-2;
+  gcge_pase_solver->para->ev_max_it = solver->max_direct_iter;
+  gcge_pase_solver->para->cg_max_it = 50;
   //求解
   gcge_pase_solver->para->print_para = 0;
   gcge_pase_solver->para->print_conv = 0;
   gcge_pase_solver->para->print_eval = 0;
   gcge_pase_solver->para->print_result = 0;
   gcge_pase_solver->para->given_init_evec = 1;
-  gcge_pase_solver->para->ev_tol = 1e-12;
   //gcge_pase_solver->para->orth_para->orth_zero_tol = 1e-13;
-  //gcge_pase_solver->para->ev_max_it = 5;
   //gcge_pase_solver->para->p_orth_type = "gs";
   //精度高时，multi正交化达不到要求
   gcge_pase_solver->para->w_orth_type = "gs";
@@ -1420,7 +1460,7 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
   PASE_INT     mv_e[2];
   PASE_INT     idx_level      = 0;
   PASE_INT     max_iter       = 10;
-  PASE_REAL    cg_rate        = 0.1;
+  PASE_REAL    cg_rate        = 1e-2;
 
   //------------------------------------------------------------
   //使用GCGE在最粗层(cur_level)空间获取初值
@@ -1428,7 +1468,9 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
           block_size, eigenvalues, pase_u[cur_level], solver->gcge_ops);
   gcge_solver->para->print_para = 0;
   gcge_solver->para->print_eval = 0;
-  gcge_solver->para->print_result = 1;
+  gcge_solver->para->print_conv = 0;
+  gcge_solver->para->print_result = 0;
+  gcge_solver->para->ev_max_it = 5;
   //求解
   GCGE_SOLVER_Solve(gcge_solver);  
   //释放空间, 不释放gcge_solver->ops
@@ -1445,8 +1487,11 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
           mv_s, mv_e, pase_u[cur_level], pase_u[cur_level-1]);
   i = PASE_MULTIGRID_FromItoJ(solver->multigrid, cur_level-1, 0, 
           mv_s, mv_e, pase_u[cur_level-1], solver->u);
-  GCGE_Printf("coarsest GCGE\n");
-  PASE_Mg_error_estimate(solver);
+  //GCGE_Printf("init, coarsest GCGE\n");
+  //PASE_Mg_error_estimate(solver);
+  PASE_INT max_coarest_nsmooth = 10*max_iter;
+  PASE_REAL tol = solver->atol;
+  PASE_REAL rate = 1e-8;
   //粗层特征向量延拓到下一层
   //----------------------------------------------------
   //在每层上计算
@@ -1464,14 +1509,16 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
         solver->gcge_ops->MultiVecAxpbyColumn(0.0, rhs[idx_level], i, eigenvalues[i], rhs[idx_level], i, solver->gcge_ops);
     }
     //用GCGE_BCG求解
-    GCGE_BCG(A[idx_level], rhs[idx_level], pase_u[idx_level], 0, block_size, max_iter, cg_rate,
-            solver->gcge_ops, solver->u_tmp_2[idx_level], solver->u_tmp_3[idx_level], NULL, 
-            solver->double_tmp, solver->int_tmp);
+    PASE_BMG(solver->multigrid, idx_level, rhs[idx_level], pase_u[idx_level], 
+	  mv_s, mv_e, tol, cg_rate, max_iter, max_coarest_nsmooth);
+    //GCGE_BCG(A[idx_level], rhs[idx_level], pase_u[idx_level], 0, block_size, max_iter, cg_rate,
+    //        solver->gcge_ops, solver->u_tmp_2[idx_level], solver->u_tmp_3[idx_level], NULL, 
+    //        solver->double_tmp, solver->int_tmp);
     //testtesttest-------------------
-    i = PASE_MULTIGRID_FromItoJ(solver->multigrid, idx_level, 0, 
-          mv_s, mv_e, pase_u[idx_level], solver->u);
-    GCGE_Printf("level: %d, BCG\n", idx_level);
-    PASE_Mg_error_estimate(solver);
+    //i = PASE_MULTIGRID_FromItoJ(solver->multigrid, idx_level, 0, 
+    //      mv_s, mv_e, pase_u[idx_level], solver->u);
+    //GCGE_Printf("init, mulitlevel, level: %d, presmoothing\n", idx_level);
+    //PASE_Mg_error_estimate(solver);
     //testtesttest-------------------
     //每个细层上解问题
     //----------------------------------------------------
@@ -1493,17 +1540,33 @@ PASE_Mg_get_initial_vector_by_full_multigrid_hypre(void *mg_solver)
     mv_s[1] = 0;
     mv_e[1] = block_size;
     i = PASE_MULTIGRID_FromItoJ(solver->multigrid, idx_level, idx_level-1, mv_s, mv_e, pase_u[idx_level], pase_u[idx_level-1]);
+    //testtesttest-------------------
+    //i = PASE_MULTIGRID_FromItoJ(solver->multigrid, idx_level-1, 0, 
+    //      mv_s, mv_e, pase_u[idx_level-1], solver->u);
+    //GCGE_Printf("init, mulitlevel, level: %d, gcge\n", idx_level);
+    //PASE_Mg_error_estimate(solver);
+    //testtesttest-------------------
   }
   mv_s[0] = 0;
   mv_e[0] = block_size;
   mv_s[1] = 0;
   mv_e[1] = block_size;
   solver->gcge_ops->MultiVecSwap(solver->u, pase_u[0], mv_s, mv_e, solver->gcge_ops);
-  GCGE_Printf("after init\n");
-  PASE_Mg_error_estimate(solver);
   //----------------------------------------------------
+#if 0
+  GCGE_PARA *para;
+  GCGE_PARA_Create(&para);
+  GCGE_Orthonormalization(solver->u, 0, &block_size, 
+      solver->multigrid->B_array[0], solver->gcge_ops, para, 
+      solver->u_tmp[0], solver->double_tmp);
+  GCGE_PARA_Free(&para);
+#endif
   //最后再做一次AMG迭代(后光滑)
   PASE_Mg_smoothing_by_amg_hypre(solver, "NeitherPreNorPost");
+  //testtesttest-------------------
+  //GCGE_Printf("init, postsmoothing\n");
+  //PASE_Mg_error_estimate(solver);
+  //testtesttest-------------------
   return 0;
 }
 

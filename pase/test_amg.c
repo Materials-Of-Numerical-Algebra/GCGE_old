@@ -35,6 +35,7 @@ void PASE_BMG_TEST( PASE_MULTIGRID mg,
                PASE_INT *start, PASE_INT *end,
                PASE_REAL tol, PASE_REAL rate, 
                PASE_INT nsmooth, PASE_INT max_coarest_nsmooth);
+void PETSC_Sub_MultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops);
 /* 
  *  Description:  测试PASE_MULTIGRID
  */
@@ -56,6 +57,7 @@ main ( int argc, char *argv[] )
     //创建gcge_ops
     GCGE_OPS *gcge_ops;
     GCGE_OPS_CreateSLEPC(&gcge_ops);
+    gcge_ops->MultiVecPrint = PETSC_Sub_MultiVecPrint;
     PASE_OPS *pase_ops;
     PASE_OPS_Create(&pase_ops, gcge_ops);
 
@@ -98,40 +100,70 @@ main ( int argc, char *argv[] )
     multi_grid->int_tmp    = int_tmp;
 
     gcge_ops->MultiVecSetRandomValue((void**)(u[0]), 0, nev, gcge_ops);
+    PETSCPrintBV(u[0], "exact u[0]");
+
     int mv_s[2];
     int mv_e[2];
-    mv_s[0] = 0;
+
+    mv_s[0] = 1;
     mv_e[0] = nev;
     mv_s[1] = 0;
-    mv_e[1] = nev;
+    mv_e[1] = nev-1;
     gcge_ops->MatDotMultiVec(A, (void**)(u[0]), (void**)(rhs[0]), 
 	  mv_s, mv_e, gcge_ops);
+    //-----------------------------------------------
+    //下面这两行注释掉，就可以测试使用精确解做初值的话，会有什么结果
+    mv_s[0] = 1;
+    mv_e[0] = nev;
+    mv_s[1] = 1;
+    mv_e[1] = nev;
     gcge_ops->MultiVecAxpby(0.0, (void**)(u[0]), 0.0, (void**)(u[0]), 
-	  mv_s, mv_e, gcge_ops);
+    	  mv_s, mv_e, gcge_ops);
 
     //计算初始残差
+    mv_s[0] = 1;
+    mv_e[0] = nev;
+    mv_s[1] = 0;
+    mv_e[1] = nev-1;
     gcge_ops->MatDotMultiVec(A, (void**)(u[0]), (void**)(u_tmp[0]), mv_s, mv_e, gcge_ops);
+    mv_s[0] = 0;
+    mv_e[0] = nev-1;
+    mv_s[1] = 0;
+    mv_e[1] = nev-1;
     gcge_ops->MultiVecAxpby(1.0, (void**)(rhs[0]), -1.0, (void**)(u_tmp[0]), 
 	  mv_s, mv_e, gcge_ops);
     gcge_ops->MultiVecInnerProd((void**)(u_tmp[0]), (void**)(u_tmp[0]), 
 	  double_tmp, "nonsym", mv_s, mv_e, nev, 0, gcge_ops);
-    for(i=0; i<nev; i++) {
+    for(i=0; i<nev-1; i++) {
         GCGE_Printf("init residual[%d] = %e\n", i, double_tmp[i*nev+i]);
     }
 
     double tol = 1e-8;
-    double rate = 1e-2;
-    int nsmooth = 10;
-    int max_coarest_nsmooth = 50;
+    double rate = 1e-8;
+    int nsmooth = 1000;
+    int max_coarest_nsmooth = 10000;
     //PASE_BMG_TEST(multi_grid, 0, (void**)(rhs[0]), (void**)(u[0]), mv_s, mv_e, 
+    mv_s[0] = 0;
+    mv_e[0] = nev-1;
+    mv_s[1] = 1;
+    mv_e[1] = nev;
     PASE_BMG(multi_grid, 0, (void**)(rhs[0]), (void**)(u[0]), mv_s, mv_e, 
-    	  tol, rate, nsmooth, max_coarest_nsmooth);
-    //GCGE_BCG(A, (void**)(rhs[0]), (void**)(u[0]), 0, nev, 2*nsmooth, tol,
+     	  tol, rate, nsmooth, max_coarest_nsmooth);
+    //GCGE_BCG(A, (void**)(rhs[0]), (void**)(u[0]), 0, nev, nsmooth, rate,
     //      gcge_ops, (void**)(u_tmp[0]), (void**)(u_tmp_1[0]), 
     //	    (void**)(u_tmp_2[0]), double_tmp, int_tmp);
+    PETSCPrintBV(u[0], "output u[0]");
 
+    mv_s[0] = 1;
+    mv_e[0] = nev;
+    mv_s[1] = 0;
+    mv_e[1] = nev-1;
     //计算最后的残差
     gcge_ops->MatDotMultiVec(A, (void**)(u[0]), (void**)(u_tmp[0]), mv_s, mv_e, gcge_ops);
+    mv_s[0] = 0;
+    mv_e[0] = nev-1;
+    mv_s[1] = 0;
+    mv_e[1] = nev-1;
     gcge_ops->MultiVecAxpby(1.0, (void**)(rhs[0]), -1.0, (void**)(u_tmp[0]), 
 	  mv_s, mv_e, gcge_ops);
     //PETSCPrintBV(u_tmp[0], "resi after");
@@ -140,8 +172,6 @@ main ( int argc, char *argv[] )
     for(i=0; i<nev; i++) {
         GCGE_Printf("final residual[%d] = %e\n", i, double_tmp[i*nev+i]);
     }
-
-    error = PASE_MULTIGRID_Destroy(&multi_grid);
 
     //释放空间
     for(i=0; i<num_levels; i++)
@@ -417,4 +447,9 @@ void PASE_BMG_TEST( PASE_MULTIGRID mg,
 		mg->u_tmp_2[current_level], 
                 mg->double_tmp, mg->int_tmp);
     }//end for (if current_level)
+}
+
+void PETSC_Sub_MultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
+{
+    PETSCPrintBV((BV)x, "gcge_ops->MultiVecPrint");
 }

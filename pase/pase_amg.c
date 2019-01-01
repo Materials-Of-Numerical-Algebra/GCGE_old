@@ -43,8 +43,8 @@
  * rhs: 多个右端项
  * sol: 多个解向量
  * start,end: rhs与sol分别计算第几个到第几个向量
- * tol: 收敛准则
- * rate: 下降准则，与tol二者满足其一即可提前跳出
+ * tol: 收敛准则 TODO 目前这个参数没用到
+ * rate: 前后光滑中CG迭代的精度提高比例
  * nsmooth: 各细层CG迭代次数
  * max_coarest_smooth : 最粗层最大迭代次数
  */
@@ -65,7 +65,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
     else
         coarest_level = 0;
     //设置最粗层上精确求解的精度
-    PASE_REAL coarest_rate = 1e-8;
+    PASE_REAL coarest_rate = rate * 1e-5;
     void *A;
     PASE_INT mv_s[2];
     PASE_INT mv_e[2];
@@ -81,6 +81,8 @@ void PASE_BMG( PASE_MULTIGRID mg,
                 mg->u_tmp[coarest_level], mg->u_tmp_1[coarest_level], 
                 mg->u_tmp_2[coarest_level], 
                 mg->double_tmp, mg->int_tmp);
+	//GCGE_Printf("current_level: %d, after direct\n", current_level);
+	//mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
     }
     else
     {   
@@ -90,6 +92,8 @@ void PASE_BMG( PASE_MULTIGRID mg,
                 mg->u_tmp[current_level], mg->u_tmp_1[current_level], 
 		mg->u_tmp_2[current_level], 
                 mg->double_tmp, mg->int_tmp);
+	//GCGE_Printf("current_level: %d, after presmoothing\n", current_level);
+	//mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
 
         mv_s[0] = start[1];
         mv_e[0] = end[1];
@@ -126,6 +130,8 @@ void PASE_BMG( PASE_MULTIGRID mg,
 	        mv_s, mv_e, mg->gcge_ops);
         PASE_BMG(mg, coarse_level, coarse_residual, coarse_sol, 
                 mv_s, mv_e, tol, rate, nsmooth, max_coarest_nsmooth);
+	//GCGE_Printf("current_level: %d, after postsmoothing\n", current_level);
+	//mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
         
         // 把粗网格上的解插值到细网格，再加到前光滑得到的近似解上
         // 可以用 residual 代替

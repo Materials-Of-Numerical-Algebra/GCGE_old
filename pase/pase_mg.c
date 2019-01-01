@@ -129,22 +129,32 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
     void **from_vecs;
     void **to_vecs;
     PASE_INT k = 0;
+    PASE_INT start[2];
+    PASE_INT end[2];
     if(level_i > level_j)
     {
         //从粗层到细层，延拓，用P矩阵直接乘
         for(k=level_i; k>level_j; k--) {
             if(k == level_i) {
                 from_vecs = pvx_i;
+                start[0] = mv_s[0];
+                end[0]   = mv_e[0];
             } else {
                 from_vecs = multi_grid->u_tmp[k];
+                start[0] = 0;
+                end[0]   = mv_e[0]-mv_s[0];
             }
             if(k == level_j+1) {
                 to_vecs = pvx_j;
+                start[1] = mv_s[1];
+                end[1]   = mv_e[1];
             } else {
                 to_vecs = multi_grid->u_tmp[k-1];
+                start[1] = 0;
+                end[1]   = mv_e[0]-mv_s[0];
             }
             multi_grid->gcge_ops->MatDotMultiVec(multi_grid->P_array[k-1], 
-                    from_vecs, to_vecs, mv_s, mv_e, multi_grid->gcge_ops);
+                    from_vecs, to_vecs, start, end, multi_grid->gcge_ops);
         }
     }
     else if(level_i < level_j)
@@ -153,16 +163,24 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
         for(k=level_i; k<level_j; k++) {
             if(k == level_i) {
                 from_vecs = pvx_i;
+                start[0] = mv_s[0];
+                end[0]   = mv_e[0];
             } else {
                 from_vecs = multi_grid->u_tmp[k];
+                start[0] = 0;
+                end[0]   = mv_e[0]-mv_s[0];
             }
             if(k == level_j-1) {
                 to_vecs = pvx_j;
+                start[1] = mv_s[1];
+                end[1]   = mv_e[1];
             } else {
                 to_vecs = multi_grid->u_tmp[k+1];
+                start[1] = 0;
+                end[1]   = mv_e[0]-mv_s[0];
             }
             multi_grid->gcge_ops->MatTransposeDotMultiVec(multi_grid->P_array[k], 
-                    from_vecs, to_vecs, mv_s, mv_e, multi_grid->gcge_ops);
+                    from_vecs, to_vecs, start, end, multi_grid->gcge_ops);
         }
     }
     else if (level_i == level_j)

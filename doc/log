@@ -566,3 +566,9 @@ test_mg.c中有打印矩阵的函数，打印后可以直接粘贴到matlab中�
 
 2018.12.30 zhangning
 1. pase_amg.c.h 块AMG，在test_amg.c测试通过
+
+2019.01.01 zhangning
+1. gcge_cg.c 修改了 lock 相关的内容
+2. pase_mg.c 修改了 FromItoJ 的内容
+3. pase_solver.c 可以正确运行
+4. 修改了测试文件 test_amg.c test_pase.c
