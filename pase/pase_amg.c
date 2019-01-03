@@ -69,7 +69,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
     void *A;
     PASE_INT mv_s[2];
     PASE_INT mv_e[2];
-    void **residual = mg->u_tmp[current_level];
+    void **residual = mg->cg_p[current_level];
     // obtain the 'enough' accurate solution on the coarest level
     //direct solving the linear equation
     if( current_level == coarest_level )
@@ -78,9 +78,9 @@ void PASE_BMG( PASE_MULTIGRID mg,
         A = mg->A_array[coarest_level];
         GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
                 max_coarest_nsmooth, coarest_rate, mg->gcge_ops, 
-                mg->u_tmp[coarest_level], mg->u_tmp_1[coarest_level], 
-                mg->u_tmp_2[coarest_level], 
-                mg->double_tmp, mg->int_tmp);
+                mg->cg_p[coarest_level], mg->cg_w[coarest_level], 
+                mg->cg_res[coarest_level], 
+                mg->cg_double_tmp, mg->cg_int_tmp);
 	//GCGE_Printf("current_level: %d, after direct\n", current_level);
 	//mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
     }
@@ -89,9 +89,9 @@ void PASE_BMG( PASE_MULTIGRID mg,
         A = mg->A_array[current_level];
         GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
                 nsmooth, rate, mg->gcge_ops, 
-                mg->u_tmp[current_level], mg->u_tmp_1[current_level], 
-		mg->u_tmp_2[current_level], 
-                mg->double_tmp, mg->int_tmp);
+                mg->cg_p[current_level], mg->cg_w[current_level], 
+		mg->cg_res[current_level], 
+                mg->cg_double_tmp, mg->cg_int_tmp);
 	//GCGE_Printf("current_level: %d, after presmoothing\n", current_level);
 	//mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
 
@@ -120,7 +120,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
         /* TODO coarse_sol????? */
 
         //求粗网格解问题，利用递归
-        void **coarse_sol = mg->u[coarse_level];
+        void **coarse_sol = mg->sol[coarse_level];
         mv_s[0] = 0;
         mv_e[0] = end[1]-start[1];
         mv_s[1] = 0;
@@ -151,8 +151,8 @@ void PASE_BMG( PASE_MULTIGRID mg,
 	//后光滑
         GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
                 nsmooth, rate, mg->gcge_ops, 
-                mg->u_tmp[current_level], mg->u_tmp_1[current_level], 
-		mg->u_tmp_2[current_level], 
-                mg->double_tmp, mg->int_tmp);
+                mg->cg_p[current_level], mg->cg_w[current_level], 
+		mg->cg_res[current_level], 
+                mg->cg_double_tmp, mg->cg_int_tmp);
     }//end for (if current_level)
 }

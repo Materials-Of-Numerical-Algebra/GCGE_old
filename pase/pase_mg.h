@@ -18,28 +18,22 @@
 typedef struct pase_MultiGrid_struct 
 {
    PASE_INT num_levels;
-   void     **A_array;
-   void     **B_array;
-   void     **P_array;
+   void      **A_array;
+   void      **B_array;
+   void      **P_array;
    /* P0P1P2  P1P2  P2 */
    //void     **Q_array;
-   /* rhs and x */
-   //void     **U_array;
-   //void     **F_array;
-   void     ***u;
+   void     ***sol;
    void     ***rhs;
-   void     ***u_tmp;
-   void     ***u_tmp_1;
-   void     ***u_tmp_2;
+   void     ***cg_p;
+   void     ***cg_w;
+   void     ***cg_res;
 
-   PASE_REAL *double_tmp;
-   PASE_INT  *int_tmp;
+   PASE_REAL  *cg_double_tmp;
+   PASE_INT   *cg_int_tmp;
 
-   PASE_Matrix aux_A;
-   PASE_Matrix aux_B;
-
-   GCGE_OPS *gcge_ops;
-   PASE_OPS *pase_ops;
+   GCGE_OPS   *gcge_ops;
+   PASE_OPS   *pase_ops;
    
 } pase_MultiGrid;
 typedef struct pase_MultiGrid_struct *PASE_MULTIGRID;

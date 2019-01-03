@@ -23,8 +23,6 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels,
     (*multi_grid)->A_array = NULL;
     (*multi_grid)->B_array = NULL;
     (*multi_grid)->P_array = NULL;
-    (*multi_grid)->aux_A   = NULL;
-    (*multi_grid)->aux_B   = NULL;
 
     /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
     Mat petsc_A, petsc_B;
@@ -85,12 +83,6 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
     (*multi_grid)->B_array = NULL;
     (*multi_grid)->P_array = NULL;
 
-    if((*multi_grid)->aux_A != NULL) {
-        PASE_MatrixDestroy(&((*multi_grid)->aux_A), (*multi_grid)->pase_ops);
-    }
-    if((*multi_grid)->aux_B != NULL) {
-        PASE_MatrixDestroy(&((*multi_grid)->aux_B), (*multi_grid)->pase_ops);
-    }
     free(*multi_grid); *multi_grid = NULL;
 }
 
@@ -140,7 +132,7 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
                 start[0] = mv_s[0];
                 end[0]   = mv_e[0];
             } else {
-                from_vecs = multi_grid->u_tmp[k];
+                from_vecs = multi_grid->cg_res[k];
                 start[0] = 0;
                 end[0]   = mv_e[0]-mv_s[0];
             }
@@ -149,7 +141,7 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
                 start[1] = mv_s[1];
                 end[1]   = mv_e[1];
             } else {
-                to_vecs = multi_grid->u_tmp[k-1];
+                to_vecs = multi_grid->cg_res[k-1];
                 start[1] = 0;
                 end[1]   = mv_e[0]-mv_s[0];
             }
@@ -166,7 +158,7 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
                 start[0] = mv_s[0];
                 end[0]   = mv_e[0];
             } else {
-                from_vecs = multi_grid->u_tmp[k];
+                from_vecs = multi_grid->cg_res[k];
                 start[0] = 0;
                 end[0]   = mv_e[0]-mv_s[0];
             }
@@ -175,7 +167,7 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
                 start[1] = mv_s[1];
                 end[1]   = mv_e[1];
             } else {
-                to_vecs = multi_grid->u_tmp[k+1];
+                to_vecs = multi_grid->cg_res[k+1];
                 start[1] = 0;
                 end[1]   = mv_e[0]-mv_s[0];
             }

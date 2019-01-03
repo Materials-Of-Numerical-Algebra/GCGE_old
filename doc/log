@@ -572,3 +572,8 @@ test_mg.c中有打印矩阵的函数，打印后可以直接粘贴到matlab中�
 2. pase_mg.c 修改了 FromItoJ 的内容
 3. pase_solver.c 可以正确运行
 4. 修改了测试文件 test_amg.c test_pase.c
+
+2019.01.03 zhangning
+1. 修改了pase_solver.h, pase_param.h中的结构，重写了pase_solver.c以及pase_param.c,可以运行通过，结果正确
+2. 相应的修改了pase_mg.c pase_mg.h pase_amg.h以及测试文件test_pase.c
+
