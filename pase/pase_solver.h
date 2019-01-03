@@ -11,7 +11,7 @@
 typedef struct PASE_MG_SOLVER_PRIVATE_ {
 
   //-------------------------------------------------------
-  //num_level表示一共用多少层，idx_level表示都用哪几层, 从粗到细
+  //num_levels表示一共用多少层
   PASE_INT      num_levels;
   //计算初值或者用户给定初值的层号
   PASE_INT      initial_level;
@@ -100,6 +100,7 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT     print_level; 
   //统计时间
   PASE_REAL  set_up_time;
+  PASE_REAL  get_initvec_time;
   PASE_REAL  smooth_time;
   PASE_REAL  set_aux_time;
   PASE_REAL  prolong_time;

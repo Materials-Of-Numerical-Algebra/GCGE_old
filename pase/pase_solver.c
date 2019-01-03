@@ -23,6 +23,9 @@ PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec,
   //进行AMG分层，分配工作空间
   PASE_Mg_set_up(solver, A, B, gcge_ops);
 
+  //打印参数信息
+  PASE_Mg_print_param(solver);
+
   //进行pase求解
   PASE_Mg_solve(solver);
 
@@ -35,6 +38,9 @@ PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec,
     PASE_INT mv_e[2] = { nev, nev };
     gcge_ops->MultiVecAxpby(1.0, solver->sol[0], 0.0, evec, mv_s, mv_e, gcge_ops);
   }
+
+  //打印结果与时间信息
+  PASE_Mg_print_result(solver);
 
   //释放空间
   PASE_Mg_solver_destroy(solver);
@@ -355,11 +361,14 @@ PASE_Mg_solver_destroy(PASE_MG_SOLVER solver)
 PASE_INT
 PASE_Mg_solve(PASE_MG_SOLVER solver)
 {
+  clock_t start, end;
+  start = clock();
+
   //一共要用到的层数
   PASE_INT num_levels = solver->num_levels;
   //V_h_1的层号
   PASE_INT initial_level = solver->initial_level;
-  //V_H层号, 初始为实际最粗层，或由用户给出？?TODO
+  //V_H层号
   PASE_INT coarest_level = solver->coarest_level;
   //细层层指标
   PASE_INT idx_level = 0;
@@ -385,6 +394,9 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
   //PASE_Mg_error_estimate(solver, initial_level);
   if(initial_level > 0)
   {
+    clock_t start_1, end_1;
+    start_1 = clock();
+
     coarse_level = initial_level;
     current_level = initial_level-1;
     mv_s[0] = 0;
@@ -393,6 +405,9 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
     mv_e[1] = pase_nev;
     PASE_MULTIGRID_FromItoJ(solver->multigrid, coarse_level, current_level, 
 	  mv_s, mv_e, solver->sol[coarse_level], solver->sol[current_level]);
+
+    end_1 = clock();
+    solver->prolong_time += ((double)(end_1-start_1))/CLK_TCK;
   }
   //GCGE_Printf("after initial prolong:\n");
   //PASE_Mg_error_estimate(solver, current_level);
@@ -431,6 +446,9 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
 	  mv_s, mv_e, solver->sol[current_level], solver->sol[current_level-1]);
     }
   }//end for idx_level
+
+  end = clock();
+  solver->set_up_time += ((double)(end-start))/CLK_TCK;
   return 0;
 }
 
@@ -476,6 +494,9 @@ PASE_INT
 PASE_Mg_set_pase_aux_matrix(PASE_MG_SOLVER solver, PASE_INT coarse_level, 
       PASE_INT current_level)
 {
+  clock_t start, end;
+  start = clock();
+
   //构造复合矩阵，细空间的维数, 从nconv:pase_nev-1
   PASE_INT pase_nev = solver->pase_nev;
   PASE_INT nconv = solver->nconv;
@@ -498,6 +519,9 @@ PASE_Mg_set_pase_aux_matrix(PASE_MG_SOLVER solver, PASE_INT coarse_level,
 	coarse_level, current_level);
   error = PASE_Aux_matrix_set_by_pase_matrix(aux_B, B, fine_sol, solver, 
 	coarse_level, current_level);
+
+  end = clock();
+  solver->set_aux_time += ((double)(end-start))/CLK_TCK;
   return 0;
 }
 
@@ -527,7 +551,7 @@ PASE_Direct_solve(PASE_MG_SOLVER solver, PASE_INT idx_level)
   GCGE_SOLVER_Free_Some(&gcge_solver);
   //每层上最多直接求解时GCGE迭代的次数
   end = clock();
-  solver->set_aux_time += ((double)(end-start))/CLK_TCK;
+  solver->get_initvec_time += ((double)(end-start))/CLK_TCK;
   return 0;
 }
 
@@ -717,7 +741,7 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   GCGE_SOLVER_Free(&gcge_pase_solver);
 
   end = clock();
-  solver->set_aux_time += ((double)(end-start))/CLK_TCK;
+  solver->direct_solve_time += ((double)(end-start))/CLK_TCK;
   return 0;
 }
 
@@ -902,3 +926,87 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
 
   return 0;
 }
+
+/**
+ * @brief 打印计算所得特征值，及其对应的残差.
+ *
+ * @param solver  输入参数
+ *
+ * @return 
+ */
+PASE_INT
+PASE_Mg_print_result(PASE_MG_SOLVER solver)
+{
+  PASE_INT idx_eigen = 0;
+  if(solver->print_level > 0) {
+    GCGE_Printf("\n");
+    GCGE_Printf("=============================================================\n");
+    for(idx_eigen=0; idx_eigen<solver->pase_nev; idx_eigen++) {
+      GCGE_Printf("%d-th eig=%.8e, abs_res = %.8e\n", idx_eigen, solver->eigenvalues[idx_eigen], solver->abs_res_norm[idx_eigen]);
+    }
+    GCGE_Printf("=============================================================\n");
+    GCGE_Printf("set up time       = %f seconds\n", solver->set_up_time);
+    GCGE_Printf("get initvec time  = %f seconds\n", solver->get_initvec_time);
+    GCGE_Printf("smooth time       = %f seconds\n", solver->smooth_time);
+    GCGE_Printf("set aux time      = %f seconds\n", solver->set_aux_time);
+    GCGE_Printf("prolong time      = %f seconds\n", solver->prolong_time);
+    GCGE_Printf("direct solve time = %f seconds\n", solver->direct_solve_time);
+    GCGE_Printf("total solve time  = %f seconds\n", solver->total_solve_time);
+    GCGE_Printf("total time        = %f seconds\n", solver->total_time);
+    GCGE_Printf("=============================================================\n");
+  }	
+  return 0;
+}
+
+/**
+ * @brief 打印计算所得特征值，及其对应的残差.
+ *
+ * @param solver  输入参数
+ *
+ * @return 
+ */
+PASE_INT
+PASE_Mg_print_param(PASE_MG_SOLVER solver)
+{
+  if(solver->print_level > 0) {
+    PASE_INT i = 0;
+    PASE_INT num_levels = solver->num_levels;
+    GCGE_Printf("\n");
+    GCGE_Printf("===PARAMETERS===============================================\n");
+    GCGE_Printf("nev               = %d\n", solver->nev);
+    GCGE_Printf("pase_nev          = %d\n", solver->pase_nev);
+    GCGE_Printf("max_nev           = %d\n", solver->max_nev);
+    GCGE_Printf("rtol              = %d\n", solver->rtol);
+    GCGE_Printf("atol              = %d\n", solver->atol);
+    GCGE_Printf("num_levels        = %d\n", solver->num_levels);
+    GCGE_Printf("initial_level     = %d\n", solver->initial_level);
+    GCGE_Printf("num_given_eigs    = %d\n", solver->num_given_eigs);
+    GCGE_Printf("coarest_level     = %d\n", solver->coarest_level);
+    GCGE_Printf("finest_level      = %d\n", solver->finest_level);
+    GCGE_Printf("max_initial_count = %d\n", solver->max_initial_count);
+    GCGE_Printf("from finest to coarest:\n");
+    GCGE_Printf("max_cycle_count_each_level  = ");
+    for(i=1; i<num_levels; i++) {
+      GCGE_Printf("%d, ", solver->max_cycle_count_each_level[i]);
+    }
+    GCGE_Printf("\n");
+    GCGE_Printf("max_pre_count_each_level    = ");
+    for(i=1; i<num_levels; i++) {
+      GCGE_Printf("%d, ", solver->max_pre_count_each_level[i]);
+    }
+    GCGE_Printf("\n");
+    GCGE_Printf("max_post_count_each_level   = ");
+    for(i=1; i<num_levels; i++) {
+      GCGE_Printf("%d, ", solver->max_post_count_each_level[i]);
+    }
+    GCGE_Printf("\n");
+    GCGE_Printf("max_direct_count_each_level = ");
+    for(i=1; i<num_levels; i++) {
+      GCGE_Printf("%d, ", solver->max_direct_count_each_level[i]);
+    }
+    GCGE_Printf("\n");
+    GCGE_Printf("=============================================================\n");
+  }	
+  return 0;
+}
+
