@@ -5,10 +5,10 @@ include $(GCGEHOME)/config/make.inc
 
 ########################################################################
 FILES   = pase_convert.c gcge_app_pase.c pase_solver.c pase_matvec.c \
-	  pase_ops.c pase_mg.c pase_amg.c
+          pase_ops.c pase_mg.c pase_amg.c pase_param.c
 HEADERS = pase_convert.h gcge_app_pase.h pase_solver.h pase_config.h \
-	  pase_matvec.h pase_mg.h pase_ops.h pase.h pase_param.h     \
-	  pase_amg.h
+          pase_matvec.h pase_mg.h pase_ops.h pase.h pase_param.h     \
+          pase_amg.h
 OBJS    = ${FILES:.c=.o}
 
 INC     = -I$(GCGEINC) -I$(SLEPCINC) -I$(HYPREINC) -I$(PETSCINC)
