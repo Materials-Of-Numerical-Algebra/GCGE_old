@@ -11,13 +11,16 @@
  * @param param       输入参数
  * @param gcge_ops    输入参数
  */
+//如果testforauxauxaux==1，那就测试新的aux，==0, 那就测试结果正确的aux
+static int testforauxauxaux = 1;
 //------------------------------------------------------------------------------------------------
 PASE_INT
 PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec, 
-        PASE_INT nev, PASE_PARAMETER param, GCGE_OPS *gcge_ops)
+        PASE_INT nev, PASE_PARAMETER param, GCGE_OPS *gcge_ops, PASE_INT test)
 {
   clock_t start, end;
   start = clock();
+  testforauxauxaux = test;
 
   //创建solver空间并赋初值NULL
   //pase的eigensolver，依赖于MG
@@ -108,6 +111,7 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
   } else {
     solver->pase_nev = solver->max_nev;
   }
+  solver->pase_nev = solver->nev + 1;
   solver->num_given_eigs = param->num_given_eigs;
   //BMG进行分批计算时，每次最多计算的线性方程组个数
   if(param->bmg_step_size = -1) {
@@ -485,6 +489,7 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_lev
   //GCGE_Printf("after presmoothing:\n");
   //PASE_Mg_error_estimate(solver, current_level);
 
+  //solver->nconv = solver->nlock_smooth;
   //构造复合矩阵 (solver, coarse_level, current_level)
   PASE_Mg_set_pase_aux_matrix(solver, coarse_level, current_level);
   //构造复合向量 
@@ -494,6 +499,8 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_lev
 
   //把aux向量转换成细空间上的向量
   PASE_Mg_prolong_from_pase_aux_vector(solver, coarse_level, current_level);
+  //solver->nconv = 0;
+  PASE_Mg_smoothing(solver, current_level, max_presmooth_iter);
 
   //后光滑
   //PASE_INT max_postsmooth_iter = solver->max_post_count_each_level[current_level];
@@ -511,7 +518,6 @@ PASE_Mg_set_pase_aux_matrix(PASE_MG_SOLVER solver, PASE_INT coarse_level,
 
   //构造复合矩阵，细空间的维数, 从nconv:pase_nev-1
   PASE_INT pase_nev = solver->pase_nev;
-  PASE_INT nconv = solver->nconv;
 
   //创建复合矩阵aux_A, aux_B, 结构
   PASE_Mg_pase_aux_matrix_create(solver, coarse_level);
@@ -607,9 +613,11 @@ PASE_Mg_pase_aux_matrix_create(PASE_MG_SOLVER solver, PASE_INT idx_level)
   aux_B->aux_Hh     = solver->cg_p[idx_level];
   aux_A->num_aux_vec = solver->pase_nev - solver->nconv;
   aux_B->num_aux_vec = solver->pase_nev - solver->nconv;
-  //testforauxauxaux
-  //aux_A->num_aux_vec = solver->pase_nev;
-  //aux_B->num_aux_vec = solver->pase_nev;
+  //以下两行测试aux矩阵全部计算testforauxauxaux
+  if(testforauxauxaux == 1) {
+    aux_A->num_aux_vec = solver->pase_nev;
+    aux_B->num_aux_vec = solver->pase_nev;
+  }
 
   return 0;
 }
@@ -630,7 +638,9 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **sol,
   PASE_OPS *pase_ops = solver->pase_ops;
   PASE_INT nconv = solver->nconv;
   //testforauxauxaux
-  //nconv = 0;
+  if(testforauxauxaux == 1) {
+    nconv = 0;
+  }
   PASE_INT pase_nev = solver->pase_nev;
   PASE_INT num_aux_vec = pase_nev-nconv;
   aux_A->num_aux_vec = num_aux_vec;
@@ -677,7 +687,9 @@ PASE_Mg_set_pase_aux_vector(PASE_MG_SOLVER solver, PASE_INT coarse_level,
   PASE_INT  pase_nev = solver->pase_nev;
   PASE_INT  nconv = solver->nconv;
   //testforauxauxaux
-  //nconv = 0;
+  if(testforauxauxaux == 1) {
+    nconv = 0;
+  }
   PASE_INT  num_aux_vec = solver->aux_u->num_aux_vec;
   PASE_REAL *aux_h = solver->aux_u->aux_h;
   PASE_INT  i = 0;
@@ -718,7 +730,9 @@ PASE_Mg_pase_aux_vector_create(PASE_MG_SOLVER solver, PASE_INT idx_level)
   }
   PASE_INT num_aux_vec = solver->pase_nev - solver->nconv;
   //testforauxauxaux
-  //num_aux_vec = solver->pase_nev;
+  if(testforauxauxaux == 1) {
+    num_aux_vec = solver->pase_nev;
+  }
   solver->aux_u->num_aux_vec = num_aux_vec;
   solver->aux_u->num_vec = num_aux_vec;
   solver->aux_u->b_H = solver->sol[idx_level];
@@ -747,6 +761,18 @@ PASE_MultiVector_destroy_sub(PASE_MultiVector *aux_u)
   return 0;
 }
 
+void 
+PASE_PrintDenseMat(PASE_REAL *aux_hh, PASE_INT n)
+{
+  PASE_INT i = 0;
+  PASE_INT j = 0;
+  for(i=0; i<n; i++) {
+    for(j=0; j<n; j++) {
+      GCGE_Printf("aux_h(%d, %d) = %18.15e\n", i, j, aux_hh[i*n+j]);
+    }
+  }
+}
+
 PASE_INT
 PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
 {
@@ -754,6 +780,7 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   start = clock();
 
   PASE_INT num_unlock = solver->pase_nev - solver->nconv;
+  num_unlock = solver->pase_nev - solver->nlock_smooth;
 
   GCGE_SOLVER *gcge_pase_solver = GCGE_SOLVER_PASE_Create(
 	solver->aux_A, solver->aux_B, solver->pase_nev, 
@@ -765,16 +792,16 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->print_para = 0;
   gcge_pase_solver->para->print_conv = 0;
   gcge_pase_solver->para->print_eval = 0;
-  gcge_pase_solver->para->print_result = 1;
+  gcge_pase_solver->para->print_result = 0;
   gcge_pase_solver->para->given_init_evec = 1;
-  gcge_pase_solver->para->opt_rr_eig_partly = 0;
+  gcge_pase_solver->para->opt_rr_eig_partly = 1;
   //gcge_pase_solver->para->orth_para->orth_zero_tol = 1e-13;
   //gcge_pase_solver->para->p_orth_type = "gs";
   //精度高时，multi正交化达不到要求
   gcge_pase_solver->para->w_orth_type = "gs";
   //求解
   GCGE_SOLVER_Solve(gcge_pase_solver);  
-  memcpy(solver->eigenvalues+solver->nconv, solver->aux_eigenvalues+solver->nconv, 
+  memcpy(solver->eigenvalues+solver->nlock_smooth, solver->aux_eigenvalues+solver->nlock_smooth, 
 	num_unlock*sizeof(PASE_REAL));
   //释放空间
   GCGE_SOLVER_Free(&gcge_pase_solver);
@@ -799,13 +826,12 @@ PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
   PASE_INT mv_e[2];
   PASE_INT nconv = solver->nconv;
   PASE_INT pase_nev = solver->pase_nev;
-  PASE_INT num_aux_vec = pase_nev - nconv;
+  PASE_INT n_unconv = pase_nev - nconv;
+  PASE_INT num_aux_vec = aux_u->num_aux_vec;
   mv_s[0] = nconv;
   mv_e[0] = pase_nev;
   mv_s[1] = 0;
-  mv_e[1] = num_aux_vec;
-  //testforauxauxaux
-  //mv_e[1] = pase_nev-nconv;
+  mv_e[1] = n_unconv;
   //从aux_u_i->b_H延拓到u_j(先放在u_tmp)
   //同时aux_u_i->aux_h作为线性组合系数，对原u_j进行线性组合
   PASE_INT error = PASE_MULTIGRID_FromItoJ(solver->multigrid, 
@@ -814,17 +840,13 @@ PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
   mv_s[0] = nconv;
   mv_e[0] = pase_nev;
   mv_s[1] = 0;
-  mv_e[1] = num_aux_vec;
-  //testforauxauxaux
-  //mv_e[1] = pase_nev-nconv;
+  mv_e[1] = n_unconv;
   solver->gcge_ops->MultiVecLinearComb(sol, P_uH, mv_s, mv_e,
         aux_u->aux_h+nconv*num_aux_vec, num_aux_vec, 0, 1.0, 1.0, solver->gcge_ops);
   mv_s[0] = nconv;
   mv_e[0] = pase_nev;
   mv_s[1] = 0;
-  mv_e[1] = num_aux_vec;
-  //testforauxauxaux
-  //mv_e[1] = pase_nev-nconv;
+  mv_e[1] = n_unconv;
   solver->gcge_ops->MultiVecSwap(sol, P_uH, mv_s, mv_e, solver->gcge_ops);
   end = clock();
   solver->prolong_time += ((double)(end-start))/CLK_TCK;
@@ -844,6 +866,7 @@ PASE_Mg_smoothing(PASE_MG_SOLVER solver, PASE_INT current_level, PASE_INT max_it
   void          **rhs           = solver->rhs[current_level];
   PASE_INT        pase_nev      = solver->pase_nev;
   PASE_INT        nconv         = solver->nconv;
+  nconv = solver->nlock_smooth;
 
   GCGE_OPS *gcge_ops = solver->gcge_ops;
   PASE_OPS *pase_ops = solver->pase_ops;
@@ -911,7 +934,8 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
   void            *Bu;
   void            *ui;
   //nlock表示这次判断收敛性前已收敛的特征值个数
-  PASE_INT         nlock         = solver->nconv;
+  //PASE_INT         nlock         = solver->nconv;
+  PASE_INT         nlock         = solver->nlock_smooth;
 
   GCGE_OPS *gcge_ops = solver->gcge_ops;
   //for(i = nconv; i < pase_nev; ++i) {
@@ -949,15 +973,15 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
     if(r_norm < atol || (r_norm/eigenvalues[i]) < rtol) {
       if(0 == flag) {
         //solver->nconv++;
-	solver->nconv = i+1;
+	solver->nlock_smooth = i+1;
       }
     } else {
       /* break; */
       flag = 1;
     }
   }
-  while(check_multi[solver->nconv-1] < 1e-5 && solver->nconv > nlock) {
-     solver->nconv--;
+  while(check_multi[solver->nlock_smooth-1] < 1e-5 && solver->nlock_smooth> nlock) {
+     solver->nlock_smooth--;
   }
   /*
   //检查第一个为收敛的特征值与最后一个刚收敛的特征值是否有可能是重特征值，为保证之后的排序问题，需让重特征值同时在收敛的集合或未收敛的集合.
@@ -969,13 +993,22 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
 
   if(solver->print_level > 0) {
     //PASE_REAL error = fabs(solver->eigenvalues[0] - solver->exact_eigenvalues[0]);	
-    GCGE_Printf("nconv = %d, ", solver->nconv);
-    if(solver->nconv < solver->pase_nev) {
-      GCGE_Printf("the first unconverged eigenvalues (residual) = %.8e (%1.6e)\n", solver->eigenvalues[solver->nconv], solver->abs_res_norm[solver->nconv]);
+    GCGE_Printf("nlock_smooth = %d, ", solver->nlock_smooth);
+    if(solver->nlock_smooth < solver->pase_nev) {
+      GCGE_Printf("the first unconverged eigenvalues (residual) = %.8e (%1.6e)\n", 
+	    solver->eigenvalues[solver->nlock_smooth], solver->abs_res_norm[solver->nlock_smooth]);
     } else {
       GCGE_Printf("all the wanted eigenpairs have converged.\n");
     }
   }	
+  if(solver->nlock_smooth >= solver->nev) {
+     solver->nconv = solver->nlock_smooth;
+  } else {
+     solver->nconv = 0;
+  }
+  if(testforauxauxaux == 1) {
+    solver->nconv = solver->nlock_smooth;
+  }
 
   return 0;
 }

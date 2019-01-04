@@ -30,7 +30,7 @@ void PETSCPrintVec(Vec x);
 void PETSCPrintBV(BV x, char *name);
 void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops);
 void GCGE_PETSCPrintMat(void *A);
-void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, PASE_INT *nlevel, PASE_INT *print_level);
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, PASE_INT *nlevel, PASE_INT *print_level, PASE_INT *testforauxauxaux);
 /* 
  *  Description:  测试PASE_MULTIGRID
  */
@@ -50,14 +50,15 @@ main ( int argc, char *argv[] )
     PASE_INT nev = 30;
     PASE_INT num_levels = 4;
     PASE_INT print_level = 1;
-    GetCommandLineInfo(argc, argv, &n, &nev, &num_levels, &print_level);
+    PASE_INT testforauxauxaux = 1;
+    GetCommandLineInfo(argc, argv, &n, &nev, &num_levels, &print_level, &testforauxauxaux);
     GCGE_Printf("n: %d, nev: %d, num_levels: %d\n", n, nev, num_levels);
     GetPetscMat(&A, &B, n, n);
 
     //创建gcge_ops
     GCGE_OPS *gcge_ops;
     GCGE_OPS_CreateSLEPC(&gcge_ops);
-
+    gcge_ops->MultiVecPrint = GCGE_PETSCMultiVecPrint;
     //创建特征值与特征向量空间
 
     //给pase用到的参数赋值
@@ -69,7 +70,7 @@ main ( int argc, char *argv[] )
     param->print_level = print_level;
 
     //pase求解
-    PASE_EigenSolver((void*)A, (void*)B, NULL, NULL, nev, param, gcge_ops);
+    PASE_EigenSolver((void*)A, (void*)B, NULL, NULL, nev, param, gcge_ops, testforauxauxaux);
 
     //释放空间
     GCGE_OPS_Free(&gcge_ops);
@@ -175,7 +176,7 @@ void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
   PETSCPrintBV((BV)x, "x");
 }
 
-void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, PASE_INT *nlevel, PASE_INT *print_level)
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, PASE_INT *nlevel, PASE_INT *print_level, PASE_INT *testforauxauxaux)
 {
   PASE_INT arg_index = 0;
 
@@ -204,6 +205,12 @@ void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, 
       //要求解的特征值个数
       arg_index++;
       *print_level = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-test") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      *testforauxauxaux = atoi(argv[arg_index++]);
     }
     else
     {
