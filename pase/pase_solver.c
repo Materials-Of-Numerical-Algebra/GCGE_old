@@ -16,6 +16,9 @@ PASE_INT
 PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec, 
         PASE_INT nev, PASE_PARAMETER param, GCGE_OPS *gcge_ops)
 {
+  clock_t start, end;
+  start = clock();
+
   //创建solver空间并赋初值NULL
   //pase的eigensolver，依赖于MG
   PASE_MG_SOLVER solver = PASE_Mg_solver_create(param);
@@ -39,6 +42,8 @@ PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec,
     gcge_ops->MultiVecAxpby(1.0, solver->sol[0], 0.0, evec, mv_s, mv_e, gcge_ops);
   }
 
+  end = clock();
+  solver->total_time += ((double)(end-start))/CLK_TCK;
   //打印结果与时间信息
   PASE_Mg_print_result(solver);
 
@@ -153,6 +158,8 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
   solver->aux_A = NULL;
   //pase aux 复合矩阵
   solver->aux_B = NULL;
+  //pase aux 复合矩阵的特征值
+  solver->aux_eigenvalues = NULL;
   //多重网格结构
   solver->multigrid = NULL;
 
@@ -199,6 +206,7 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
   //--特征值工作空间-----------------------------------------------------
   PASE_INT max_nev = solver->max_nev;
   solver->eigenvalues = (PASE_SCALAR*)calloc(max_nev, sizeof(PASE_SCALAR));
+  solver->aux_eigenvalues = (PASE_SCALAR*)calloc(max_nev, sizeof(PASE_SCALAR));
   //abs_res_norm存储每个特征对的绝对残差
   solver->abs_res_norm = (PASE_REAL*)calloc(max_nev, sizeof(PASE_REAL));
 
@@ -285,6 +293,10 @@ PASE_Mg_solver_destroy(PASE_MG_SOLVER solver)
   if(NULL != solver->eigenvalues) {
     free(solver->eigenvalues);
     solver->eigenvalues = NULL;
+  }
+  if(NULL != solver->aux_eigenvalues) {
+    free(solver->aux_eigenvalues);
+    solver->aux_eigenvalues = NULL;
   }
   if(NULL != solver->abs_res_norm) {
     free(solver->abs_res_norm);
@@ -427,7 +439,7 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
       PASE_Mg_cycle(solver, coarest_level, current_level);
       //最细层检查收敛性
       if(current_level == 0) {
-        GCGE_Printf("idx_cycle: %d:\n", idx_cycle);
+        GCGE_Printf("idx_cycle: %d, ", idx_cycle);
         PASE_Mg_error_estimate(solver, current_level);
         if(solver->nconv >= solver->nev) {
 	  idx_cycle = solver->max_cycle_count_each_level[current_level] + 1;
@@ -448,7 +460,7 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
   }//end for idx_level
 
   end = clock();
-  solver->set_up_time += ((double)(end-start))/CLK_TCK;
+  solver->total_solve_time += ((double)(end-start))/CLK_TCK;
   return 0;
 }
 
@@ -476,7 +488,7 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_lev
   //构造复合矩阵 (solver, coarse_level, current_level)
   PASE_Mg_set_pase_aux_matrix(solver, coarse_level, current_level);
   //构造复合向量 
-  PASE_Mg_set_pase_aux_vector(solver, coarse_level);
+  PASE_Mg_set_pase_aux_vector(solver, coarse_level, current_level);
   //直接求解复合矩阵特征值问题
   PASE_Aux_direct_solve(solver, coarse_level);
 
@@ -595,6 +607,9 @@ PASE_Mg_pase_aux_matrix_create(PASE_MG_SOLVER solver, PASE_INT idx_level)
   aux_B->aux_Hh     = solver->cg_p[idx_level];
   aux_A->num_aux_vec = solver->pase_nev - solver->nconv;
   aux_B->num_aux_vec = solver->pase_nev - solver->nconv;
+  //testforauxauxaux
+  //aux_A->num_aux_vec = solver->pase_nev;
+  //aux_B->num_aux_vec = solver->pase_nev;
 
   return 0;
 }
@@ -614,6 +629,8 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **sol,
   GCGE_OPS *gcge_ops = solver->gcge_ops;
   PASE_OPS *pase_ops = solver->pase_ops;
   PASE_INT nconv = solver->nconv;
+  //testforauxauxaux
+  //nconv = 0;
   PASE_INT pase_nev = solver->pase_nev;
   PASE_INT num_aux_vec = pase_nev-nconv;
   aux_A->num_aux_vec = num_aux_vec;
@@ -648,28 +665,44 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **sol,
 
 
 PASE_INT
-PASE_Mg_set_pase_aux_vector(PASE_MG_SOLVER solver, PASE_INT idx_level)
+PASE_Mg_set_pase_aux_vector(PASE_MG_SOLVER solver, PASE_INT coarse_level, 
+      PASE_INT current_level)
 {
   clock_t start, end;
   start = clock();
 
-  PASE_Mg_pase_aux_vector_create(solver, idx_level);
+  PASE_Mg_pase_aux_vector_create(solver, coarse_level);
 
   //子空间复合矩阵特征值问题的初值[0,e_i]^T
-  PASE_INT num_aux_vec = solver->aux_u->num_aux_vec;
-  PASE_INT mv_s[2];
-  PASE_INT mv_e[2];
-  mv_s[0] = 0;
-  mv_e[0] = num_aux_vec;
-  mv_s[1] = 0;
-  mv_e[1] = num_aux_vec;
-  //TODO 这里发现了bug, (void**), 不知道之前的问题是不是因为这里不对
+  PASE_INT  pase_nev = solver->pase_nev;
+  PASE_INT  nconv = solver->nconv;
+  //testforauxauxaux
+  //nconv = 0;
+  PASE_INT  num_aux_vec = solver->aux_u->num_aux_vec;
+  PASE_REAL *aux_h = solver->aux_u->aux_h;
+  PASE_INT  i = 0;
+  PASE_INT  mv_s[2];
+  PASE_INT  mv_e[2];
+  //把aux_u(:, nconv:pase_nev-1)赋值为[0,e_i]^T
+  mv_s[0] = nconv;
+  mv_e[0] = pase_nev;
+  mv_s[1] = nconv;
+  mv_e[1] = pase_nev;
   solver->pase_ops->MultiVecAxpby(0.0, (void**)(solver->aux_u),
           0.0, (void**)(solver->aux_u), mv_s, mv_e, solver->pase_ops);
-  PASE_REAL *aux_h = solver->aux_u->aux_h;
-  PASE_INT i = 0;
   for(i=0; i<num_aux_vec; i++) {
-      aux_h[i*num_aux_vec+i] = 1.0;
+      aux_h[(i+nconv)*num_aux_vec+i] = 1.0;
+  }
+  if(nconv > 0)
+  {
+    //aux_u(:, 0:nconv-1) = R * sol(:, 0:nconv-1)
+    memset(solver->aux_u->aux_h, 0.0, nconv*num_aux_vec*sizeof(PASE_REAL));
+    mv_s[0] = 0;
+    mv_e[0] = nconv;
+    mv_s[1] = 0;
+    mv_e[1] = nconv;
+    PASE_MULTIGRID_FromItoJ(solver->multigrid, current_level, coarse_level, 
+	mv_s, mv_e, solver->sol[current_level], solver->aux_u->b_H);
   }
   end = clock();
   solver->set_aux_time += ((double)(end-start))/CLK_TCK;
@@ -684,6 +717,8 @@ PASE_Mg_pase_aux_vector_create(PASE_MG_SOLVER solver, PASE_INT idx_level)
     PASE_MultiVector_create_sub(&(solver->aux_u), solver->max_nev);
   }
   PASE_INT num_aux_vec = solver->pase_nev - solver->nconv;
+  //testforauxauxaux
+  //num_aux_vec = solver->pase_nev;
   solver->aux_u->num_aux_vec = num_aux_vec;
   solver->aux_u->num_vec = num_aux_vec;
   solver->aux_u->b_H = solver->sol[idx_level];
@@ -718,9 +753,11 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   clock_t start, end;
   start = clock();
 
+  PASE_INT num_unlock = solver->pase_nev - solver->nconv;
+
   GCGE_SOLVER *gcge_pase_solver = GCGE_SOLVER_PASE_Create(
 	solver->aux_A, solver->aux_B, solver->pase_nev, 
-	solver->eigenvalues, solver->aux_u, solver->pase_ops);
+	solver->aux_eigenvalues, solver->aux_u, solver->pase_ops, num_unlock);
   //gcg直接求解的精度比atol稍高一些
   gcge_pase_solver->para->ev_tol    = solver->atol * 1e-2;
   gcge_pase_solver->para->ev_max_it = solver->max_direct_count_each_level[coarse_level];
@@ -728,15 +765,17 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->print_para = 0;
   gcge_pase_solver->para->print_conv = 0;
   gcge_pase_solver->para->print_eval = 0;
-  gcge_pase_solver->para->print_result = 0;
+  gcge_pase_solver->para->print_result = 1;
   gcge_pase_solver->para->given_init_evec = 1;
+  gcge_pase_solver->para->opt_rr_eig_partly = 0;
   //gcge_pase_solver->para->orth_para->orth_zero_tol = 1e-13;
   //gcge_pase_solver->para->p_orth_type = "gs";
   //精度高时，multi正交化达不到要求
   gcge_pase_solver->para->w_orth_type = "gs";
-  //gcge_pase_solver->para->num_unlock = pase_nev - solver->nconv;
   //求解
   GCGE_SOLVER_Solve(gcge_pase_solver);  
+  memcpy(solver->eigenvalues+solver->nconv, solver->aux_eigenvalues+solver->nconv, 
+	num_unlock*sizeof(PASE_REAL));
   //释放空间
   GCGE_SOLVER_Free(&gcge_pase_solver);
 
@@ -765,6 +804,8 @@ PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
   mv_e[0] = pase_nev;
   mv_s[1] = 0;
   mv_e[1] = num_aux_vec;
+  //testforauxauxaux
+  //mv_e[1] = pase_nev-nconv;
   //从aux_u_i->b_H延拓到u_j(先放在u_tmp)
   //同时aux_u_i->aux_h作为线性组合系数，对原u_j进行线性组合
   PASE_INT error = PASE_MULTIGRID_FromItoJ(solver->multigrid, 
@@ -774,12 +815,16 @@ PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
   mv_e[0] = pase_nev;
   mv_s[1] = 0;
   mv_e[1] = num_aux_vec;
+  //testforauxauxaux
+  //mv_e[1] = pase_nev-nconv;
   solver->gcge_ops->MultiVecLinearComb(sol, P_uH, mv_s, mv_e,
         aux_u->aux_h+nconv*num_aux_vec, num_aux_vec, 0, 1.0, 1.0, solver->gcge_ops);
   mv_s[0] = nconv;
   mv_e[0] = pase_nev;
   mv_s[1] = 0;
   mv_e[1] = num_aux_vec;
+  //testforauxauxaux
+  //mv_e[1] = pase_nev-nconv;
   solver->gcge_ops->MultiVecSwap(sol, P_uH, mv_s, mv_e, solver->gcge_ops);
   end = clock();
   solver->prolong_time += ((double)(end-start))/CLK_TCK;
@@ -865,9 +910,12 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
   void            *Au;
   void            *Bu;
   void            *ui;
+  //nlock表示这次判断收敛性前已收敛的特征值个数
+  PASE_INT         nlock         = solver->nconv;
 
   GCGE_OPS *gcge_ops = solver->gcge_ops;
-  for(i = nconv; i < pase_nev; ++i) {
+  //for(i = nconv; i < pase_nev; ++i) {
+  for(i = 0; i < pase_nev; ++i) {
     gcge_ops->GetVecFromMultiVec(solver->rhs[idx_level], 0, &Bu, gcge_ops);
     gcge_ops->GetVecFromMultiVec(sol, i, &ui, gcge_ops);
     //Bu = B * sol[i]
@@ -891,7 +939,9 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
     //r_norm = || Au - \lambda Bu ||_2 / || ui ||_2
     r_norm = sqrt(r_norm)/u_norm;
     solver->abs_res_norm[i] = r_norm;
-    GCGE_Printf("i: %d, eval: %18.15e, r_norm: %18.15e\n", i, eigenvalues[i], r_norm);
+    if(solver->print_level > 1) {
+      GCGE_Printf("i: %d, eval: %18.15e, r_norm: %18.15e\n", i, eigenvalues[i], r_norm);
+    }
 
     if(i+1 < pase_nev) {
       check_multi[i] = fabs((eigenvalues[i]-eigenvalues[i+1])/eigenvalues[i]);
@@ -905,6 +955,9 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
       /* break; */
       flag = 1;
     }
+  }
+  while(check_multi[solver->nconv-1] < 1e-5 && solver->nconv > nlock) {
+     solver->nconv--;
   }
   /*
   //检查第一个为收敛的特征值与最后一个刚收敛的特征值是否有可能是重特征值，为保证之后的排序问题，需让重特征值同时在收敛的集合或未收敛的集合.
@@ -942,7 +995,7 @@ PASE_Mg_print_result(PASE_MG_SOLVER solver)
     GCGE_Printf("\n");
     GCGE_Printf("=============================================================\n");
     for(idx_eigen=0; idx_eigen<solver->pase_nev; idx_eigen++) {
-      GCGE_Printf("%d-th eig=%.8e, abs_res = %.8e\n", idx_eigen, solver->eigenvalues[idx_eigen], solver->abs_res_norm[idx_eigen]);
+      GCGE_Printf("%3d-th eig=%.8e, abs_res = %.8e\n", idx_eigen, solver->eigenvalues[idx_eigen], solver->abs_res_norm[idx_eigen]);
     }
     GCGE_Printf("=============================================================\n");
     GCGE_Printf("set up time       = %f seconds\n", solver->set_up_time);
@@ -976,8 +1029,8 @@ PASE_Mg_print_param(PASE_MG_SOLVER solver)
     GCGE_Printf("nev               = %d\n", solver->nev);
     GCGE_Printf("pase_nev          = %d\n", solver->pase_nev);
     GCGE_Printf("max_nev           = %d\n", solver->max_nev);
-    GCGE_Printf("rtol              = %d\n", solver->rtol);
-    GCGE_Printf("atol              = %d\n", solver->atol);
+    GCGE_Printf("rtol              = %e\n", solver->rtol);
+    GCGE_Printf("atol              = %e\n", solver->atol);
     GCGE_Printf("num_levels        = %d\n", solver->num_levels);
     GCGE_Printf("initial_level     = %d\n", solver->initial_level);
     GCGE_Printf("num_given_eigs    = %d\n", solver->num_given_eigs);
@@ -987,22 +1040,22 @@ PASE_Mg_print_param(PASE_MG_SOLVER solver)
     GCGE_Printf("from finest to coarest:\n");
     GCGE_Printf("max_cycle_count_each_level  = ");
     for(i=1; i<num_levels; i++) {
-      GCGE_Printf("%d, ", solver->max_cycle_count_each_level[i]);
+      GCGE_Printf("%3d, ", solver->max_cycle_count_each_level[i]);
     }
     GCGE_Printf("\n");
     GCGE_Printf("max_pre_count_each_level    = ");
     for(i=1; i<num_levels; i++) {
-      GCGE_Printf("%d, ", solver->max_pre_count_each_level[i]);
+      GCGE_Printf("%3d, ", solver->max_pre_count_each_level[i]);
     }
     GCGE_Printf("\n");
     GCGE_Printf("max_post_count_each_level   = ");
     for(i=1; i<num_levels; i++) {
-      GCGE_Printf("%d, ", solver->max_post_count_each_level[i]);
+      GCGE_Printf("%3d, ", solver->max_post_count_each_level[i]);
     }
     GCGE_Printf("\n");
     GCGE_Printf("max_direct_count_each_level = ");
     for(i=1; i<num_levels; i++) {
-      GCGE_Printf("%d, ", solver->max_direct_count_each_level[i]);
+      GCGE_Printf("%3d, ", solver->max_direct_count_each_level[i]);
     }
     GCGE_Printf("\n");
     GCGE_Printf("=============================================================\n");

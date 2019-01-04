@@ -200,7 +200,7 @@ GCGE_SOLVER* GCGE_PASE_Solver_Init(PASE_Matrix A, PASE_Matrix B, int num_eigenva
     return pase_solver;
 }
 
-GCGE_SOLVER* GCGE_SOLVER_PASE_Create(PASE_Matrix A, PASE_Matrix B, int num_eigenvalues, PASE_REAL *eval, PASE_MultiVector evec, PASE_OPS *pase_ops)
+GCGE_SOLVER* GCGE_SOLVER_PASE_Create(PASE_Matrix A, PASE_Matrix B, int num_eigenvalues, PASE_REAL *eval, PASE_MultiVector evec, PASE_OPS *pase_ops, PASE_INT num_unlock)
 {
     GCGE_SOLVER *pase_solver;
     GCGE_SOLVER_Create(&pase_solver);
@@ -211,6 +211,7 @@ GCGE_SOLVER* GCGE_SOLVER_PASE_Create(PASE_Matrix A, PASE_Matrix B, int num_eigen
         GCGE_SOLVER_SetMatB(pase_solver, (void*)B);
     GCGE_SOLVER_SetEigenvalues(pase_solver, eval);
     GCGE_SOLVER_SetEigenvectors(pase_solver, (void**)evec);
+    pase_solver->para->num_unlock = num_unlock;
 
     if(num_eigenvalues != -1)
         pase_solver->para->nev = num_eigenvalues;

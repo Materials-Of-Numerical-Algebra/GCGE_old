@@ -30,6 +30,7 @@ void PETSCPrintVec(Vec x);
 void PETSCPrintBV(BV x, char *name);
 void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops);
 void GCGE_PETSCPrintMat(void *A);
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, PASE_INT *nlevel, PASE_INT *print_level);
 /* 
  *  Description:  测试PASE_MULTIGRID
  */
@@ -45,22 +46,27 @@ main ( int argc, char *argv[] )
 
     /* 得到细网格矩阵 */
     Mat      A, B;
-    PetscInt n = 100, m = 100;
-    GetPetscMat(&A, &B, n, m);
+    PASE_INT n = 200;
+    PASE_INT nev = 30;
+    PASE_INT num_levels = 4;
+    PASE_INT print_level = 1;
+    GetCommandLineInfo(argc, argv, &n, &nev, &num_levels, &print_level);
+    GCGE_Printf("n: %d, nev: %d, num_levels: %d\n", n, nev, num_levels);
+    GetPetscMat(&A, &B, n, n);
 
     //创建gcge_ops
     GCGE_OPS *gcge_ops;
     GCGE_OPS_CreateSLEPC(&gcge_ops);
 
     //创建特征值与特征向量空间
-    int nev = 5;
 
     //给pase用到的参数赋值
     PASE_PARAMETER param;
-    PASE_INT num_levels = 4;
+
     PASE_PARAMETER_Create(&param, num_levels, nev);
-    param->max_initial_count = 5;
+    param->max_initial_count = 30;
     param->max_cycle_count_each_level[0] = 20;
+    param->print_level = print_level;
 
     //pase求解
     PASE_EigenSolver((void*)A, (void*)B, NULL, NULL, nev, param, gcge_ops);
@@ -169,3 +175,39 @@ void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
   PETSCPrintBV((BV)x, "x");
 }
 
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, PASE_INT *nlevel, PASE_INT *print_level)
+{
+  PASE_INT arg_index = 0;
+
+  while (arg_index < argc)
+  {
+    //矩阵维数是 n*n
+    if ( strcmp(argv[arg_index], "-n") == 0 )
+    {
+      arg_index++;
+      *n = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-nev") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      *nev = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-nlevel") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      *nlevel = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-print_level") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      *print_level = atoi(argv[arg_index++]);
+    }
+    else
+    {
+      arg_index++;
+    }
+  }
+}

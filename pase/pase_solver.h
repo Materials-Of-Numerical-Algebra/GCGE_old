@@ -91,6 +91,8 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_Matrix       aux_A;
   //pase aux 复合矩阵
   PASE_Matrix       aux_B;
+  //pase aux 复合矩阵特征值
+  PASE_REAL        *aux_eigenvalues;
   //多重网格结构
   PASE_MULTIGRID    multigrid;
   //BMG进行分批计算时，每次最多计算的线性方程组个数
@@ -151,7 +153,8 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **sol,
         PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT fine_level);
 
 PASE_INT
-PASE_Mg_set_pase_aux_vector(PASE_MG_SOLVER solver, PASE_INT idx_level);
+PASE_Mg_set_pase_aux_vector(PASE_MG_SOLVER solver, PASE_INT coarse_level, 
+      PASE_INT current_level);
 
 PASE_INT 
 PASE_Mg_pase_aux_vector_create(PASE_MG_SOLVER solver, PASE_INT idx_level);
