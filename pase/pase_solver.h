@@ -45,10 +45,12 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   //以上两种收敛准则满足其一即可认定为收敛
   //res_norm用于存储特征对的绝对残差
   PASE_REAL   *abs_res_norm;
-  //已经收敛的特征对个数, 只有全部收敛时才赋值为nev
+  //已经收敛的特征对个数
   PASE_INT     nconv;
   //已经收敛的特征对个数, 用于smooth时的lock
   PASE_INT     nlock_smooth;
+  //已经收敛的特征对个数, 用于aux_direct时的lock
+  PASE_INT     nlock_direct;
 
   //特征值空间
   PASE_SCALAR      *eigenvalues;
@@ -117,7 +119,7 @@ typedef PASE_MG_SOLVER_PRIVATE * PASE_MG_SOLVER;
 
 PASE_INT
 PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec, 
-        PASE_INT nev, PASE_PARAMETER param, GCGE_OPS *gcge_ops, PASE_INT test);
+        PASE_INT nev, PASE_PARAMETER param, GCGE_OPS *gcge_ops);
 
 PASE_MG_SOLVER
 PASE_Mg_solver_create(PASE_PARAMETER param);

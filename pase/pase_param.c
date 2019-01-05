@@ -27,13 +27,13 @@ PASE_PARAMETER_Create(PASE_PARAMETER *param, PASE_INT num_levels, PASE_INT nev)
   }
   (*param)->max_cycle_count_each_level[0] = 5;
   for(i=0; i<num_levels; i++) {
-    (*param)->max_pre_count_each_level[i] = 10;
+    (*param)->max_pre_count_each_level[i] = 4;
   }
   for(i=0; i<num_levels; i++) {
-    (*param)->max_post_count_each_level[i] = 0;
+    (*param)->max_post_count_each_level[i] = 4;
   }
   for(i=0; i<num_levels; i++) {
-    (*param)->max_direct_count_each_level[i] = 5;
+    (*param)->max_direct_count_each_level[i] = 3;
   }
 
 }
