@@ -90,6 +90,7 @@ int main(int argc, char* argv[])
     //GCGE_Printf("set random value for x\n");
     //给pase辅助向量组x赋初值
     pase_ops->MultiVecSetRandomValue((void**)multi_vec_x, 0, num_aux_vec, pase_ops);
+    pase_ops->MultiVecSetRandomValue((void**)multi_vec_y, 0, num_aux_vec, pase_ops);
 
     PASE_Vector vec_x;
     PASE_Vector vec_y;
@@ -99,6 +100,7 @@ int main(int argc, char* argv[])
     pase_ops->VecSetRandomValue((void*)vec_y, 2, pase_ops);
 
     //--------------------------------------------------------------
+#if 0
     GCGE_Printf("vec_x:\n");
     PASE_SLEPCPrintVec(vec_x);
     GCGE_Printf("vec_y:\n");
@@ -109,6 +111,7 @@ int main(int argc, char* argv[])
     pase_ops->VecAxpby(a, (void*)vec_x, b, (void*)vec_y, pase_ops);
     GCGE_Printf( "vec_y = %f * vec_x + %f * vec_y\n", a, b );
     PASE_SLEPCPrintVec(vec_y);
+#endif
 
     //--------------------------------------------------------------
     /* It's ok. */
@@ -144,13 +147,13 @@ int main(int argc, char* argv[])
     //--------------------------------------------------------------
     /* It's ok. */
 #if 1
-    GCGE_Printf ( "pase_matrix\n" );
+    GCGE_Printf ( "pase_matrix = [\n" );
     PASE_SLEPCPrintMat(pase_matrix);
-    GCGE_Printf("multi_vec_x: \n");
+    GCGE_Printf("];\nmulti_vec_x = [ \n");
     PASE_SLEPCPrintMultiVec(multi_vec_x);
     pase_ops->MatDotMultiVec((void *)pase_matrix, (void **)multi_vec_x, 
             (void **)multi_vec_y, mv_s, mv_e, pase_ops);
-    GCGE_Printf ( "multi_vec_y = pase_matrix * multi_vec_x\n");
+    GCGE_Printf ( "];\nmulti_vec_y = pase_matrix * multi_vec_x\n");
     PASE_SLEPCPrintMultiVec(multi_vec_y);
 #endif
 
@@ -191,9 +194,14 @@ int main(int argc, char* argv[])
     GCGE_Printf("multi_vec_y = multi_vec_x * coef + multi_vec_y: \n");
     PASE_SLEPCPrintMultiVec(multi_vec_y);
 
+#endif
     //--------------------------------------------------------------
     double values_ip[4];
     /* It's ok. */
+    mv_s[0] = 1;
+    mv_e[0] = 2;
+    mv_s[1] = 1;
+    mv_e[1] = 2;
     pase_ops->MultiVecInnerProd((void**)multi_vec_x, (void**)multi_vec_y,
             (double*)values_ip, "nonsym", mv_s, mv_e, num_aux_vec,
             0, pase_ops);
@@ -204,6 +212,21 @@ int main(int argc, char* argv[])
     GCGE_Printf("values_ip:\n%f\t%f\n%f\t%f\n",
             values_ip[0], values_ip[2], 
             values_ip[1], values_ip[3]);
+
+    mv_s[0] = 0;
+    mv_e[0] = num_aux_vec;
+    mv_s[1] = 0;
+    mv_e[1] = 1;
+    pase_ops->MultiVecInnerProd((void**)multi_vec_x, (void**)(&vec_y),
+            (double*)values_ip, "nonsym", mv_s, mv_e, num_aux_vec,
+            1, pase_ops);
+    //GCGE_Printf("multi_vec_x: \n");
+    //PASE_SLEPCPrintMultiVec(multi_vec_x);
+    //GCGE_Printf("vec_y: \n");
+    //PASE_SLEPCPrintVec(vec_y);
+    GCGE_Printf("values_ip:\n%f\t%f\n",
+            values_ip[0], values_ip[1]);
+#if 0
 
     //--------------------------------------------------------------
     /* It's ok. */
@@ -233,6 +256,7 @@ int main(int argc, char* argv[])
     return 0;
 }
 
+#if 0
 #if 1
 void PASE_SLEPCPrintMat(PASE_Matrix pase_matrix)
 {
@@ -298,6 +322,7 @@ void PASE_SLEPCPrintMat(PASE_Matrix pase_matrix)
 }
 #endif
 
+//TODO 需测试多进程的打印
 void PASE_SLEPCPrintMultiVec(PASE_MultiVector vecs)
 {
     int num_aux_vec = vecs->num_aux_vec;
@@ -332,6 +357,7 @@ void PASE_SLEPCPrintMultiVec(PASE_MultiVector vecs)
         GCGE_Printf("\n");
     }
 }
+#endif
 
 void PASE_SLEPCPrintVec(PASE_Vector vecs)
 {
@@ -341,13 +367,34 @@ void PASE_SLEPCPrintVec(PASE_Vector vecs)
     PetscErrorCode ierr;
     //打印CSR向量组部分
     Vec b_H = (Vec)(vecs->b_H);
-    ierr = VecGetSize(b_H, &nrows);
+    ierr = VecGetLocalSize(b_H, &nrows);
     const double *b_H_Array;
     ierr = VecGetArrayRead(b_H, &b_H_Array);
-    for(i=0; i<nrows; i++)
+
+    int current_rank = 0;
+
+    int rank = 0;
+    int npro = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &npro);
+
+    for(current_rank=0; current_rank<npro; current_rank++)
     {
-        GCGE_Printf("%f\n", b_H_Array[i]);
+        if(rank == current_rank)
+	{
+            for(i=0; i<nrows; i++)
+            {
+                printf("a(%d, %d) = %f;\n", rank+1, i+1, b_H_Array[i]);
+            }
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(MPI_COMM_WORLD);
     }
+
     ierr = VecRestoreArrayRead(b_H, &b_H_Array);
     double *aux_h = vecs->aux_h;
     int num_aux_vec = vecs->num_aux_vec;
@@ -390,3 +437,132 @@ void PetscGetDifferenceMatrix(Mat *A, PetscInt n, PetscInt m)
     ierr = MatAssemblyBegin(*A,MAT_FINAL_ASSEMBLY);
     ierr = MatAssemblyEnd(*A,MAT_FINAL_ASSEMBLY);
 }
+
+
+void PASE_SLEPCPrintMat(PASE_Matrix pase_matrix)
+{
+    PetscErrorCode ierr;
+    int     nrows;
+    int     nrows_global;
+    BV vecs = (BV)(pase_matrix->aux_Hh);
+    const double *aux_Hh;
+    ierr = BVGetArrayRead(vecs, &aux_Hh);
+    ierr = BVGetSizes(vecs, &nrows, &nrows_global, NULL);
+
+    int     num_aux_vec = pase_matrix->num_aux_vec;
+    int     ldd = nrows_global+num_aux_vec;
+
+    double  *dense_mat = (double*)calloc(ldd*ldd, sizeof(double));
+    int     row = 0;
+    int     col = 0;
+    int     i   = 0;
+    int     j   = 0;
+    //将A_H部分赋值给dense_mat
+    for(row=0; row<nrows_global; row++)
+    {
+        dense_mat[row*ldd+row] = 4.0;
+	if(row > 0) {
+        dense_mat[row*ldd+row-1] = 1.0;
+	}
+	if(row < nrows_global-1) {
+        dense_mat[row*ldd+row+1] = 1.0;
+	}
+    }
+    //将aux_Hh部分赋值给dense_mat
+    //先通过pase_matrix->A_H获得本进程的向量起止位置
+    int Istart, Iend;
+    ierr = MatGetOwnershipRange((Mat)(pase_matrix->A_H),&Istart,&Iend);
+    
+    for(i=0; i<num_aux_vec; i++)
+    {
+        for(row=0; row<nrows; row++)
+        {
+            col = nrows_global+i;
+            dense_mat[col*ldd+row+Istart] = aux_Hh[i*nrows+row];
+            //对称化
+            dense_mat[(row+Istart)*ldd+col] = aux_Hh[i*nrows+row];
+        }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+    ierr = BVRestoreArrayRead(vecs, &aux_Hh);
+    //aux_hh部分
+    for(i=0; i<num_aux_vec; i++)
+    {
+        for(j=0; j<num_aux_vec; j++)
+        {
+            col = nrows+i;
+            row = nrows+j;
+            dense_mat[col*ldd+row] = pase_matrix->aux_hh[i*num_aux_vec+j];
+        }
+    }
+    //打印稠密矩阵
+    //GCGE_Printf("pase_matrix: n: %d\n",ldd);
+    for(i=0; i<ldd; i++)
+    {
+        for(j=0; j<ldd; j++)
+        {
+            GCGE_Printf("%f  ", dense_mat[i*ldd+j]);
+        }
+        GCGE_Printf("\n");
+    }
+    free(dense_mat); dense_mat = NULL;
+    PASE_MultiVector mv = (pase_MultiVector*)malloc(sizeof(pase_MultiVector));
+    mv->b_H = (void**)vecs;
+    mv->num_aux_vec = pase_matrix->num_aux_vec;
+    mv->aux_h = pase_matrix->aux_hh;
+    PASE_SLEPCPrintMultiVec(mv);
+    free(mv); mv = NULL;
+}
+
+//TODO 需测试多进程的打印
+void PASE_SLEPCPrintMultiVec(PASE_MultiVector vecs)
+{
+    int num_aux_vec = vecs->num_aux_vec;
+    int nrows = 0;
+
+    BV b_H = (BV)(vecs->b_H);
+    const double *b_H_Array;
+    PetscErrorCode ierr;
+    ierr = BVGetArrayRead(b_H, &b_H_Array);
+    ierr = BVGetSizes(b_H, &nrows, NULL, NULL);
+
+    int i = 0;
+    int j = 0;
+    int current_rank = 0;
+
+    int rank = 0;
+    int npro = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &npro);
+
+    for(current_rank=0; current_rank<npro; current_rank++)
+    {
+        if(rank == current_rank)
+	{
+            //打印b_H向量组部分
+            for(i=0; i<nrows; i++)
+            {
+                for(j=0; j<num_aux_vec; j++)
+                {
+                    printf("a(%d, %d, %d) = %f;\t", rank+1, 
+			  i+1, j+1, b_H_Array[j*nrows+i]);
+                    //printf("%f\t", b_H_Array[j*nrows+i]);
+                }
+                printf("\n");
+            }
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+    }
+    ierr = BVRestoreArrayRead(b_H, &b_H_Array);
+    double *aux_h = vecs->aux_h;
+    //打印aux_h部分
+    for(i=0; i<num_aux_vec; i++)
+    {
+        for(j=0; j<num_aux_vec; j++)
+        {
+            GCGE_Printf("%f\t", aux_h[j*num_aux_vec+i]);
+        }
+        GCGE_Printf("\n");
+    }
+}
+

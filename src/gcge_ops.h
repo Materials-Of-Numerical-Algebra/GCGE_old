@@ -41,6 +41,9 @@ typedef struct GCGE_OPS_ {
     void (*VecCreateByMat)          (void **vec, void *mat, struct GCGE_OPS_ *ops);
     void (*VecDestroy)              (void **vec, struct GCGE_OPS_ *ops);
 
+    /* TODO kernal function should use this op to get j-th vector */
+    void (*GetVecFromMultiVec)      (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);
+    void (*RestoreVecForMultiVec)   (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);
 
     /* option */
     /* TODO */
@@ -89,13 +92,12 @@ typedef struct GCGE_OPS_ {
     //这两个函数里加这个参数主要是为了slepc接口的时候不出问题
     void (*MultiVecInnerProd)       (void **V, void **W, GCGE_DOUBLE *a, char *is_sym, 
                                      GCGE_INT *start, GCGE_INT *end, GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops);
+    void (*MultiVecInnerProdLocal)  (void **V, void **W, GCGE_DOUBLE *a, char *is_sym, 
+                                     GCGE_INT *start, GCGE_INT *end, GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops);
     void (*MultiVecSwap)            (void **V_1, void **V_2, GCGE_INT *start, GCGE_INT *end, 
                                      struct GCGE_OPS_ *ops);
     void (*MultiVecPrint)           (void **x, GCGE_INT n, struct GCGE_OPS_ *ops);
 
-    /* TODO kernal function should use this op to get j-th vector */
-    void (*GetVecFromMultiVec)      (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);
-    void (*RestoreVecForMultiVec)   (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);
     void (*SetDirichletBoundary)    (void**Vecs, GCGE_INT nev, void* A, void* B);
 
 

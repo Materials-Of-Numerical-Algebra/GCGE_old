@@ -64,6 +64,7 @@ typedef struct pase_Vector_struct
    /* blockSize的数组 */
    PASE_REAL* aux_h;
    //PASE_OPS   *pase_ops;
+   PASE_REAL* aux_h_tmp;
 
 } pase_Vector;
 typedef struct pase_Vector_struct *PASE_Vector;
@@ -77,6 +78,7 @@ typedef struct pase_MultiVector_struct
    /* LDA = num_aux_vec的数组 */
    PASE_REAL* aux_h;
    //PASE_OPS   *pase_ops;
+   PASE_REAL *aux_h_tmp;
 
 } pase_MultiVector;
 typedef struct pase_MultiVector_struct *PASE_MultiVector;

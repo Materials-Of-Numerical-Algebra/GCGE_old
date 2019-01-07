@@ -23,6 +23,33 @@
 
 #include "pase_ops.h"
 
+/* if use mpi, multivec inner prod will be improved by MPI_Typre_vector and MPI_Op_create */
+#if GCGE_USE_MPI
+GCGE_INT SIZE_B, SIZE_E, LDA;
+void user_fn_submatrix_sum_pase_ops(double *in,  double *inout,  int *len,  MPI_Datatype* dptr)
+{
+    int i, j;
+    double *b,  *a;
+    double one = 1.0;
+    int    inc = 1;
+    for (i = 0; i < *len; ++i)
+    {
+        for (j = 0; j < SIZE_B; ++j)
+        {
+            b = inout+j*LDA;
+            a = in+j*LDA;
+            daxpy_(&SIZE_E, &one, a, &inc, b, &inc);
+            /*
+               for (k = 0; k < SIZE_E; ++k)
+               {
+               b[k] += a[k];
+               }
+               */
+        }
+    }
+}  
+#endif
+
 //给单向量设随机初值, seed为随机数种子
 void PASE_DefaultVecSetRandomValue(void *vec, PASE_INT seed, struct PASE_OPS_ *ops)
 {
@@ -41,7 +68,86 @@ void PASE_DefaultVecSetRandomValue(void *vec, PASE_INT seed, struct PASE_OPS_ *o
 }
 
 
+#if 1
 //PASE矩阵乘向量 r = Matrix * x
+void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops)
+{
+    void      *A_H     = ((PASE_Matrix)Matrix)->A_H;
+    void      **aux_Hh = ((PASE_Matrix)Matrix)->aux_Hh;
+    void      **aux_hH = ((PASE_Matrix)Matrix)->aux_hH;
+    PASE_REAL *aux_hh  = ((PASE_Matrix)Matrix)->aux_hh;
+
+    void      *x_b_H      = ((PASE_Vector)x)->b_H;
+    PASE_REAL *x_aux_h    = ((PASE_Vector)x)->aux_h;
+    void      *r_b_H      = ((PASE_Vector)r)->b_H;
+    PASE_REAL *r_aux_h    = ((PASE_Vector)r)->aux_h;
+    PASE_INT  num_aux_vec = ((PASE_Vector)r)->num_aux_vec;
+    //PASE_REAL *r_aux_h_tmp= ((PASE_Vector)r)->aux_h_tmp;
+    PASE_REAL *r_aux_h_tmp= (PASE_REAL*)calloc(num_aux_vec, sizeof(PASE_REAL));
+
+    PASE_INT mv_s[2];
+    PASE_INT mv_e[2];
+ 
+    //计算 r_b_H = A_H * x_b_H + aux_Hh * aux_h
+    //计算 r_b_H = A_H * x_b_H
+    ops->gcge_ops->MatDotVec(A_H, x_b_H, r_b_H, ops->gcge_ops);
+
+    //计算 r->aux_h = aux_Hh^T * x->b_H + aux_hh^T * x->aux_h
+    //计算 r->aux_h = aux_Hh^T * x->b_H
+#if GCGE_USE_MPI
+    MPI_Request request;
+    MPI_Status  status;
+#endif
+    PASE_INT i=0;
+    if(PASE_NO == ((PASE_Matrix)Matrix)->is_diag) {
+        mv_s[0] = 0;
+        mv_e[0] = num_aux_vec;
+        mv_s[1] = 0;
+        mv_e[1] = 1;
+        //如果A_H矩阵不是单位阵，要计算下面的向量组与单向量内积
+        ops->gcge_ops->MultiVecInnerProdLocal(aux_Hh, (void**)(&x_b_H), r_aux_h,
+                "nonsym", mv_s, mv_e, num_aux_vec, 1, ops->gcge_ops);
+
+#if GCGE_USE_MPI
+        MPI_Iallreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, 
+	      MPI_SUM, MPI_COMM_WORLD, &request);
+        //MPI_Allreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, 
+	//      MPI_SUM, MPI_COMM_WORLD);
+#endif
+
+    } else {
+        //如果A_H矩阵是单位阵，那么aux_Hh为0
+        memset(r_aux_h, 0.0, num_aux_vec*sizeof(PASE_SCALAR));
+    }
+
+    //计算 r_b_H += aux_Hh * aux_h
+    mv_s[0] = 0;
+    mv_e[0] = num_aux_vec;
+    mv_s[1] = 0;
+    mv_e[1] = 1;
+    PASE_REAL alpha = 1.0;
+    PASE_REAL beta  = 1.0;
+    //多向量线性组合得到单向量
+    ops->gcge_ops->MultiVecLinearComb(aux_Hh, (void**)(&r_b_H), mv_s, mv_e, 
+            x_aux_h, num_aux_vec, 1, alpha, beta, ops->gcge_ops);
+
+    //计算 r->aux_h += aux_hh^T * x->aux_h
+    PASE_INT  ncols = 1;
+    alpha = 1.0;
+    beta  = 0.0;
+    memset(r_aux_h_tmp, 0.0, num_aux_vec*sizeof(PASE_REAL));
+    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &num_aux_vec, &ncols, 
+            &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
+            x_aux_h, &num_aux_vec, &beta, r_aux_h_tmp, &num_aux_vec);
+
+    if(PASE_NO == ((PASE_Matrix)Matrix)->is_diag) {
+      MPI_Wait(&request, &status);
+    }
+
+    ops->gcge_ops->ArrayAXPBY(1.0, r_aux_h_tmp, 1.0, r_aux_h, num_aux_vec);
+    free(r_aux_h_tmp); r_aux_h_tmp = NULL;
+}
+#else
 void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops)
 {
     void      *A_H     = ((PASE_Matrix)Matrix)->A_H;
@@ -95,6 +201,8 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
             &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
             x_aux_h, &num_aux_vec, &beta, r_aux_h, &num_aux_vec);
 }
+#endif
+
 
 //单向量线性组合 y = a*x + b*y
 void PASE_DefaultVecAxpby(PASE_REAL a, void *x, PASE_REAL b, void *y,
@@ -163,6 +271,8 @@ void PASE_DefaultVecCreateByVec(void **des_vec, void *src_vec, struct PASE_OPS_ 
     ops->gcge_ops->VecCreateByVec(&(vec->b_H), b_H, ops->gcge_ops);
     //des_vec->aux_h 直接分配空间
     vec->aux_h = (PASE_REAL*)calloc(num_aux_vec, sizeof(PASE_REAL));
+    //if_test_ops, 如果测试ops，要把下面这个注释关掉
+    vec->aux_h_tmp = (PASE_REAL*)calloc(num_aux_vec, sizeof(PASE_REAL));
     *des_vec = (void*)vec;
 }
 
@@ -178,6 +288,8 @@ void PASE_DefaultVecCreateByMat(void **vec, void *mat, struct PASE_OPS_ *ops)
     ops->gcge_ops->VecCreateByMat(&(v->b_H), A_H, ops->gcge_ops);
     //des_vec->aux_h 直接分配空间
     v->aux_h = (PASE_REAL*)calloc(num_aux_vec, sizeof(PASE_REAL));
+    //if_test_ops, 如果测试ops，要把下面这个注释关掉
+    v->aux_h_tmp = (PASE_REAL*)calloc(num_aux_vec, sizeof(PASE_REAL));
     *vec = (void*)v;
 }
 
@@ -188,6 +300,7 @@ void PASE_DefaultVecDestroy(void **vec, struct PASE_OPS_ *ops)
     ops->gcge_ops->VecDestroy(&(((PASE_Vector)(*vec))->b_H), ops->gcge_ops);
     //释放vec->aux_h空间
     free(((PASE_Vector)(*vec))->aux_h); 
+    free(((PASE_Vector)(*vec))->aux_h_tmp); 
     ((PASE_Vector)(*vec))->aux_h = NULL; 
     free((PASE_Vector)(*vec)); 
     *vec = NULL;
@@ -209,6 +322,7 @@ void PASE_DefaultMultiVecCreateByVec(void ***multi_vec, PASE_INT n_vec,
     ops->gcge_ops->MultiVecCreateByVec(&(vecs->b_H), n_vec, b_H, ops->gcge_ops);
     //创建aux部分
     vecs->aux_h = (PASE_REAL*)calloc(n_vec*num_aux_vec, sizeof(PASE_REAL));
+    vecs->aux_h_tmp = (PASE_REAL*)calloc(n_vec*num_aux_vec, sizeof(PASE_REAL));
     *multi_vec  = (void**)vecs;
 }
 
@@ -226,6 +340,8 @@ void PASE_DefaultMultiVecCreateByMat(void ***multi_vec, PASE_INT n_vec,
     vecs->num_aux_vec = num_aux_vec;
     //通过gcge_ops创建普通向量组部分
     ops->gcge_ops->MultiVecCreateByMat(&(vecs->b_H), n_vec, A_H, ops->gcge_ops);
+    //if_test_ops, 如果测试ops，要把下面这个注释关掉
+    vecs->aux_h_tmp = (PASE_REAL*)calloc(n_vec*num_aux_vec, sizeof(PASE_REAL));
     //创建aux部分
     vecs->aux_h = (PASE_REAL*)calloc(n_vec*num_aux_vec, sizeof(PASE_REAL));
     *multi_vec  = (void**)vecs;
@@ -247,6 +363,7 @@ void PASE_DefaultMultiVecCreateByMultiVec(void **init_vec, void ***multi_vec,
     ops->gcge_ops->MultiVecCreateByMultiVec(&(vecs->b_H), n_vec, b_H, ops->gcge_ops);
     //创建aux部分
     vecs->aux_h = (PASE_REAL*)calloc(n_vec*num_aux_vec, sizeof(PASE_REAL));
+    vecs->aux_h_tmp = (PASE_REAL*)calloc(n_vec*num_aux_vec, sizeof(PASE_REAL));
     *multi_vec  = (void**)vecs;
 }
 
@@ -258,7 +375,11 @@ void PASE_DefaultMultiVecDestroy(void ***MultiVec, PASE_INT n_vec, struct PASE_O
             ((PASE_MultiVector)(*MultiVec))->num_vec, ops->gcge_ops);
     //释放aux_h部分的空间
     free(((PASE_MultiVector)(*MultiVec))->aux_h);
+    //if_test_ops, 如果测试ops，要把下面这个注释关掉
+    free(((PASE_MultiVector)(*MultiVec))->aux_h_tmp);
     ((PASE_MultiVector)(*MultiVec))->aux_h = NULL;
+    //if_test_ops, 如果测试ops，要把下面这个注释关掉
+    ((PASE_MultiVector)(*MultiVec))->aux_h_tmp = NULL;
     free((PASE_MultiVector)(*MultiVec));
     *MultiVec = NULL;
 }
@@ -281,7 +402,106 @@ void PASE_DefaultMultiVecSetRandomValue(void **multi_vec, PASE_INT start,
     }
 }
 
+#if 0
 //矩阵乘多向量组，y[:,start[1]:end[1]] = mat * x[:,start[0]:end[0]]
+void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y, 
+        PASE_INT *start, PASE_INT *end, struct PASE_OPS_ *ops)
+{
+    void      *A_H     = ((PASE_Matrix)mat)->A_H;
+    void      **aux_Hh = ((PASE_Matrix)mat)->aux_Hh;
+    void      **aux_hH = ((PASE_Matrix)mat)->aux_hH;
+    PASE_REAL *aux_hh  = ((PASE_Matrix)mat)->aux_hh;
+
+    void      **x_b_H     = ((PASE_MultiVector)x)->b_H;
+    PASE_REAL *x_aux_h    = ((PASE_MultiVector)x)->aux_h;
+    void      **y_b_H     = ((PASE_MultiVector)y)->b_H;
+    PASE_REAL *y_aux_h    = ((PASE_MultiVector)y)->aux_h;
+    PASE_INT  num_aux_vec = ((PASE_MultiVector)y)->num_aux_vec;
+    //PASE_REAL *y_aux_h_tmp = ((PASE_MultiVector)y)->aux_h_tmp;
+    PASE_REAL *y_aux_h_tmp = (PASE_REAL*)calloc((end[1]-start[1])*num_aux_vec, 
+	  sizeof(PASE_REAL));
+
+    PASE_INT  mv_s[2];
+    PASE_INT  mv_e[2];
+    PASE_REAL alpha = 1.0;
+    PASE_REAL beta  = 1.0;
+ 
+    //计算 r_b_H = A_H * x_b_H + aux_Hh * aux_h
+    //计算 r_b_H = A_H * x_b_H
+    ops->gcge_ops->MatDotMultiVec(A_H, x_b_H, y_b_H, start, end, ops->gcge_ops);
+
+    //计算 r->aux_h = aux_Hh^T * x->b_H + aux_hh^T * x->aux_h
+    //计算 r->aux_h = aux_Hh^T * x->b_H
+#if GCGE_USE_MPI
+    MPI_Request request;
+    MPI_Status  status;
+    MPI_Datatype SUBMATRIX;
+    MPI_Op SUBMATRIX_SUM;
+#endif
+    if(PASE_NO == ((PASE_Matrix)mat)->is_diag) {
+        mv_s[0] = 0;
+        mv_e[0] = num_aux_vec;
+        mv_s[1] = start[0];
+        mv_e[1] = end[0];
+        ops->gcge_ops->MultiVecInnerProdLocal(aux_Hh, x_b_H, 
+                y_aux_h+start[1]*num_aux_vec, "nonsym", 
+                mv_s, mv_e, num_aux_vec, 0, ops->gcge_ops);
+        //因为稠密矩阵y_aux_h可能只用到一些行，即要消息传输的部分并不连续
+	//所以用下面的方式进行消息传输
+#if GCGE_USE_MPI
+
+        SIZE_B = end[1]-start[1];
+        SIZE_E = end[0]-start[0];
+        LDA    = num_aux_vec;
+        
+        MPI_Type_vector(SIZE_B, SIZE_E, LDA, MPI_DOUBLE, &SUBMATRIX);
+        MPI_Type_commit(&SUBMATRIX);
+        
+        MPI_Op_create((MPI_User_function*)user_fn_submatrix_sum_pase_ops, 1, &SUBMATRIX_SUM);
+        MPI_Iallreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
+        //MPI_Allreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD);
+
+#endif
+
+    } else {
+        memset(y_aux_h+start[1]*num_aux_vec, 0.0, 
+                (end[1]-start[1])*num_aux_vec*sizeof(PASE_SCALAR));
+    }
+
+    //计算 r_b_H += aux_Hh * aux_h
+    alpha = 1.0;
+    beta  = 1.0;
+    mv_s[0] = 0;
+    mv_e[0] = num_aux_vec;
+    mv_s[1] = start[1];
+    mv_e[1] = end[1];
+    ops->gcge_ops->MultiVecLinearComb(aux_Hh, y_b_H, 
+            mv_s, mv_e, x_aux_h+start[0]*num_aux_vec+start[1], num_aux_vec, 
+            0, alpha, beta,  ops->gcge_ops);
+
+    //计算 y_aux_h_tmp = aux_hh^T * x->aux_h
+    PASE_INT  ncols = end[1] - start[1];
+    alpha = 1.0;
+    beta  = 0.0;
+    memset(y_aux_h_tmp, 0.0, ncols*num_aux_vec*sizeof(PASE_REAL));
+    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &num_aux_vec, &ncols, 
+            &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
+            x_aux_h+start[0]*num_aux_vec, &num_aux_vec, &beta, 
+            y_aux_h_tmp, &num_aux_vec);
+            //y_aux_h+start[1]*num_aux_vec, &num_aux_vec);
+#if GCGE_USE_MPI
+    if(PASE_NO == ((PASE_Matrix)mat)->is_diag) {
+      MPI_Wait(&request, &status);
+      MPI_Op_free(&SUBMATRIX_SUM);
+      MPI_Type_free(&SUBMATRIX);
+    }
+#endif
+    //计算 r->aux_h += y_aux_h_tmp
+    ops->gcge_ops->ArrayAXPBY(1.0, y_aux_h_tmp, 1.0, y_aux_h+start[1]*num_aux_vec, 
+	  ncols*num_aux_vec);
+    free(y_aux_h_tmp); y_aux_h_tmp = NULL;
+}
+#else
 void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y, 
         PASE_INT *start, PASE_INT *end, struct PASE_OPS_ *ops)
 {
@@ -339,6 +559,7 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
             x_aux_h+start[0]*num_aux_vec, &num_aux_vec, &beta, 
             y_aux_h+start[1]*num_aux_vec, &num_aux_vec);
 }
+#endif
 
 //多向量的Axpby, yy = a * xx + b * yy
 //其中 yy = y[:,start[1]:end[1]], xx = x[:,start[0]:end[0]]
@@ -401,10 +622,111 @@ void PASE_DefaultMultiVecLinearComb(void **x, void **y, PASE_INT *start,
             a, &lda, &beta, y_aux_h+start[1]*num_aux_vec, &num_aux_vec);
 }
 
-//计算向量组内积, a = VV^T * WW
-//其中 VV = V[:,start[0]:end[0]], WW = W[:,start[0]:end[0]]
-//lda为a的leading dimension
-//如果if_Vec是1，那么*yy是一个单向量的结构
+#if 0
+void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a, 
+        char *is_sym, PASE_INT *start, PASE_INT *end, PASE_INT lda, 
+        PASE_INT if_Vec, struct PASE_OPS_ *ops)
+{
+    void      **x_b_H     = ((PASE_MultiVector)V)->b_H;
+    PASE_REAL *x_aux_h    = ((PASE_MultiVector)V)->aux_h;
+    PASE_REAL *a_tmp = (PASE_REAL*)calloc(lda*(end[1]-start[1]), 
+    	    sizeof(PASE_REAL));
+    //PASE_REAL *a_tmp      = ((PASE_MultiVector)V)->aux_h_tmp;
+    void      **y_b_H;
+    PASE_REAL *y_aux_h;  
+    PASE_INT  num_aux_vec;
+    if(if_Vec == 0)
+    {
+        y_b_H       = ((PASE_MultiVector)W)->b_H;
+        y_aux_h     = ((PASE_MultiVector)W)->aux_h;
+        num_aux_vec = ((PASE_MultiVector)W)->num_aux_vec;
+    }
+    else
+    {
+        y_b_H       = &(((PASE_Vector)(W[0]))->b_H);
+        y_aux_h     = ((PASE_Vector)(W[0]))->aux_h;
+        num_aux_vec = ((PASE_Vector)(W[0]))->num_aux_vec;
+    }
+#if 0
+    //GCGE_Printf("before x:\n");
+    //ops->gcge_ops->MultiVecPrint(x_b_H, 2, ops->gcge_ops);
+    //GCGE_Printf("before y:\n");
+    //ops->gcge_ops->MultiVecPrint(y_b_H, 2, ops->gcge_ops);
+#if GCGE_USE_MPI
+    MPI_Request request;
+    MPI_Status  status;
+#endif
+    ops->gcge_ops->MultiVecInnerProdLocal(x_b_H, y_b_H, a, is_sym, 
+	  start, end, lda, if_Vec, ops->gcge_ops);
+#if GCGE_USE_MPI
+
+    SIZE_B = end[1]-start[1];
+    SIZE_E = end[0]-start[0];
+    LDA    = num_aux_vec;
+    
+    MPI_Datatype SUBMATRIX;
+    MPI_Type_vector(SIZE_B, SIZE_E, LDA, MPI_DOUBLE, &SUBMATRIX);
+    MPI_Type_commit(&SUBMATRIX);
+    
+    MPI_Op SUBMATRIX_SUM;
+    MPI_Op_create((MPI_User_function*)user_fn_submatrix_sum_pase_ops, 1, &SUBMATRIX_SUM);
+    //MPI_Iallreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
+    MPI_Allreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD);
+    GCGE_Printf("line 667, new a-b_H: %f, %f, %f, %f\n", a[0], a[1], a[2], a[3]);
+
+#endif
+#else
+    //GCGE_Printf("after  x:\n");
+    //ops->gcge_ops->MultiVecPrint(x_b_H, 2, ops->gcge_ops);
+    //GCGE_Printf("after  y:\n");
+    //ops->gcge_ops->MultiVecPrint(y_b_H, 2, ops->gcge_ops);
+    ops->gcge_ops->MultiVecInnerProd(x_b_H, y_b_H, a, is_sym, start, end,
+            lda, if_Vec, ops->gcge_ops);
+    GCGE_Printf("line 667, old a-b_H: %f, %f, %f, %f\n", a[0], a[1], a[2], a[3]);
+#endif
+
+    //y_aux_h_tmp = x_aux_h * y_aux_h
+    PASE_INT  mid   = num_aux_vec;
+    PASE_INT  nrows = end[0]-start[0];
+    PASE_INT  ncols = end[1]-start[1];
+    PASE_REAL alpha = 1.0;
+    PASE_REAL beta  = 0.0;
+    //PASE_REAL beta  = 1.0;
+    //TODO nrows==ncols==1的情况
+    memset(a_tmp, 0.0, ncols*lda*sizeof(PASE_REAL));
+    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &nrows, &ncols, 
+            &mid, &alpha, x_aux_h+start[0]*num_aux_vec, &num_aux_vec, 
+            y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a_tmp, &lda);
+            //y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a, &lda);
+#if 0
+#if GCGE_USE_MPI
+    MPI_Wait(&request, &status);
+    MPI_Op_free(&SUBMATRIX_SUM);
+    MPI_Type_free(&SUBMATRIX);
+#endif
+#endif
+    ops->gcge_ops->ArrayAXPBY(1.0, a_tmp, 1.0, a, ncols*lda);
+    //GCGE_Printf("line 681, new a: %f, %f, %f, %f\n", a[0], a[1], a[2], a[3]);
+    //计算 a += y_aux_h_tmp
+    //if(lda*(end[1]-start[1]) > num_aux_vec*num_aux_vec) {
+    free(a_tmp); a_tmp = NULL;
+    //}
+    //GCGE_Printf("line 696, old a-b_H: %f, %f, %f, %f\n", a[0], a[1], a[2], a[3]);
+    //a += x_aux_h * y_aux_h
+#if 0
+    mid   = num_aux_vec;
+    nrows = end[0]-start[0];
+    ncols = end[1]-start[1];
+    alpha = 1.0;
+    beta  = 1.0;
+    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &nrows, &ncols, 
+            &mid, &alpha, x_aux_h+start[0]*num_aux_vec, &num_aux_vec, 
+            y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a, &lda);
+    GCGE_Printf("line 706, new a: %f, %f, %f, %f\n", a[0], a[1], a[2], a[3]);
+#endif
+}
+#endif
+#if 1
 void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a, 
         char *is_sym, PASE_INT *start, PASE_INT *end, PASE_INT lda, 
         PASE_INT if_Vec, struct PASE_OPS_ *ops)
@@ -428,6 +750,88 @@ void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a,
             &mid, &alpha, x_aux_h+start[0]*num_aux_vec, &num_aux_vec, 
             y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a, &lda);
 }
+#else
+//计算向量组内积, a = VV^T * WW
+//其中 VV = V[:,start[0]:end[0]], WW = W[:,start[0]:end[0]]
+//lda为a的leading dimension
+//如果if_Vec是1，那么*yy是一个单向量的结构
+void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a, 
+        char *is_sym, PASE_INT *start, PASE_INT *end, PASE_INT lda, 
+        PASE_INT if_Vec, struct PASE_OPS_ *ops)
+{
+    void      **x_b_H     = ((PASE_MultiVector)V)->b_H;
+    PASE_REAL *x_aux_h    = ((PASE_MultiVector)V)->aux_h;
+    PASE_REAL *a_tmp = (PASE_REAL*)calloc(lda*(end[1]-start[1]), 
+    	    sizeof(PASE_REAL));
+    //PASE_REAL *a_tmp      = ((PASE_MultiVector)V)->aux_h_tmp;
+    void      **y_b_H;
+    PASE_REAL *y_aux_h;  
+    PASE_INT  num_aux_vec;
+    if(if_Vec == 0)
+    {
+        y_b_H       = ((PASE_MultiVector)W)->b_H;
+        y_aux_h     = ((PASE_MultiVector)W)->aux_h;
+        num_aux_vec = ((PASE_MultiVector)W)->num_aux_vec;
+    }
+    else
+    {
+        y_b_H       = &(((PASE_Vector)(W[0]))->b_H);
+        y_aux_h     = ((PASE_Vector)(W[0]))->aux_h;
+        num_aux_vec = ((PASE_Vector)(W[0]))->num_aux_vec;
+        //a_tmp       = ((PASE_Vector)(W[0]))->aux_h_tmp;
+    }
+    //if(lda*(end[1]-start[1]) > num_aux_vec*num_aux_vec) {
+    //  a_tmp = (PASE_REAL*)calloc(lda*(end[1]-start[1]), 
+    //	    sizeof(PASE_REAL));
+    //}
+    //a = x_b_H^T * y_b_H + x_aux_h * y_aux_h
+    //a = x_b_H^T * y_b_H
+#if GCGE_USE_MPI
+    MPI_Request request;
+    MPI_Status  status;
+#endif
+    ops->gcge_ops->MultiVecInnerProdLocal(x_b_H, y_b_H, a, is_sym, 
+	  start, end, lda, if_Vec, ops->gcge_ops);
+#if GCGE_USE_MPI
+
+    SIZE_B = end[1]-start[1];
+    SIZE_E = end[0]-start[0];
+    LDA    = num_aux_vec;
+    
+    MPI_Datatype SUBMATRIX;
+    MPI_Type_vector(SIZE_B, SIZE_E, LDA, MPI_DOUBLE, &SUBMATRIX);
+    MPI_Type_commit(&SUBMATRIX);
+    
+    MPI_Op SUBMATRIX_SUM;
+    MPI_Op_create((MPI_User_function*)user_fn_submatrix_sum_pase_ops, 1, &SUBMATRIX_SUM);
+    //MPI_Iallreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
+    MPI_Allreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD);
+
+#endif
+    //y_aux_h_tmp = x_aux_h * y_aux_h
+    PASE_INT  mid   = num_aux_vec;
+    PASE_INT  nrows = end[0]-start[0];
+    PASE_INT  ncols = end[1]-start[1];
+    PASE_REAL alpha = 1.0;
+    PASE_REAL beta  = 0.0;
+    //TODO nrows==ncols==1的情况
+    memset(a_tmp, 0.0, ncols*lda*sizeof(PASE_REAL));
+    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &nrows, &ncols, 
+            &mid, &alpha, x_aux_h+start[0]*num_aux_vec, &num_aux_vec, 
+            y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a, &lda);
+            //y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a_tmp, &lda);
+#if GCGE_USE_MPI
+    //MPI_Wait(&request, &status);
+    MPI_Op_free(&SUBMATRIX_SUM);
+    MPI_Type_free(&SUBMATRIX);
+#endif
+    //计算 a += y_aux_h_tmp
+    //ops->gcge_ops->ArrayAXPBY(1.0, a_tmp, 1.0, a, ncols*lda);
+    //if(lda*(end[1]-start[1]) > num_aux_vec*num_aux_vec) {
+    free(a_tmp); a_tmp = NULL;
+    //}
+}
+#endif
 
 //多向量组交换，目前GCGE中用到的这个函数都是需要将V_2拷贝给V_1,
 //所以目前只实现将V_2拷贝给V_1的功能(对aux部分)
@@ -474,6 +878,7 @@ void PASE_DefaultGetVecFromMultiVec(void **V, PASE_INT j, void **x, struct PASE_
 {
     void      **V_b_H     = ((PASE_MultiVector)V)->b_H;
     PASE_REAL *V_aux_h    = ((PASE_MultiVector)V)->aux_h;
+    PASE_REAL *V_aux_h_tmp= ((PASE_MultiVector)V)->aux_h_tmp;
     PASE_INT  num_aux_vec = ((PASE_MultiVector)V)->num_aux_vec;
     //首先创建*x向量
     PASE_Vector vec         = (PASE_Vector)malloc(sizeof(pase_Vector));
@@ -482,6 +887,7 @@ void PASE_DefaultGetVecFromMultiVec(void **V, PASE_INT j, void **x, struct PASE_
     ops->gcge_ops->GetVecFromMultiVec(V_b_H, j, &(vec->b_H), ops->gcge_ops);
     //将vec->aux_h的指针指向相应的位置
     vec->aux_h = V_aux_h+j*num_aux_vec;
+    vec->aux_h_tmp = V_aux_h_tmp;
     *x = vec;
     //memcpy(((PASE_Vector)(*x))->aux_h, V_aux_h+j*num_aux_vec, num_aux_vec*sizeof(PASE_SCALAR));
 }

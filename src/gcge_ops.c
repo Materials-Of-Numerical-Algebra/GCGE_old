@@ -308,6 +308,76 @@ void GCGE_Default_MultiVecInnerProd(void **V, void **W, GCGE_DOUBLE *a, char *is
 
 }//end for this subprogram
 
+// lda : leading dimension of matrix a
+// a(0: end[0]-start[0], 0:end[1]-start[1]) = V(:,start[0]:end[0])^T * W(:,start[1]:end[1])
+// 做内积得到值是存在矩阵a的相应的位置
+void GCGE_Default_MultiVecInnerProdLocal(void **V, void **W, GCGE_DOUBLE *a, char *is_sym, 
+        GCGE_INT *start, GCGE_INT *end, GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops)
+{
+    //lda表示做完相减存储到V的位置？
+    GCGE_INT iv = 0, iw = 0;
+    GCGE_DOUBLE *p = a;
+    void     *vs, *ws;
+    /* TODO some error 确实*/
+    if(strcmp(is_sym, "sym") == 0)
+    {
+        //表示矩阵a是对称的，并且只存储他的上三角部分
+        GCGE_INT length = end[1] - start[1];
+        //p = a;
+        //iw: 表示的是列号
+        for(iw=0; iw<length; iw++)
+        {
+            ops->GetVecFromMultiVec(W, iw+start[1], &ws, ops);
+            //计算的是矩阵的上三角部分
+            for(iv=0; iv<=iw; iv++, p++)
+            {
+                ops->GetVecFromMultiVec(V, iv+start[0], &vs, ops);
+                //ops->VecInnerProd(vs, ws, p);
+                ops->VecLocalInnerProd(vs, ws, p, ops);
+                ops->RestoreVecForMultiVec(V, iv+start[0], &vs, ops);
+                //printf ( "iw = %d, iv = %d\n", iw, iv );
+            }//end for iv
+            ops->RestoreVecForMultiVec(W, iw+start[1], &ws, ops);
+            p += lda - (iw+1);
+        }//end for iw
+        //对称化: 也就是产生矩阵的下三角部分，这里只需要用到对称行就可以直接得到
+        //printf ( "-----------------\n" );
+        for(iw=0; iw<length; iw++)
+        {
+            for(iv=iw+1; iv<length; iv++)
+            {
+                //printf ( "iw = %d, iv = %d\n", iw, iv );
+                //a(iv,iw) = a(iw,iv)
+                a[iw*lda+iv] = a[iv*lda+iw];
+            }//end for iv（行号）
+        }//end for iw(列号)
+    }//处理完对称矩阵的情况
+    else
+    {
+        //这里是处理非对称矩阵情况
+        //jvw： 记录的是每一列，我们没有计算的那些元素的个数
+        GCGE_INT jvw = lda - (end[0] - start[0]);
+        //p = a;
+        for(iw=start[1]; iw<end[1]; iw++)
+        {
+            //iw列
+            ops->GetVecFromMultiVec(W, iw, &ws, ops);
+            //iv行：从 start[0]到end[0]都需要计算
+            for(iv=start[0]; iv<end[0]; iv++, p++)
+            {
+                ops->GetVecFromMultiVec(V, iv, &vs, ops);
+                //ops->VecInnerProd(vs, ws, p);
+                ops->VecLocalInnerProd(vs, ws, p, ops);
+                ops->RestoreVecForMultiVec(V, iv, &vs, ops);
+            }//end for iv
+            ops->RestoreVecForMultiVec(W, iw, &ws, ops);
+            //把p的位置进行相应地移动
+            p += jvw;
+        }//end for iw
+    }//处理完了非对称的情况
+
+}//end for this subprogram
+
 
 //把V_1和V_2的相应的列组交换: 即： V_1(:,start[0]:end[0])与V_2(:,start[1]:end[1])相互狡猾
 void GCGE_Default_MultiVecSwap(void **V_1, void **V_2, GCGE_INT *start, GCGE_INT *end, 
@@ -588,6 +658,7 @@ void GCGE_OPS_Create(GCGE_OPS **ops)
     (*ops)->MultiVecAxpbyColumn = NULL;
     (*ops)->MultiVecLinearComb = NULL;
     (*ops)->MultiVecInnerProd = NULL;
+    (*ops)->MultiVecInnerProdLocal = NULL;
     (*ops)->MultiVecSwap = NULL;
     (*ops)->GetVecFromMultiVec = NULL;
     (*ops)->RestoreVecForMultiVec = NULL;
@@ -656,6 +727,14 @@ GCGE_INT GCGE_OPS_Setup(GCGE_OPS *ops)
         printf("ERROR: Please provide the VecSetRandomValue operation!\n");
         return error;
     }
+    if(ops->GetVecFromMultiVec == NULL)
+    {
+        ops->GetVecFromMultiVec = GCGE_Default_GetVecFromMultiVec;
+    }
+    if(ops->RestoreVecForMultiVec == NULL)
+    {
+        ops->RestoreVecForMultiVec = GCGE_Default_RestoreVecForMultiVec;
+    }
     if(ops->MultiVecCreateByVec == NULL)
     {
         ops->MultiVecCreateByVec = GCGE_Default_MultiVecCreateByVec;
@@ -700,17 +779,13 @@ GCGE_INT GCGE_OPS_Setup(GCGE_OPS *ops)
     {
         ops->MultiVecInnerProd = GCGE_Default_MultiVecInnerProd;
     }
+    if(ops->MultiVecInnerProdLocal == NULL)
+    {
+        ops->MultiVecInnerProdLocal = GCGE_Default_MultiVecInnerProdLocal;
+    }
     if(ops->MultiVecSwap == NULL)
     {
         ops->MultiVecSwap = GCGE_Default_MultiVecSwap;
-    }
-    if(ops->GetVecFromMultiVec == NULL)
-    {
-        ops->GetVecFromMultiVec = GCGE_Default_GetVecFromMultiVec;
-    }
-    if(ops->RestoreVecForMultiVec == NULL)
-    {
-        ops->RestoreVecForMultiVec = GCGE_Default_RestoreVecForMultiVec;
     }
     if(ops->DenseMatEigenSolver == NULL)
     {
