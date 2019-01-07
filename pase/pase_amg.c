@@ -59,11 +59,11 @@ void PASE_BMG( PASE_MULTIGRID mg,
     //默认0层为最细层
     PASE_INT indicator = 1;
     // obtain the coarsest level
-    PASE_INT coarest_level;
-    if( indicator > 0 )
-        coarest_level = nlevel-1;
-    else
-        coarest_level = 0;
+    PASE_INT coarest_level = mg->coarest_level;
+    //if( indicator > 0 )
+    //    coarest_level = nlevel-1;
+    //else
+    //    coarest_level = 0;
     //设置最粗层上精确求解的精度
     PASE_REAL coarest_rate = rate * 1e-5;
     void *A;
