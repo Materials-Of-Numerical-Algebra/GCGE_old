@@ -175,7 +175,10 @@ void GCGE_SLEPC_MultiVecCreateByMat(void ***multi_vec,
 
 void GCGE_SLEPC_MultiVecDestroy(void ***MultiVec, GCGE_INT n_vec, struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr = BVDestroy((BV*)MultiVec);
+    GCGE_INT n = 1;
+    PetscErrorCode ierr;
+    ierr = BVGetSizes((BV)(*MultiVec), &n, NULL, NULL);
+    ierr = BVDestroy((BV*)MultiVec);
 }
 
 void GCGE_SLEPC_MatDotMultiVec(void *mat, void **x, void **y, 
@@ -273,6 +276,51 @@ void GCGE_SLEPC_MultiVecInnerProd(void **V, void **W, GCGE_DOUBLE *a,
 
 }
 
+// lda : leading dimension of matrix a
+// a(start[0]:end[0],start[1]:end[1]) = V(:,start[0]:end[0])^T * W(:,start[1]:end[1])
+void GCGE_SLEPC_MultiVecInnerProdLocal(void **V, void **W, GCGE_DOUBLE *a, 
+        char *is_sym, GCGE_INT *start, GCGE_INT *end, 
+        GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops)
+{
+    PetscErrorCode ierr;
+    ierr = BVSetActiveColumns((BV)V, start[0], end[0]);
+
+    const PetscScalar *V_array, *W_array;
+    GCGE_INT     V_nrows,  V_ncols = end[0]-start[0];
+    GCGE_INT     W_nrows,  W_ncols = end[1]-start[1];
+    GCGE_DOUBLE alpha = 1.0;
+    GCGE_DOUBLE beta  = 0.0;
+    ierr = BVGetArrayRead((BV)V, &V_array);
+    ierr = BVGetSizes((BV)V, &V_nrows, NULL, NULL);
+    //如果W是BV结构
+    if(if_Vec == 0)
+    {
+	ierr = BVGetArrayRead((BV)W, &W_array);
+	ierr = BVGetSizes((BV)W, &W_nrows, NULL, NULL);
+
+	ops->DenseMatDotDenseMat("T", "N", &V_ncols, &W_ncols, &V_nrows, 
+	      &alpha, (double*)V_array+start[0]*V_nrows, &V_nrows, 
+	      (double*)W_array+start[1]*W_nrows, &W_nrows, 
+	      &beta, a, &lda);
+
+	ierr = BVRestoreArrayRead((BV)W, &W_array);
+    }
+    else
+    {
+        //如果W是Vec*结构
+	ierr = VecGetArrayRead((Vec)(W[0]), &W_array);
+	W_nrows = V_nrows;
+
+	ops->DenseMatDotDenseMat("T", "N", &V_ncols, &W_ncols, &V_nrows, 
+	      &alpha, (double*)V_array+start[0]*V_nrows, &V_nrows, 
+	      (double*)W_array, &W_nrows, &beta, a, &lda);
+
+	ierr = VecRestoreArrayRead((Vec)(W[0]), &W_array);
+    }
+    ierr = BVRestoreArrayRead((BV)V, &V_array);
+
+}
+
 //计算 y = a * x + b * y
 void GCGE_SLEPC_MultiVecAxpby(GCGE_DOUBLE a, void **x, GCGE_DOUBLE 
         b, void **y, GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops)
@@ -345,6 +393,7 @@ void GCGE_SLEPC_SetOps(GCGE_OPS *ops)
 
     ops->MultiVecLinearComb = GCGE_SLEPC_MultiVecLinearComb;
     ops->MultiVecInnerProd = GCGE_SLEPC_MultiVecInnerProd;
+    ops->MultiVecInnerProdLocal = GCGE_SLEPC_MultiVecInnerProdLocal;
     ops->MultiVecSwap = GCGE_SLEPC_MultiVecSwap;
     ops->MultiVecAxpby = GCGE_SLEPC_MultiVecAxpby;
 
