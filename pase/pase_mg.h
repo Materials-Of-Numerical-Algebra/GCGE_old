@@ -18,6 +18,7 @@
 typedef struct pase_MultiGrid_struct 
 {
    PASE_INT num_levels;
+   PASE_INT coarest_level;
    void      **A_array;
    void      **B_array;
    void      **P_array;
