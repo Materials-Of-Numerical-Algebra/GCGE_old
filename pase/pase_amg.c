@@ -46,40 +46,40 @@
  * tol: 收敛准则 TODO 目前这个参数没用到
  * rate: 前后光滑中CG迭代的精度提高比例
  * nsmooth: 各细层CG迭代次数
- * max_coarest_smooth : 最粗层最大迭代次数
+ * max_coarsest_smooth : 最粗层最大迭代次数
  */
 void PASE_BMG( PASE_MULTIGRID mg, 
                PASE_INT current_level, 
                void **rhs, void **sol, 
                PASE_INT *start, PASE_INT *end,
                PASE_REAL tol, PASE_REAL rate, 
-               PASE_INT nsmooth, PASE_INT max_coarest_nsmooth)
+               PASE_INT nsmooth, PASE_INT max_coarsest_nsmooth)
 {
     PASE_INT nlevel = mg->num_levels;
     //默认0层为最细层
     PASE_INT indicator = 1;
     // obtain the coarsest level
-    PASE_INT coarest_level = mg->coarest_level;
+    PASE_INT coarsest_level = mg->coarsest_level;
     //if( indicator > 0 )
-    //    coarest_level = nlevel-1;
+    //    coarsest_level = nlevel-1;
     //else
-    //    coarest_level = 0;
+    //    coarsest_level = 0;
     //设置最粗层上精确求解的精度
-    PASE_REAL coarest_rate = rate * 1e-5;
+    PASE_REAL coarest_rate = rate * 1e-10;
     void *A;
     PASE_INT mv_s[2];
     PASE_INT mv_e[2];
     void **residual = mg->cg_p[current_level];
     // obtain the 'enough' accurate solution on the coarest level
     //direct solving the linear equation
-    if( current_level == coarest_level )
+    if( current_level == coarsest_level )
     {
         //最粗层？？？？？？？
-        A = mg->A_array[coarest_level];
+        A = mg->A_array[coarsest_level];
         GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
-                max_coarest_nsmooth, coarest_rate, mg->gcge_ops, 
-                mg->cg_p[coarest_level], mg->cg_w[coarest_level], 
-                mg->cg_res[coarest_level], 
+                max_coarsest_nsmooth, coarest_rate, mg->gcge_ops, 
+                mg->cg_p[coarsest_level], mg->cg_w[coarsest_level], 
+                mg->cg_res[coarsest_level], 
                 mg->cg_double_tmp, mg->cg_int_tmp);
 	//GCGE_Printf("current_level: %d, after direct\n", current_level);
 	//mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
@@ -129,7 +129,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
 	mg->gcge_ops->MultiVecAxpby(0.0, coarse_sol, 0.0, coarse_sol, 
 	        mv_s, mv_e, mg->gcge_ops);
         PASE_BMG(mg, coarse_level, coarse_residual, coarse_sol, 
-                mv_s, mv_e, tol, rate, nsmooth, max_coarest_nsmooth);
+                mv_s, mv_e, tol, rate, nsmooth, max_coarsest_nsmooth);
 	//GCGE_Printf("current_level: %d, after postsmoothing\n", current_level);
 	//mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
         

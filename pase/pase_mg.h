@@ -18,7 +18,7 @@
 typedef struct pase_MultiGrid_struct 
 {
    PASE_INT num_levels;
-   PASE_INT coarest_level;
+   PASE_INT coarsest_level;
    void      **A_array;
    void      **B_array;
    void      **P_array;
@@ -40,7 +40,8 @@ typedef struct pase_MultiGrid_struct
 typedef struct pase_MultiGrid_struct *PASE_MULTIGRID;
 
 PASE_INT 
-PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels, 
+PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
+        PASE_INT max_levels, PASE_INT mg_coarsest_level, 
         void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops);
 
 PASE_INT PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid);

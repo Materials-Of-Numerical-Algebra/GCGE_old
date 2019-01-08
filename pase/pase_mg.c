@@ -12,13 +12,14 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *nu
  * @return PASE_MULTIGRID
  */
 PASE_INT 
-PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, PASE_INT max_levels, 
+PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
+        PASE_INT max_levels, PASE_INT mg_coarsest_level, 
         void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops)
 {
     /* P 是行多列少, P*v是从粗到细 */
     *multi_grid = (PASE_MULTIGRID)PASE_Malloc(sizeof(pase_MultiGrid));
     (*multi_grid)->num_levels = max_levels;
-    (*multi_grid)->coarest_level = max_levels-1;
+    (*multi_grid)->coarsest_level = mg_coarsest_level;
     (*multi_grid)->gcge_ops = gcge_ops;
     (*multi_grid)->pase_ops = pase_ops;
     (*multi_grid)->A_array = NULL;

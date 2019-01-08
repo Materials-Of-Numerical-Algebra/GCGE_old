@@ -15,10 +15,14 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT      num_levels;
   //计算初值或者用户给定初值的层号
   PASE_INT      initial_level;
+  //第一层直接求解时的最大迭代次数
+  PASE_INT      max_initial_direct_count;
   //用户给的初值个数
   PASE_INT      num_given_eigs;
-  //最粗网格层指标
-  PASE_INT      coarest_level;  
+  //最粗网格层指标(MG求解线性方程组的最粗网格)
+  PASE_INT      mg_coarsest_level; 
+  //做pase二网格迭代的时候，粗空间所在的网格层号
+  PASE_INT      aux_coarse_level;  
   //最细网格层指标
   PASE_INT      finest_level;  
   //max_cycle_count_each_level表示每层最多做多少次二网格迭代
@@ -27,17 +31,19 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT     *max_pre_count_each_level;
   //每层上最多后光滑的次数
   PASE_INT     *max_post_count_each_level;
-  //每层上最多直接求解时GCGE迭代的次数
+  //每层上进行二网格迭代的时候求解aux矩阵特征值时最多GCGE迭代的次数
   PASE_INT     *max_direct_count_each_level;
-  //第一层直接求解时的最大迭代次数
-  PASE_INT     max_initial_count;
 
+  //用户要求的特征对个数
+  PASE_INT     nev;
   //最多算多少个特征对
   PASE_INT     max_nev;
   //表示在实际计算的时候求解的特征对个数（在本算法中一般设置为 nev+5 和2*nev的较小值）
   PASE_INT     pase_nev; 
-  //实际要求的特征对个数
-  PASE_INT     nev;
+  //在初始网格层上求解初始特征对逼近时的收敛准则(残差准则)
+  PASE_REAL    initial_rtol;
+  //在每层网格上二网格迭代中求解辅助矩阵特征值问题时的收敛准则（残差准则）
+  PASE_REAL    aux_rtol;
   //相对残差收敛准则，||A*x-\lambda*B*x||_2/(\lambda*||x||_2) < rtol 则为收敛
   PASE_REAL    rtol;
   //绝对残差收敛准则，||A*x-\lambda*B*x||_2/||x||_2 < atol 则为收敛
@@ -60,8 +66,9 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT         *sol_size;
   //每一层的右端项空间, 分配空间为bmg_step_size
   //也在复合矩阵中用作aux_A->aux_Hh 
-  //因此可能会用作VH的层上，需要给rhs分配的空间为max_nev
+  //因此可能会用作VH的层上，
   //细层的rhs还会用作P*u_H, 用于prolong 
+  //需要在所有层上给rhs分配的空间为max_nev
   void           ***rhs;
   //rhs_size用于存储每层rhs中有几个向量
   //因为VH层上需要多分配
@@ -69,15 +76,19 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   //每一层BCG迭代时的P向量空间, 分配空间为bmg_step_size
   //也在复合矩阵中用作aux_B->aux_Hh 
   //因此可能会用作VH的层上，需要给cg_p分配的空间为max_nev
+  //除了在最细层上，其他层也都得设置为max_nev
   void           ***cg_p;
   //cg_p_size用于存储每层cg_p中有几个向量
   //因为VH层上需要多分配
   PASE_INT         *cg_p_size;
   //每一层BCG迭代时的W向量空间
+  //在每一层上用来保存 A*sol(:,1:max_nev), 计算辅助矩阵中Aux_Hh是用到
+  //在每一层上都要设置成max_nev个向量
   void           ***cg_w;
   //cg_w_size用于存储每层cg_w中有几个向量
   PASE_INT         *cg_w_size;
   //每一层BCG迭代时的残差向量空间
+  //在进行插值或者限制的时候用来存储中间的变量，除了在最细层之外都要设置成max_nev个
   void           ***cg_res;
   //cg_res_size用于存储每层cg_res中有几个向量
   PASE_INT         *cg_res_size;
@@ -90,7 +101,7 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   //pase aux 复合矩阵的矩阵向量操作
   PASE_OPS         *pase_ops;
   //pase aux 复合向量
-  PASE_MultiVector  aux_u;
+  PASE_MultiVector  aux_sol;
   //pase aux 复合矩阵
   PASE_Matrix       aux_A;
   //pase aux 复合矩阵
@@ -103,14 +114,14 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT          bmg_step_size;
 
   //打印level
-  PASE_INT     print_level; 
+  PASE_INT   print_level; 
   //统计时间
-  PASE_REAL  set_up_time;
+  PASE_REAL  initialize_time;
   PASE_REAL  get_initvec_time;
   PASE_REAL  smooth_time;
-  PASE_REAL  set_aux_time;
+  PASE_REAL  build_aux_time;
   PASE_REAL  prolong_time;
-  PASE_REAL  direct_solve_time;
+  PASE_REAL  aux_direct_solve_time;
   PASE_REAL  total_solve_time;
   PASE_REAL  total_time;
 

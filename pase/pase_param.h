@@ -7,20 +7,23 @@ typedef struct PASE_PARAMETER_PRIVATE_ {
 
   PASE_INT num_levels;
   PASE_INT initial_level;
-  PASE_INT coarest_level;
+  PASE_INT mg_coarsest_level;
+  PASE_INT aux_coarse_level;
   PASE_INT finest_level;
 
   PASE_INT *max_cycle_count_each_level;
   PASE_INT *max_pre_count_each_level;
   PASE_INT *max_post_count_each_level;
   PASE_INT *max_direct_count_each_level;
-  PASE_INT max_initial_count;
+  PASE_INT max_initial_direct_count;
   
   PASE_INT  nev;
   PASE_INT  num_given_eigs;
   PASE_INT  bmg_step_size;
   PASE_REAL rtol;
   PASE_REAL atol;
+  PASE_REAL initial_rtol;
+  PASE_REAL aux_rtol;
   PASE_INT  print_level;
 
 } PASE_PARAMETER_PRIVATE;
