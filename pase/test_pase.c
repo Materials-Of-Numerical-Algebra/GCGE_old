@@ -64,7 +64,7 @@ main ( int argc, char *argv[] )
     PASE_PARAMETER param;
 
     PASE_PARAMETER_Create(&param, num_levels, nev);
-    param->max_initial_count = 30;
+    param->max_initial_direct_count = 30;
     param->max_cycle_count_each_level[0] = 20;
     param->print_level = print_level;
 
