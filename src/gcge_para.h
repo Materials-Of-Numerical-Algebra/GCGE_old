@@ -45,7 +45,7 @@ typedef struct GCGE_PARA_ {
 
      //基本参数
     GCGE_INT    if_lobgcg;         //使用gcg或lobgcg,0:gcg,1:lobgcg
-    GCGE_INT    given_init_evec;   //用户是否给定初始特征向量,0:用户不给定,1:用户给定
+    GCGE_INT    num_init_evec;     //用户给定多少个初始特征向量
 
      //检查收敛性用到的参数
     GCGE_DOUBLE ev_tol;            //判定特征值已收敛的阈值

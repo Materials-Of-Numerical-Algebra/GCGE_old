@@ -113,6 +113,13 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   //BMG进行分批计算时，每次最多计算的线性方程组个数
   PASE_INT          bmg_step_size;
 
+  //设置自动调节aux_coarse_level的参数
+  PASE_REAL  old_conv_efficiency; 
+  PASE_REAL  conv_efficiency; 
+  PASE_REAL  old_nonconv_residual;
+  PASE_REAL  new_residual_for_old_nonconv;
+  PASE_REAL  new_nonconv_residual;
+
   //打印level
   PASE_INT   print_level; 
   //统计时间

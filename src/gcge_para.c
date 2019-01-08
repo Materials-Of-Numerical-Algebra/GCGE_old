@@ -32,7 +32,7 @@ void GCGE_PARA_Create(GCGE_PARA **para)
     (*para)->block_size      = 0;
 
     (*para)->if_lobgcg       = 0; //用gcg
-    (*para)->given_init_evec = 0;
+    (*para)->num_init_evec   = 0;
     (*para)->ev_tol          = 1e-8;
 
     (*para)->conv_type       = "R"; //使用相对残差判断收敛性
@@ -153,10 +153,10 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
             arg_index++;
             para->if_lobgcg = atoi(argv[arg_index++]);
         }
-        else if(0 == strcmp(argv[arg_index], "-gcge_given_init_evec")) 
+        else if(0 == strcmp(argv[arg_index], "-gcge_num_init_evec")) 
         {
             arg_index++;
-            para->given_init_evec = atoi(argv[arg_index++]);
+            para->num_init_evec = atoi(argv[arg_index++]);
         }
         else if(0 == strcmp(argv[arg_index], "-gcge_ev_tol")) 
         {
@@ -317,7 +317,7 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
        GCGE_Printf("  -gcge_ev_max_it          <i>: maximum of gcg iterations                     (default: 30)\n");
        GCGE_Printf("  -gcge_block_size         <i>: number of eigenpairs computed in one patch    (default: nev/5)\n");
        GCGE_Printf("  -gcge_if_lobpcg          <i>: use lobpcg(1) or gcg(0)                       (default: 0)\n");
-       GCGE_Printf("  -gcge_given_init_evec    <i>: giben initial eigenvectors or not             (default: 0)\n");
+       GCGE_Printf("  -gcge_num_init_evec      <i>: the number of given initial eigenvectors      (default: 0)\n");
        GCGE_Printf("  -gcge_ev_tol             <d>: convergence tolerance                         (default: 1e-4)\n");
        GCGE_Printf("  -gcge_conv_type          <c>: use reletive or abosolute or omega residual   (default: R[A|O])\n");
        GCGE_Printf("  -gcge_orth_type          <c>: use A norm or B norm orthogonal               (default: B)\n");
@@ -655,7 +655,7 @@ void GCGE_PrintParaInfo(GCGE_PARA *para)
        GCGE_Printf("  nev                        : %8d, (number of eigenpairs you need)\n", para->nev            );
        GCGE_Printf("  ev_max_it                  : %8d, (maximum of gcg iterations)\n", para->ev_max_it      );
        GCGE_Printf("  block_size                 : %8d, (number of eigenpairs computed in one patch)\n", para->block_size     );
-       GCGE_Printf("  given_init_evec            : %8d, (given initial eigenvectors or not)\n", para->given_init_evec);
+       GCGE_Printf("  num_init_evec              : %8d, (the number of given initial eigenvectors)\n", para->num_init_evec);
        GCGE_Printf("  max_reorth_time            : %8d, (maximun reorthogonal times)\n", para->orth_para->max_reorth_time);
        GCGE_Printf("  scbgs_wself_max_reorth_time: %8d, (maximun reorthogonal times)\n", para->orth_para->scbgs_wself_max_reorth_time);
        GCGE_Printf("  print_orth_zero            : %8d, (print the zero index in orthogonal or not)\n", para->orth_para->print_orth_zero);

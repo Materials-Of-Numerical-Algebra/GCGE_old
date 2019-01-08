@@ -71,7 +71,7 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
     GCGE_INT    nev       = para->nev;        //nev表示要求解的特征值个数，用户需在GCGE_SOLVER_Setup前给定
     GCGE_INT    ev_max_it = para->ev_max_it;  //ev_max_it表示GCGE算法的最大迭代次数
     GCGE_INT    max_dim_x = workspace->max_dim_x; //max_dim_x表示判断特征值重数的最大取值空间
-    GCGE_INT    num_init_evec = para->given_init_evec; //初始给定的特征向量的个数
+    GCGE_INT    num_init_evec = para->num_init_evec; //初始给定的特征向量的个数
     void        **V       = workspace->V;  //V表示大规模的工作空间，V=[X,P,W]
     //void        **RitzVec = workspace->RitzVec; //RitzVec在计算中临时存储Ritz向量（大规模近似特征向量）
     GCGE_DOUBLE *subspace_matrix = workspace->subspace_matrix; //subspace_matrix表示Rayleigh-Ritz过程中的子空间矩阵
@@ -123,83 +123,80 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
 #if GET_PART_TIME
     t1 = GCGE_GetTime();
 #endif
-    if(para->given_init_evec == 0)
+    if(num_init_evec < nev)
     {
-        if(num_init_evec < nev)
-        {
-            do{
-                //调用方式: MultiVecSetRandomValue(void** V, start, num_vecs, ops)
-                //其中V是存储向量的对象， start：表示是从V中的start开始形成num_vecs个随机向量
-                //V(:,start:start + num_vecs) 进行随机化
-                ops->MultiVecSetRandomValue(evec, num_init_evec, nev - num_init_evec, ops);
-                if(strcmp(para->conv_type, "O") == 0)
+        do{
+            //调用方式: MultiVecSetRandomValue(void** V, start, num_vecs, ops)
+            //其中V是存储向量的对象， start：表示是从V中的start开始形成num_vecs个随机向量
+            //V(:,start:start + num_vecs) 进行随机化
+            ops->MultiVecSetRandomValue(evec, num_init_evec, nev - num_init_evec, ops);
+            if(strcmp(para->conv_type, "O") == 0)
+            {
+                if(num_init_evec == 0)
                 {
-                    if(num_init_evec == 0)
+                    omega_F_norm = 0.0;
+                    for(i=0; i<nev; i++)
                     {
-                        omega_F_norm = 0.0;
-                        for(i=0; i<nev; i++)
-                        {
-                            ops->GetVecFromMultiVec(evec, i, &omega_vec, ops);
-                            ops->VecInnerProd(omega_vec, omega_vec, &init_norm, ops);
-                            ops->VecAxpby(0.0, omega_vec, 1.0/sqrt(init_norm), omega_vec, ops);
-                            ops->RestoreVecForMultiVec(evec, i, &omega_vec, ops);
-                        }
-                        for(i=0; i<nev; i++)
-                        {
-                            ops->GetVecFromMultiVec(evec, i, &omega_vec, ops);
-                            ops->VecInnerProd(omega_vec, omega_vec, &init_norm, ops);
-                            ops->RestoreVecForMultiVec(evec, i, &omega_vec, ops);
-                            omega_F_norm += init_norm;
-                        }
- 
-                        mv_s[0] = 0;
-                        mv_e[0] = nev;
-                        mv_s[1] = 0;
-                        mv_e[1] = nev;
-                        ops->MatDotMultiVec(A, evec, V, mv_s, mv_e, ops);
-                        //此时，Omega = V(:,0:nev-1), A*Omega = evec(:,0:nev-1)
-                        A_Omega_F_norm = 0.0;
-                        for(i=0; i<nev; i++)
-                        {
-                            ops->GetVecFromMultiVec(V, i, &omega_vec, ops);
-                            ops->VecInnerProd(omega_vec, omega_vec, &F_norm, ops);
-                            ops->RestoreVecForMultiVec(V, i, &omega_vec, ops);
-                            A_Omega_F_norm += F_norm;
-                        }
-                        A_Omega_norm = sqrt(A_Omega_F_norm/omega_F_norm);
-                        //GCGE_Printf("A_Omega_norm: %e\n", A_Omega_norm);
-                        para->conv_omega_norm = A_Omega_norm;
+                        ops->GetVecFromMultiVec(evec, i, &omega_vec, ops);
+                        ops->VecInnerProd(omega_vec, omega_vec, &init_norm, ops);
+                        ops->VecAxpby(0.0, omega_vec, 1.0/sqrt(init_norm), omega_vec, ops);
+                        ops->RestoreVecForMultiVec(evec, i, &omega_vec, ops);
                     }
-                }
+                    for(i=0; i<nev; i++)
+                    {
+                        ops->GetVecFromMultiVec(evec, i, &omega_vec, ops);
+                        ops->VecInnerProd(omega_vec, omega_vec, &init_norm, ops);
+                        ops->RestoreVecForMultiVec(evec, i, &omega_vec, ops);
+                        omega_F_norm += init_norm;
+                    }
  
-                if(para->dirichlet_boundary == 1)
-                {
-                    //理边界条件，把Dirichlet边界条件的位置强制设置为 0
-                    ops->SetDirichletBoundary(evec,nev,A,B);    
-                }//end for SetDirichletBoundary
-                //进行正交化, 并返回正交化向量的个数
-                //对初始近似特征向量做B正交化, 
-                //正交化这里修改了, 此时 dim_x = x_end
-                //x_end: 表示X的终止位置
-                //dim_x(x_end)表示 X 中的向量个数，初始为nev(参数dim_x需要被替换为x_end, x_start始终为0)
-                workspace->dim_x = nev;
-                // 对 V(:,0:dim_x)进行正交化,正交矩阵 Orth_mat,V_tmp:用来做正交的辅助向量,一般只用V_tmp[0]
-                //subspace_dtmp: 用来记录不同的两个向量之间的内积 (是一个数组)
+                    mv_s[0] = 0;
+                    mv_e[0] = nev;
+                    mv_s[1] = 0;
+                    mv_e[1] = nev;
+                    ops->MatDotMultiVec(A, evec, V, mv_s, mv_e, ops);
+                    //此时，Omega = V(:,0:nev-1), A*Omega = evec(:,0:nev-1)
+                    A_Omega_F_norm = 0.0;
+                    for(i=0; i<nev; i++)
+                    {
+                        ops->GetVecFromMultiVec(V, i, &omega_vec, ops);
+                        ops->VecInnerProd(omega_vec, omega_vec, &F_norm, ops);
+                        ops->RestoreVecForMultiVec(V, i, &omega_vec, ops);
+                        A_Omega_F_norm += F_norm;
+                    }
+                    A_Omega_norm = sqrt(A_Omega_F_norm/omega_F_norm);
+                    //GCGE_Printf("A_Omega_norm: %e\n", A_Omega_norm);
+                    para->conv_omega_norm = A_Omega_norm;
+                }
+            }
+ 
+            if(para->dirichlet_boundary == 1)
+            {
+                //理边界条件，把Dirichlet边界条件的位置强制设置为 0
+                ops->SetDirichletBoundary(evec,nev,A,B);    
+            }//end for SetDirichletBoundary
+            //进行正交化, 并返回正交化向量的个数
+            //对初始近似特征向量做B正交化, 
+            //正交化这里修改了, 此时 dim_x = x_end
+            //x_end: 表示X的终止位置
+            //dim_x(x_end)表示 X 中的向量个数，初始为nev(参数dim_x需要被替换为x_end, x_start始终为0)
+            workspace->dim_x = nev;
+            // 对 V(:,0:dim_x)进行正交化,正交矩阵 Orth_mat,V_tmp:用来做正交的辅助向量,一般只用V_tmp[0]
+            //subspace_dtmp: 用来记录不同的两个向量之间的内积 (是一个数组)
 #if GET_PART_TIME
-                t1 = GCGE_GetTime();
+            t1 = GCGE_GetTime();
 #endif
-                GCGE_Orthonormalization(evec, num_init_evec, &(workspace->dim_x), Orth_mat, ops, para, 
+            GCGE_Orthonormalization(evec, num_init_evec, &(workspace->dim_x), Orth_mat, ops, para, 
                         workspace->V_tmp, workspace->subspace_dtmp);
 #if GET_PART_TIME
-                t2 = GCGE_GetTime();
-                stat_para->part_time_total->w_orth_time += t2-t1;
+            t2 = GCGE_GetTime();
+            stat_para->part_time_total->w_orth_time += t2-t1;
 #endif
  
-                num_init_evec = workspace->dim_x;
-                //GCGE_Printf("num_init_evec = %d\n",num_init_evec);
-            }while(num_init_evec < nev);
-        }//end for Initialization for the eigenvectors   
-    }
+            num_init_evec = workspace->dim_x;
+            //GCGE_Printf("num_init_evec = %d\n",num_init_evec);
+        }while(num_init_evec < nev);
+    }//end for Initialization for the eigenvectors   
     else
     {
         GCGE_Orthonormalization(evec, 0, &(workspace->dim_x), Orth_mat, ops, para, 
