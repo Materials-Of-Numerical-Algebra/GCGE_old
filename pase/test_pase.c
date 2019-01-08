@@ -30,7 +30,8 @@ void PETSCPrintVec(Vec x);
 void PETSCPrintBV(BV x, char *name);
 void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops);
 void GCGE_PETSCPrintMat(void *A);
-void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, PASE_INT *nlevel, PASE_INT *print_level);
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, 
+      PASE_INT *nlevel, PASE_INT *print_level, PASE_INT *aux_coarse_level);
 /* 
  *  Description:  测试PASE_MULTIGRID
  */
@@ -46,11 +47,12 @@ main ( int argc, char *argv[] )
 
     /* 得到细网格矩阵 */
     Mat      A, B;
-    PASE_INT n = 200;
+    PASE_INT n = 300;
     PASE_INT nev = 30;
-    PASE_INT num_levels = 4;
+    PASE_INT num_levels = 5;
     PASE_INT print_level = 1;
-    GetCommandLineInfo(argc, argv, &n, &nev, &num_levels, &print_level);
+    PASE_INT aux_coarse_level = 2;
+    GetCommandLineInfo(argc, argv, &n, &nev, &num_levels, &print_level, &aux_coarse_level);
     GCGE_Printf("n: %d, nev: %d, num_levels: %d\n", n, nev, num_levels);
     GetPetscMat(&A, &B, n, n);
 
@@ -65,7 +67,9 @@ main ( int argc, char *argv[] )
 
     PASE_PARAMETER_Create(&param, num_levels, nev);
     param->max_initial_direct_count = 30;
-    param->max_cycle_count_each_level[0] = 20;
+    param->max_cycle_count_each_level[0] = 100;
+    param->aux_coarse_level = aux_coarse_level;
+    param->aux_coarse_level = aux_coarse_level;
     param->print_level = print_level;
 
     //pase求解
@@ -175,7 +179,8 @@ void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
   PETSCPrintBV((BV)x, "x");
 }
 
-void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, PASE_INT *nlevel, PASE_INT *print_level)
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, 
+      PASE_INT *nlevel, PASE_INT *print_level, PASE_INT *aux_coarse_level)
 {
   PASE_INT arg_index = 0;
 
@@ -204,6 +209,12 @@ void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, 
       //要求解的特征值个数
       arg_index++;
       *print_level = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-aux_coarse_level") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      *aux_coarse_level = atoi(argv[arg_index++]);
     }
     else
     {
