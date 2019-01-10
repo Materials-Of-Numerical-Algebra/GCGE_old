@@ -8,7 +8,8 @@ typedef struct PASE_PARAMETER_PRIVATE_ {
   PASE_INT num_levels;
   PASE_INT initial_level;
   PASE_INT mg_coarsest_level;
-  PASE_INT aux_coarse_level;
+  PASE_INT initial_aux_coarse_level;
+  PASE_INT finest_aux_coarse_level;
   PASE_INT finest_level;
 
   PASE_INT *max_cycle_count_each_level;

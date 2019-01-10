@@ -23,6 +23,10 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT      mg_coarsest_level; 
   //做pase二网格迭代的时候，粗空间所在的网格层号
   PASE_INT      aux_coarse_level;  
+  //做pase二网格迭代的时候，初始的粗空间所在的网格层号
+  PASE_INT      initial_aux_coarse_level;  
+  //做pase二网格迭代的时候，最细的粗空间所在的网格层号
+  PASE_INT      finest_aux_coarse_level;  
   //最细网格层指标
   PASE_INT      finest_level;  
   //max_cycle_count_each_level表示每层最多做多少次二网格迭代
@@ -118,14 +122,9 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT          bmg_step_size;
 
   //设置自动调节aux_coarse_level的参数
-  PASE_REAL  old_conv_efficiency; 
-  //此residual表示所有未收敛特征对的绝对残差和
-  PASE_REAL  old_nonconv_residual;
-  PASE_REAL  new_residual_for_old_nonconv;
-  PASE_REAL  new_nonconv_residual;
+  PASE_REAL  *conv_efficiency; 
   //是否检查效率
   PASE_INT   check_efficiency_flag;
-  //PASE_REAL  conv_efficiency; 
 
   //打印level
   PASE_INT   print_level; 
@@ -207,7 +206,11 @@ PASE_INT
 PASE_Mg_smoothing(PASE_MG_SOLVER solver, PASE_INT fine_level, PASE_INT max_iter);
 
 PASE_INT 
-PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level, PASE_INT idx_cycle);
+PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level, 
+      PASE_INT idx_cycle, PASE_REAL cycle_time);
+
+PASE_INT 
+PASE_Get_min_double(PASE_REAL *a, PASE_INT start, PASE_INT end);
 
 PASE_INT
 PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT current_level, 

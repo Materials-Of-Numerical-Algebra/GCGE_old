@@ -8,7 +8,8 @@ PASE_PARAMETER_Create(PASE_PARAMETER *param, PASE_INT num_levels, PASE_INT nev)
   (*param)->num_levels = num_levels;
   (*param)->initial_level = -1;
   (*param)->mg_coarsest_level = -1;
-  (*param)->aux_coarse_level = -1;
+  (*param)->initial_aux_coarse_level = -1;
+  (*param)->finest_aux_coarse_level = -1;
   (*param)->finest_level = -1;
   (*param)->num_given_eigs = 0;
   (*param)->max_cycle_count_each_level = (PASE_INT*)calloc(num_levels, sizeof(PASE_INT));
