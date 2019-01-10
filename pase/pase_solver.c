@@ -129,7 +129,7 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
   //实际要求的特征对个数
   solver->nev = param->nev;
   //最多算多少个特征对
-  solver->max_nev = ((2* param->nev)<(param->nev+10))?(2* param->nev):(param->nev+10);
+  solver->max_nev = ((2* param->nev)<(param->nev+param->more_nev))?(2* param->nev):(param->nev+param->more_nev);
   //实际计算的特征值个数
   if(solver->initial_level == solver->finest_level) {
     //如果初始层是最细层, 那么要求用户给至少nev个初值

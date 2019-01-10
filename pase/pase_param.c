@@ -19,6 +19,7 @@ PASE_PARAMETER_Create(PASE_PARAMETER *param, PASE_INT num_levels, PASE_INT nev)
   (*param)->max_initial_direct_count = 30;
   (*param)->check_efficiency_flag = 1;
   (*param)->nev = nev;
+  (*param)->more_nev = 10;
   (*param)->rtol = 1e-8;
   (*param)->atol = 1e-8;
   (*param)->initial_rtol = 1e-8;
@@ -65,6 +66,12 @@ PASE_PARAMETER_Get_from_command_line(PASE_PARAMETER param, PASE_INT argc, char *
       //要求解的特征值个数
       arg_index++;
       param->nev = atoi(argv[arg_index++]);
+    }
+    if ( strcmp(argv[arg_index], "-more_nev") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      param->more_nev = atoi(argv[arg_index++]);
     }
     else if ( strcmp(argv[arg_index], "-num_levels") == 0 )
     {

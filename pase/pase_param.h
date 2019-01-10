@@ -22,6 +22,7 @@ typedef struct PASE_PARAMETER_PRIVATE_ {
   PASE_INT  check_efficiency_flag;
   
   PASE_INT  nev;
+  PASE_INT  more_nev;
   PASE_INT  num_given_eigs;
   PASE_INT  bmg_step_size;
   PASE_REAL rtol;
