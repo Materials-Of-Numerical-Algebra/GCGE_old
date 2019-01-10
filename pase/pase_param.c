@@ -17,6 +17,7 @@ PASE_PARAMETER_Create(PASE_PARAMETER *param, PASE_INT num_levels, PASE_INT nev)
   (*param)->max_post_count_each_level = (PASE_INT*)calloc(num_levels, sizeof(PASE_INT));
   (*param)->max_direct_count_each_level = (PASE_INT*)calloc(num_levels, sizeof(PASE_INT));
   (*param)->max_initial_direct_count = 30;
+  (*param)->check_efficiency_flag = 1;
   (*param)->nev = nev;
   (*param)->rtol = 1e-8;
   (*param)->atol = 1e-8;
@@ -50,4 +51,60 @@ PASE_PARAMETER_Destroy(PASE_PARAMETER *param)
   free((*param)->max_post_count_each_level);
   free((*param)->max_direct_count_each_level);
   free(*param); *param = NULL;
+}
+
+void 
+PASE_PARAMETER_Get_from_command_line(PASE_PARAMETER param, PASE_INT argc, char *argv[])
+{
+  PASE_INT arg_index = 0;
+
+  while (arg_index < argc)
+  {
+    if ( strcmp(argv[arg_index], "-nev") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      param->nev = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-num_levels") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      param->num_levels = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-print_level") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      param->print_level = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-initial_level") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      param->initial_level = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-initial_aux_coarse_level") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      param->initial_aux_coarse_level = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-finest_aux_coarse_level") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      param->finest_aux_coarse_level = atoi(argv[arg_index++]);
+    }
+    else if ( strcmp(argv[arg_index], "-check_efficiency_flag") == 0 )
+    {
+      //要求解的特征值个数
+      arg_index++;
+      param->check_efficiency_flag = atoi(argv[arg_index++]);
+    }
+    else
+    {
+      arg_index++;
+    }
+  }
 }

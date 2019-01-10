@@ -30,8 +30,7 @@ void PETSCPrintVec(Vec x);
 void PETSCPrintBV(BV x, char *name);
 void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops);
 void GCGE_PETSCPrintMat(void *A);
-void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, 
-      PASE_INT *nlevel, PASE_INT *print_level, PASE_INT *aux_coarse_level);
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n);
 /* 
  *  Description:  测试PASE_MULTIGRID
  */
@@ -52,8 +51,14 @@ main ( int argc, char *argv[] )
     PASE_INT num_levels = 5;
     PASE_INT print_level = 1;
     PASE_INT aux_coarse_level = -1;
-    GetCommandLineInfo(argc, argv, &n, &nev, &num_levels, &print_level, &aux_coarse_level);
-    GCGE_Printf("n: %d, nev: %d, num_levels: %d\n", n, nev, num_levels);
+
+    //给pase用到的参数赋值
+    PASE_PARAMETER param;
+    PASE_PARAMETER_Create(&param, num_levels, nev);
+    PASE_PARAMETER_Get_from_command_line(param, argc, argv);
+
+    GetCommandLineInfo(argc, argv, &n);
+    GCGE_Printf("n: %d\n", n);
     GetPetscMat(&A, &B, n, n);
 
     //创建gcge_ops
@@ -62,15 +67,8 @@ main ( int argc, char *argv[] )
     gcge_ops->MultiVecPrint = GCGE_PETSCMultiVecPrint;
     //创建特征值与特征向量空间
 
-    //给pase用到的参数赋值
-    PASE_PARAMETER param;
-
-    PASE_PARAMETER_Create(&param, num_levels, nev);
     param->max_initial_direct_count = 30;
     param->max_cycle_count_each_level[0] = 100;
-    param->aux_coarse_level = aux_coarse_level;
-    param->aux_coarse_level = aux_coarse_level;
-    param->print_level = print_level;
 
     //pase求解
     PASE_EigenSolver((void*)A, (void*)B, NULL, NULL, nev, param, gcge_ops);
@@ -179,8 +177,7 @@ void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
   PETSCPrintBV((BV)x, "x");
 }
 
-void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev, 
-      PASE_INT *nlevel, PASE_INT *print_level, PASE_INT *aux_coarse_level)
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n)
 {
   PASE_INT arg_index = 0;
 
@@ -191,30 +188,6 @@ void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *nev,
     {
       arg_index++;
       *n = atoi(argv[arg_index++]);
-    }
-    else if ( strcmp(argv[arg_index], "-nev") == 0 )
-    {
-      //要求解的特征值个数
-      arg_index++;
-      *nev = atoi(argv[arg_index++]);
-    }
-    else if ( strcmp(argv[arg_index], "-nlevel") == 0 )
-    {
-      //要求解的特征值个数
-      arg_index++;
-      *nlevel = atoi(argv[arg_index++]);
-    }
-    else if ( strcmp(argv[arg_index], "-print_level") == 0 )
-    {
-      //要求解的特征值个数
-      arg_index++;
-      *print_level = atoi(argv[arg_index++]);
-    }
-    else if ( strcmp(argv[arg_index], "-aux_coarse_level") == 0 )
-    {
-      //要求解的特征值个数
-      arg_index++;
-      *aux_coarse_level = atoi(argv[arg_index++]);
     }
     else
     {

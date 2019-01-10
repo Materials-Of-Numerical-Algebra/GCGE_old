@@ -67,7 +67,7 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT    *nlock_auxmat_B;
 
   //特征值空间
-  PASE_SCALAR      *eigenvalues;
+  PASE_REAL        *eigenvalues;
   //解空间，多重网格迭代时，用于存储每一层的解
   void           ***sol;
   //sol_size用于存储每层sol中有几个向量
@@ -142,7 +142,7 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
 typedef PASE_MG_SOLVER_PRIVATE * PASE_MG_SOLVER;
 
 PASE_INT
-PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec, 
+PASE_EigenSolver(void *A, void *B, PASE_REAL *eval, void **evec, 
         PASE_INT nev, PASE_PARAMETER param, GCGE_OPS *gcge_ops);
 
 PASE_MG_SOLVER

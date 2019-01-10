@@ -13,7 +13,7 @@
  */
 //------------------------------------------------------------------------------------------------
 PASE_INT
-PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec, 
+PASE_EigenSolver(void *A, void *B, PASE_REAL *eval, void **evec, 
         PASE_INT nev, PASE_PARAMETER param, GCGE_OPS *gcge_ops)
 {
   clock_t start, end;
@@ -46,7 +46,7 @@ PASE_EigenSolver(void *A, void *B, PASE_SCALAR *eval, void **evec,
 
   //将解返回给用户提供的特征对空间
   if(eval != NULL) {
-    memcpy(eval, solver->eigenvalues, nev*sizeof(PASE_SCALAR));
+    memcpy(eval, solver->eigenvalues, nev*sizeof(PASE_REAL));
   }
   if(evec != NULL) {
     if((solver->initial_level == solver->finest_level)||(solver->num_given_eigs == 0)) {
@@ -214,7 +214,7 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
 
   //设置自动调节aux_coarse_level的参数
   solver->conv_efficiency = NULL; 
-  solver->check_efficiency_flag = 1;
+  solver->check_efficiency_flag = param->check_efficiency_flag;
 
   //统计时间
   solver->initialize_time = 0.0;
@@ -262,8 +262,8 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
   //--------------------------------------------------------------------
   //--特征值工作空间-----------------------------------------------------
   PASE_INT max_nev = solver->max_nev;
-  solver->eigenvalues = (PASE_SCALAR*)calloc(max_nev, sizeof(PASE_SCALAR));
-  solver->aux_eigenvalues = (PASE_SCALAR*)calloc(max_nev, sizeof(PASE_SCALAR));
+  solver->eigenvalues = (PASE_REAL*)calloc(max_nev, sizeof(PASE_REAL));
+  solver->aux_eigenvalues = (PASE_REAL*)calloc(max_nev, sizeof(PASE_REAL));
   //abs_res_norm存储每个特征对的绝对残差
   solver->abs_res_norm = (PASE_REAL*)calloc(max_nev, sizeof(PASE_REAL));
   //辅助矩阵的b_H中lock住的列数，并初始化为0
@@ -582,6 +582,7 @@ PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT current_level,
       for(i=solver->finest_aux_coarse_level; i<=solver->initial_aux_coarse_level; i++) {
         GCGE_Printf("conv_efficiency[%d] = %e\n", i, solver->conv_efficiency[i]);
       }
+      GCGE_Printf("The best aux_coarse_level is level %d \n", solver->aux_coarse_level);
       //之后不再检查效率
       solver->check_efficiency_flag = 0;
     }
@@ -696,7 +697,7 @@ PASE_Direct_solve(PASE_MG_SOLVER solver, PASE_INT idx_level)
 
   void        *A            = solver->multigrid->A_array[idx_level];
   void        *B            = solver->multigrid->B_array[idx_level];
-  PASE_SCALAR *eigenvalues  = solver->eigenvalues;
+  PASE_REAL   *eigenvalues  = solver->eigenvalues;
   void       **eigenvectors = solver->sol[idx_level];
   GCGE_SOLVER *gcge_solver  = GCGE_SOLVER_CreateByOps(A, B,
           solver->pase_nev, eigenvalues, eigenvectors, solver->gcge_ops);
@@ -725,7 +726,7 @@ PASE_Matrix_create_sub(PASE_Matrix *aux_A, PASE_INT n)
 {
   *aux_A = (PASE_Matrix)malloc(sizeof(pase_Matrix));
   (*aux_A)->is_diag = 0;
-  (*aux_A)->aux_hh = (PASE_SCALAR*)calloc(n*n, sizeof(PASE_SCALAR));
+  (*aux_A)->aux_hh = (PASE_REAL*)calloc(n*n, sizeof(PASE_REAL));
   (*aux_A)->num_aux_vec = n;
   return 0;
 }
@@ -897,7 +898,7 @@ PASE_MultiVector_create_sub(PASE_MultiVector *aux_sol, PASE_INT n)
   *aux_sol = (PASE_MultiVector)malloc(sizeof(pase_MultiVector));
   (*aux_sol)->num_aux_vec = n;
   (*aux_sol)->num_vec = n;
-  (*aux_sol)->aux_h = (PASE_SCALAR*)calloc(n*n, sizeof(PASE_SCALAR));
+  (*aux_sol)->aux_h = (PASE_REAL*)calloc(n*n, sizeof(PASE_REAL));
   return 0;
 }
 
@@ -1015,7 +1016,7 @@ PASE_Mg_smoothing(PASE_MG_SOLVER solver, PASE_INT current_level, PASE_INT max_it
   void           *A             = solver->multigrid->A_array[current_level];
   void           *B             = solver->multigrid->B_array[current_level];
   void          **sol           = solver->sol[current_level];
-  PASE_SCALAR    *eigenvalues   = solver->eigenvalues;
+  PASE_REAL      *eigenvalues   = solver->eigenvalues;
   void          **rhs           = solver->rhs[current_level];
   PASE_INT        pase_nev      = solver->pase_nev;
   PASE_INT        nlock_smooth  = solver->nlock_smooth;
@@ -1090,7 +1091,7 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level,
   PASE_REAL        rtol        = solver->rtol;
   void           **sol         = solver->sol[idx_level];
   void           **rhs         = solver->rhs[idx_level];
-  PASE_SCALAR     *eigenvalues = solver->eigenvalues;
+  PASE_REAL       *eigenvalues = solver->eigenvalues;
   void            *A           = solver->multigrid->A_array[idx_level];
   void            *B           = solver->multigrid->B_array[idx_level];
 
@@ -1165,8 +1166,8 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level,
       sum_residual += solver->abs_res_norm[i];
     }
     solver->conv_efficiency[solver->aux_coarse_level] = -cycle_time/log(sum_residual);
-    GCGE_Printf("conv_efficiency[%d] = %e\n", solver->aux_coarse_level, 
-	  solver->conv_efficiency[solver->aux_coarse_level]);
+    //GCGE_Printf("conv_efficiency[%d] = %e\n", solver->aux_coarse_level, 
+    //	  solver->conv_efficiency[solver->aux_coarse_level]);
   }
   /*
   //检查第一个为收敛的特征值与最后一个刚收敛的特征值是否有可能是重特征值，为保证之后的排序问题，需让重特征值同时在收敛的集合或未收敛的集合.
@@ -1181,10 +1182,10 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level,
 
   if(solver->print_level > 0) {
     //PASE_REAL error = fabs(solver->eigenvalues[0] - solver->exact_eigenvalues[0]);    
-    GCGE_Printf("idx_cycle = %d, aux_coarse_level: %d, nconv = %d, ", idx_cycle+1, solver->aux_coarse_level, solver->nconv);
+    GCGE_Printf("idx_cycle = %d, aux_coarse_level: %d, nconv = %d, cycle_time: %f\n", idx_cycle+1, solver->aux_coarse_level, solver->nconv, cycle_time);
     if(solver->nconv < solver->pase_nev) {
-      GCGE_Printf("the first unconverged eigenvalues (residual) = %.8e (%1.6e)\n", 
-            solver->eigenvalues[solver->nconv], solver->abs_res_norm[solver->nconv]);
+      //GCGE_Printf("the first unconverged eigenvalues (residual) = %.8e (%1.6e)\n", 
+      //      solver->eigenvalues[solver->nconv], solver->abs_res_norm[solver->nconv]);
     } else {
       GCGE_Printf("all the wanted eigenpairs have converged.\n");
     }
