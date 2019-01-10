@@ -57,6 +57,10 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   PASE_INT     nlock_smooth;
   //已经收敛的特征对个数, 用于aux_direct时的lock
   PASE_INT     nlock_direct;
+  //aux_A->b_H中lock住的向量列数
+  PASE_INT    *nlock_auxmat_A;
+  //aux_B->b_H中lock住的向量列数
+  PASE_INT    *nlock_auxmat_B;
 
   //特征值空间
   PASE_SCALAR      *eigenvalues;
@@ -115,10 +119,13 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
 
   //设置自动调节aux_coarse_level的参数
   PASE_REAL  old_conv_efficiency; 
-  PASE_REAL  conv_efficiency; 
+  //此residual表示所有未收敛特征对的绝对残差和
   PASE_REAL  old_nonconv_residual;
   PASE_REAL  new_residual_for_old_nonconv;
   PASE_REAL  new_nonconv_residual;
+  //是否检查效率
+  PASE_INT   check_efficiency_flag;
+  //PASE_REAL  conv_efficiency; 
 
   //打印level
   PASE_INT   print_level; 
@@ -171,8 +178,10 @@ PASE_INT
 PASE_Mg_pase_aux_matrix_create(PASE_MG_SOLVER solver, PASE_INT idx_level);
 
 PASE_INT 
-PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **sol, 
-        PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT fine_level);
+PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void ***aux_bH, 
+        void *A_h, void **sol, PASE_MG_SOLVER solver, 
+	PASE_INT coarse_level, PASE_INT current_level, 
+	PASE_INT *nlock_auxmat);
 
 PASE_INT
 PASE_Mg_set_pase_aux_vector(PASE_MG_SOLVER solver, PASE_INT coarse_level, 
@@ -197,4 +206,10 @@ PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
 PASE_INT
 PASE_Mg_smoothing(PASE_MG_SOLVER solver, PASE_INT fine_level, PASE_INT max_iter);
 
+PASE_INT 
+PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level, PASE_INT idx_cycle);
+
+PASE_INT
+PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT current_level, 
+      PASE_INT *idx_cycle, PASE_REAL cycle_time);
 #endif

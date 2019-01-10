@@ -583,3 +583,7 @@ TODO
 2019.01.08 zhangning
 1. hhxie修改了gcge_cg.c
 2. 修改了pase中的一些参数
+
+2019.01.10 zhangning
+1. 修改了组装aux矩阵，对已经收敛并且lock住的部分不再重复计算
+   并为此修改了BMG和BCG中对于几个临时向量组空间的使用

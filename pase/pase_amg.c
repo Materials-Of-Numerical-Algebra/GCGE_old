@@ -74,9 +74,8 @@ void PASE_BMG( PASE_MULTIGRID mg,
     //direct solving the linear equation
     if( current_level == coarsest_level )
     {
-        //最粗层？？？？？？？
         A = mg->A_array[coarsest_level];
-        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+        GCGE_BCG(A, rhs, sol, start, end,  
                 max_coarsest_nsmooth, coarest_rate, mg->gcge_ops, 
                 mg->cg_p[coarsest_level], mg->cg_w[coarsest_level], 
                 mg->cg_res[coarsest_level], 
@@ -87,7 +86,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
     else
     {   
         A = mg->A_array[current_level];
-        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+        GCGE_BCG(A, rhs, sol, start, end, 
                 nsmooth, rate, mg->gcge_ops, 
                 mg->cg_p[current_level], mg->cg_w[current_level], 
 		mg->cg_res[current_level], 
@@ -97,59 +96,58 @@ void PASE_BMG( PASE_MULTIGRID mg,
 
         mv_s[0] = start[1];
         mv_e[0] = end[1];
-        mv_s[1] = 0;
-        mv_e[1] = end[1]-start[1];
+        mv_s[1] = start[2];
+        mv_e[1] = end[2];
         //计算residual = A*sol
         mg->gcge_ops->MatDotMultiVec(A, sol, residual, mv_s, mv_e, mg->gcge_ops);
         //计算residual = rhs-A*sol
-        mv_s[0] = 0;
-        mv_e[0] = end[1]-start[1];
-        mv_s[1] = 0;
-        mv_e[1] = end[1]-start[1];
+        mv_s[0] = start[0];
+        mv_e[0] = end[0];
+        mv_s[1] = start[2];
+        mv_e[1] = end[2];
         mg->gcge_ops->MultiVecAxpby(1.0, rhs, -1.0, residual, mv_s, mv_e, mg->gcge_ops);
 
         // 把 residual 投影到粗网格
         PASE_INT coarse_level = current_level + indicator;
         void **coarse_residual = mg->rhs[coarse_level];
-        mv_s[0] = 0;
-        mv_e[0] = end[1]-start[1];
-        mv_s[1] = 0;
-        mv_e[1] = end[1]-start[1];
+        mv_s[0] = start[2];
+        mv_e[0] = end[2];
+        mv_s[1] = start[0];
+        mv_e[1] = end[0];
         PASE_INT error = PASE_MULTIGRID_FromItoJ(mg, current_level, coarse_level, 
                 mv_s, mv_e, residual, coarse_residual);
-        /* TODO coarse_sol????? */
 
         //求粗网格解问题，利用递归
         void **coarse_sol = mg->sol[coarse_level];
-        mv_s[0] = 0;
-        mv_e[0] = end[1]-start[1];
-        mv_s[1] = 0;
-        mv_e[1] = end[1]-start[1];
+        mv_s[0] = start[1];
+        mv_e[0] = end[1];
+        mv_s[1] = start[1];
+        mv_e[1] = end[1];
 	//先给coarse_sol赋初值0
 	mg->gcge_ops->MultiVecAxpby(0.0, coarse_sol, 0.0, coarse_sol, 
 	        mv_s, mv_e, mg->gcge_ops);
         PASE_BMG(mg, coarse_level, coarse_residual, coarse_sol, 
-                mv_s, mv_e, tol, rate, nsmooth, max_coarsest_nsmooth);
+                start, end, tol, rate, nsmooth, max_coarsest_nsmooth);
 	//GCGE_Printf("current_level: %d, after postsmoothing\n", current_level);
 	//mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
         
         // 把粗网格上的解插值到细网格，再加到前光滑得到的近似解上
         // 可以用 residual 代替
-        mv_s[0] = 0;
-        mv_e[0] = end[1]-start[1];
-        mv_s[1] = 0;
-        mv_e[1] = end[1]-start[1];
+        mv_s[0] = start[1];
+        mv_e[0] = end[1];
+        mv_s[1] = start[2];
+        mv_e[1] = end[2];
         error = PASE_MULTIGRID_FromItoJ(mg, coarse_level, current_level, 
                 mv_s, mv_e, coarse_sol, residual);
         //计算residual = rhs-A*sol
-        mv_s[0] = 0;
-        mv_e[0] = end[1]-start[1];
+        mv_s[0] = start[2];
+        mv_e[0] = end[2];
         mv_s[1] = start[1];
         mv_e[1] = end[1];
         mg->gcge_ops->MultiVecAxpby(1.0, residual, 1.0, sol, mv_s, mv_e, mg->gcge_ops);
         
 	//后光滑
-        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+        GCGE_BCG(A, rhs, sol, start, end, 
                 nsmooth, rate, mg->gcge_ops, 
                 mg->cg_p[current_level], mg->cg_w[current_level], 
 		mg->cg_res[current_level], 

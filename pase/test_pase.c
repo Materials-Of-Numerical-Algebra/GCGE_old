@@ -51,7 +51,7 @@ main ( int argc, char *argv[] )
     PASE_INT nev = 30;
     PASE_INT num_levels = 5;
     PASE_INT print_level = 1;
-    PASE_INT aux_coarse_level = 2;
+    PASE_INT aux_coarse_level = -1;
     GetCommandLineInfo(argc, argv, &n, &nev, &num_levels, &print_level, &aux_coarse_level);
     GCGE_Printf("n: %d, nev: %d, num_levels: %d\n", n, nev, num_levels);
     GetPetscMat(&A, &B, n, n);

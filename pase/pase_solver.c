@@ -167,6 +167,8 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
   solver->nlock_direct = 0;
   solver->nlock_smooth = 0;
   solver->nconv = 0;
+  solver->nlock_auxmat_A = NULL;
+  solver->nlock_auxmat_B = NULL;
 
   //特征值空间
   solver->eigenvalues = NULL;
@@ -204,6 +206,13 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
   //多重网格结构
   solver->multigrid = NULL;
 
+  //设置自动调节aux_coarse_level的参数
+  solver->old_conv_efficiency = 1.0; 
+  //此residual表示所有未收敛特征对的绝对残差和
+  solver->old_nonconv_residual = 1.0;
+  solver->new_residual_for_old_nonconv = 1.0;
+  solver->new_nonconv_residual = 1.0;
+  solver->check_efficiency_flag = 1;
   //统计时间
   solver->initialize_time = 0.0;
   solver->smooth_time = 0.0;
@@ -233,6 +242,8 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
 {
   clock_t start, end;
   start = clock();
+  //层指标
+  PASE_INT idx_level = 0;
 
   //用gcge_ops创建pase_ops
   PASE_OPS_Create(&(solver->pase_ops), gcge_ops);
@@ -252,6 +263,15 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
   solver->aux_eigenvalues = (PASE_SCALAR*)calloc(max_nev, sizeof(PASE_SCALAR));
   //abs_res_norm存储每个特征对的绝对残差
   solver->abs_res_norm = (PASE_REAL*)calloc(max_nev, sizeof(PASE_REAL));
+  //辅助矩阵的b_H中lock住的列数，并初始化为0
+  solver->nlock_auxmat_A = (PASE_INT*)calloc(solver->num_levels, sizeof(PASE_INT));
+  for(idx_level=0; idx_level<solver->num_levels; idx_level++) {
+    solver->nlock_auxmat_A[idx_level] = 0;
+  }
+  solver->nlock_auxmat_B = (PASE_INT*)calloc(solver->num_levels, sizeof(PASE_INT));
+  for(idx_level=0; idx_level<solver->num_levels; idx_level++) {
+    solver->nlock_auxmat_B[idx_level] = 0;
+  }
 
   //--普通向量组空间-----------------------------------------------------
   PASE_INT num_levels = solver->num_levels;
@@ -265,8 +285,6 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
   void ***cg_p          = (void***)malloc(num_levels * sizeof(void**));
   void ***cg_w          = (void***)malloc(num_levels * sizeof(void**));
   void ***cg_res        = (void***)malloc(num_levels * sizeof(void**));
-  //层指标
-  PASE_INT idx_level = 0;
   //分批计算时的step_size
   PASE_INT step_size = solver->bmg_step_size;
   //先确定每个向量组要取多少个向量 
@@ -365,6 +383,14 @@ PASE_Mg_solver_destroy(PASE_MG_SOLVER solver)
     free(solver->abs_res_norm);
     solver->abs_res_norm = NULL;
   }
+  if(NULL != solver->nlock_auxmat_A) {
+    free(solver->nlock_auxmat_A);
+    solver->nlock_auxmat_A = NULL;
+  }
+  if(NULL != solver->nlock_auxmat_B) {
+    free(solver->nlock_auxmat_B);
+    solver->nlock_auxmat_B = NULL;
+  }
   //-----------------------------------------------------
   //释放向量工作空间
   for(i=0; i< solver->num_levels; i++) {
@@ -437,7 +463,7 @@ PASE_INT
 PASE_Mg_solve(PASE_MG_SOLVER solver)
 {
   clock_t start, end;
-  clock_t start_p, end_p;
+  clock_t start_1, end_1;
   start = clock();
 
   //一共要用到的层数
@@ -464,6 +490,7 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
   PASE_INT mv_s[2];
   PASE_INT mv_e[2];
   PASE_INT i = 0;
+  PASE_REAL cycle_time = 0.0;
 
   GCGE_Printf("initial_level: %d, aux_coarse_level: %d\n", initial_level, solver->aux_coarse_level);
   //如果初始层不是最细层，先直接求解获取初值
@@ -479,15 +506,18 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
     for(idx_cycle=0; idx_cycle < solver->max_cycle_count_each_level[current_level]; idx_cycle++)
     {
       //进行二网格迭代
+      start_1 = clock();
       PASE_Mg_cycle(solver, solver->aux_coarse_level, current_level);
+      end_1 = clock();
+      cycle_time = ((double)(end_1-start_1))/CLK_TCK;
       //检查收敛性并确定下次迭代的粗层
-      PASE_Mg_get_new_aux_coarse_level(solver, &(solver->aux_coarse_level), current_level, &idx_cycle);
+      PASE_Mg_get_new_aux_coarse_level(solver, current_level, &idx_cycle, cycle_time);
     }//end for idx_cycle
     if(current_level > 0)
     {
       //next_level表示下一个细层
       next_level = current_level-1;
-      start_p = clock();
+      start_1 = clock();
       //如果当前层不是最细层, 将解sol从上一粗层插值到当前细层
       mv_s[0] = 0;
       mv_e[0] = pase_nev;
@@ -495,8 +525,8 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
       mv_e[1] = pase_nev;
       PASE_MULTIGRID_FromItoJ(solver->multigrid, current_level, next_level, 
           mv_s, mv_e, solver->sol[current_level], solver->sol[next_level]);
-      end_p = clock();
-      solver->prolong_time += ((double)(end_p-start_p))/CLK_TCK;
+      end_1 = clock();
+      solver->prolong_time += ((double)(end_1-start_1))/CLK_TCK;
     }
   }//end for idx_level
 
@@ -505,20 +535,75 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
   return 0;
 }
 
+/* 
+ * 选取aux_coarse_level, 
+ * 初始check_efficiency_flag=1
+ * 第二次二网格迭代开始，如果check_efficiency_flag==1, 做下面的判断 
+ *   如果当前效率更高，
+ *       如果还没到第二细层，那就将aux_coarse_level放细一层
+ *       否则已经是第二细层了, 那就使用当前aux_coarse_level，
+ *                             且赋值check_efficiency_flag = 0
+ *   否则，那么当前效率不如上一次迭代
+ *       aux_coarse_level放粗一层，退回到上一次
+ *       且赋值check_efficiency_flag = 0
+ *       
+ * check_efficiency_flag表示是否要做效率的对比检查，
+ * 如果已经检测到了最优粗层, 那就不需要再做这样的检查
+ *
+ */
 PASE_INT
-PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT aux_coarse_level, 
-      PASE_INT current_level, PASE_INT *idx_cycle)
+PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT current_level, 
+      PASE_INT *idx_cycle, PASE_REAL cycle_time)
 {
+  PASE_REAL new_conv_efficiency = 1.0;
   //如果不是最细层，直接返回
   if(current_level > solver->finest_level)
     return 0;
-  GCGE_Printf("idx_cycle: %d, ", *idx_cycle);
-  //否则，先检查收敛性
-  PASE_Mg_error_estimate(solver, current_level);
+  //如果是最细层，先检查收敛性
+  PASE_Mg_error_estimate(solver, current_level, *idx_cycle);
+  if(solver->check_efficiency_flag == 1)
+  {
+    //计算当前的efficiency: cycle_time / ln(new_residual_for_old_nonconv)
+    new_conv_efficiency = -cycle_time/log(solver->new_residual_for_old_nonconv);
+    GCGE_Printf("cycle_time: %f, new_residual_for_old_nonconv: %e, efficiency: %e\n", 
+	  cycle_time, solver->new_residual_for_old_nonconv, new_conv_efficiency);
+    //如果是第一次二网格迭代，那没有上次迭代的与之对比, 直接放细一层
+    if(*idx_cycle == 0) {
+      //如果还不是第二细层, 选取更细一层作为辅助矩阵的粗层
+      //否则, 之后也不再修改aux_coarse_level
+      if(solver->aux_coarse_level > solver->finest_level+1) {
+        solver->aux_coarse_level--;
+      } else {
+        solver->check_efficiency_flag = 0;
+      }
+    } else {
+      //conv_efficiency是对总时间的一个预估(同比例), 因此值越小表示效率越高
+      //如果本层效率更高, 选取更细一层作为辅助矩阵的粗层
+      if(new_conv_efficiency < solver->old_conv_efficiency) {
+        //如果还不是第二细层, 选取更细一层作为辅助矩阵的粗层
+        //否则，说明第二细层是最优的，之后也不再修改aux_coarse_level
+        if(solver->aux_coarse_level > solver->finest_level+1) {
+          solver->aux_coarse_level--;
+        } else {
+          solver->check_efficiency_flag = 0;
+	}
+      } else {
+        //如果本层效率不如上一层高，退回更粗一层作为辅助矩阵的粗层
+        //且说明上一粗层是最优的，之后也不再修改aux_coarse_level
+        solver->aux_coarse_level++;
+        solver->check_efficiency_flag = 0;
+      }
+    }
+    //将本次迭代的residual与efficiency赋给old
+    solver->old_nonconv_residual = solver->new_nonconv_residual;
+    solver->old_conv_efficiency  = new_conv_efficiency;
+  }
   //如果已经全部收敛(只会在最细层修改nconv)
   if(solver->nconv >= solver->nev) {
+    GCGE_Printf("total cycle count     = %d\n", *idx_cycle + 1);
     *idx_cycle = solver->max_cycle_count_each_level[current_level] + 1;
   }//end for if nconv>=nev
+  return 0;
 }
 
 /*
@@ -585,12 +670,14 @@ PASE_Mg_set_pase_aux_matrix(PASE_MG_SOLVER solver, PASE_INT coarse_level,
   PASE_Matrix aux_A = solver->aux_A;
   PASE_Matrix aux_B = solver->aux_B;
   //细网格当前的近似特征向量
-  void **fine_sol = solver->sol[current_level];
+  void **current_sol = solver->sol[current_level];
   //给复合矩阵的aux部分赋值
-  error = PASE_Aux_matrix_set_by_pase_matrix(aux_A, A, fine_sol, solver, 
-        coarse_level, current_level);
-  error = PASE_Aux_matrix_set_by_pase_matrix(aux_B, B, fine_sol, solver, 
-        coarse_level, current_level);
+  error = PASE_Aux_matrix_set_by_pase_matrix(aux_A, solver->rhs, 
+	A, current_sol, solver, coarse_level, current_level, 
+	solver->nlock_auxmat_A);
+  error = PASE_Aux_matrix_set_by_pase_matrix(aux_B, solver->cg_p, 
+	B, current_sol, solver, coarse_level, current_level, 
+	solver->nlock_auxmat_B);
 
   end = clock();
   solver->build_aux_time += ((double)(end-start))/CLK_TCK;
@@ -674,8 +761,10 @@ PASE_Mg_pase_aux_matrix_create(PASE_MG_SOLVER solver, PASE_INT idx_level)
 }
 
 PASE_INT 
-PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **sol, 
-        PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_level)
+PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void ***aux_bH, 
+        void *A_h, void **sol, PASE_MG_SOLVER solver, 
+	PASE_INT coarse_level, PASE_INT current_level, 
+	PASE_INT *nlock_auxmat)
 {
   //matlab符号，包括前面，不包括后面
   //计算 aux_A->aux_Hh(:, nlock_direct:pase_nev) 
@@ -685,37 +774,57 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void *A_h, void **sol,
 
   //计算 aux_A->aux_Hh(:, nlock_direct:pase_nev) 
   //   = I_h^H * A_h * u_h(:, nlock_direct:pase_nev) 
+  PASE_INT i = 0;
+  PASE_INT j = 0;
   GCGE_OPS *gcge_ops = solver->gcge_ops;
   PASE_OPS *pase_ops = solver->pase_ops;
-  PASE_INT nlock_direct = solver->nlock_direct;
   PASE_INT pase_nev = solver->pase_nev;
-  PASE_INT num_aux_vec = pase_nev-nlock_direct;
-  aux_A->num_aux_vec = num_aux_vec;
-  //sol, rhs, cg_p已经用了，这里使用cg_w作为临时空间
-  void     **Ah_u = solver->cg_w[current_level];
+  PASE_INT num_aux_vec = pase_nev;
+  PASE_INT coarse_nlock_auxmat = nlock_auxmat[coarse_level];
+  PASE_INT restrict_from_level = 0;
+  PASE_INT restrict_to_level   = 0;
+  //先从nlock_auxmat开始计算，再更新nlock_auxmat
   PASE_INT mv_s[2];
   PASE_INT mv_e[2];
-  mv_s[0]  = nlock_direct;
+  mv_s[0]  = nlock_auxmat[current_level];
   mv_e[0]  = pase_nev;
-  mv_s[1]  = 0;
-  mv_e[1]  = num_aux_vec;
-  // Ah_u(:,0:pase_nev-nlock_direct) = A_h * sol(:, nlock_direct:pase_nev) 
-  gcge_ops->MatDotMultiVec(A_h, sol, Ah_u, mv_s, mv_e, gcge_ops);
+  mv_s[1]  = nlock_auxmat[current_level];
+  mv_e[1]  = pase_nev;
+  // Ah_u(:,nlock_auxmat:pase_nev) = A_h * sol(:, nlock_auxmat:pase_nev) 
+  gcge_ops->MatDotMultiVec(A_h, sol, aux_bH[current_level], mv_s, mv_e, gcge_ops);
+  //计算完后更新当前层的nlock_auxmat
+  nlock_auxmat[current_level] = solver->nconv;
   //从current_level限制到coarse_level
+  for(i=current_level; i<coarse_level; i++) {
+    //从i层限制到粗一层i+1层, 计算的向量从粗一层的nlock_auxmat开始
+    restrict_from_level = i;
+    restrict_to_level   = i+1;
+    mv_s[0] = nlock_auxmat[restrict_to_level];
+    mv_e[0] = pase_nev;
+    mv_s[1] = nlock_auxmat[restrict_to_level];
+    mv_e[1] = pase_nev;
+    PASE_INT error = PASE_MULTIGRID_FromItoJ(solver->multigrid, 
+        restrict_from_level, restrict_to_level, mv_s, mv_e, 
+	aux_bH[restrict_from_level], aux_bH[restrict_to_level]);
+    //计算完后更新粗一层的nlock_auxmat
+    nlock_auxmat[restrict_to_level] = solver->nconv;
+  }
+  //计算 aux_A->aux_hh = sol(:, 0:pase_nev) * A_h * sol(:, coarse_nlock_auxmat_b:pase_nev) 
   mv_s[0] = 0;
-  mv_e[0] = num_aux_vec;
-  mv_s[1] = 0;
-  mv_e[1] = num_aux_vec;
-  PASE_INT error = PASE_MULTIGRID_FromItoJ(solver->multigrid, 
-          current_level, coarse_level, mv_s, mv_e, Ah_u, aux_A->aux_Hh);
-  //计算 aux_A->aux_hh = sol(:, nlock_direct:pase_nev) * A_h * sol(:, nlock_direct:pase_nev) 
-  mv_s[0] = nlock_direct;
   mv_e[0] = pase_nev;
-  mv_s[1] = 0;
-  mv_e[1] = num_aux_vec;
+  mv_s[1] = coarse_nlock_auxmat;
+  mv_e[1] = pase_nev;
   PASE_REAL *A_aux_hh = aux_A->aux_hh;
-  gcge_ops->MultiVecInnerProd(sol, Ah_u, A_aux_hh, 
-          "nonsym", mv_s, mv_e, num_aux_vec, 0, solver->gcge_ops);
+  //从aux_A->aux_hh的第coarse_nlock_auxmat_b列开始赋值
+  gcge_ops->MultiVecInnerProd(sol, aux_bH[current_level], 
+	A_aux_hh+coarse_nlock_auxmat*num_aux_vec, 
+	"nonsym", mv_s, mv_e, num_aux_vec, 0, solver->gcge_ops);
+  //对称化处理
+  for(i=coarse_nlock_auxmat; i<num_aux_vec; i++) {
+    for(j=0; j<coarse_nlock_auxmat; j++) {
+      A_aux_hh[j*num_aux_vec+i] = A_aux_hh[i*num_aux_vec+j];
+    }
+  }
 
   return 0;
 }
@@ -912,27 +1021,33 @@ PASE_Mg_smoothing(PASE_MG_SOLVER solver, PASE_INT current_level, PASE_INT max_it
   PASE_OPS *pase_ops = solver->pase_ops;
   PASE_INT i = 0;
  
-  PASE_INT mv_s[2];
-  PASE_INT mv_e[2];
+  PASE_INT mv_s[5];
+  PASE_INT mv_e[5];
   //求解 A * u = eig * B * u
   //计算 rhs = eig * B * u
   mv_s[0] = nlock_smooth;
   mv_e[0] = pase_nev;
-  mv_s[1] = 0;
-  mv_e[1] = pase_nev-nlock_smooth;
+  mv_s[1] = nlock_smooth;
+  mv_e[1] = pase_nev;
   gcge_ops->MatDotMultiVec(B, sol, rhs, mv_s, mv_e, gcge_ops);
   for(i=nlock_smooth; i<pase_nev; i++) {
-      gcge_ops->MultiVecAxpbyColumn(0.0, rhs, i-nlock_smooth, eigenvalues[i], 
-              rhs, i-nlock_smooth, gcge_ops);
+      gcge_ops->MultiVecAxpbyColumn(0.0, rhs, i, eigenvalues[i], 
+              rhs, i, gcge_ops);
   }
 
   PASE_REAL tol = solver->atol;
   PASE_REAL cg_rate = 1e-2;
   PASE_INT  max_coarest_nsmooth = 10*max_iter;
-  mv_s[0] = 0;
-  mv_e[0] = pase_nev-nlock_smooth;
+  mv_s[0] = nlock_smooth;
+  mv_e[0] = pase_nev;
   mv_s[1] = nlock_smooth;
   mv_e[1] = pase_nev;
+  mv_s[2] = nlock_smooth;
+  mv_e[2] = pase_nev;
+  mv_s[3] = nlock_smooth;
+  mv_e[3] = pase_nev;
+  mv_s[4] = nlock_smooth;
+  mv_e[4] = pase_nev;
 
   //TODO 分批求解
   PASE_BMG(solver->multigrid, current_level, rhs, sol, mv_s, mv_e, 
@@ -951,7 +1066,7 @@ PASE_Mg_smoothing(PASE_MG_SOLVER solver, PASE_INT current_level, PASE_INT max_it
  * @return 
  */
 PASE_INT 
-PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
+PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level, PASE_INT idx_cycle)
 {
   PASE_INT         pase_nev    = solver->pase_nev; 
   PASE_REAL        atol        = solver->atol;
@@ -975,31 +1090,33 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
   void            *ui;
   //nconv表示这次判断收敛性前已收敛的特征值个数
   PASE_INT         nconv         = solver->nconv;
+  PASE_REAL        residual_for_old_nonconv = 0.0;
+  PASE_REAL        new_nonconv_residual     = 0.0;
 
   GCGE_OPS *gcge_ops = solver->gcge_ops;
   for(i = nconv; i < pase_nev; ++i) {
     //GCGE_Printf("line 947, nconv: %d, pase_nev: %d, i: %d\n", nconv, pase_nev, i);
-    gcge_ops->GetVecFromMultiVec(rhs, 0, &Bu, gcge_ops);
+    gcge_ops->GetVecFromMultiVec(rhs, nconv, &Bu, gcge_ops);
     gcge_ops->GetVecFromMultiVec(sol, i, &ui, gcge_ops);
     //Bu = B * sol[i]
     gcge_ops->MatDotVec(B, ui, Bu, gcge_ops);
-    gcge_ops->VecInnerProd(ui, ui, &u_norm, gcge_ops);
-    //u_norm = || sol[i] ||_2
+    gcge_ops->VecInnerProd(Bu, ui, &u_norm, gcge_ops);
+    //u_norm = || sol[i] ||_B
     u_norm = sqrt(u_norm);
-    gcge_ops->RestoreVecForMultiVec(rhs, 0, &Bu, gcge_ops);
+    gcge_ops->RestoreVecForMultiVec(rhs, nconv, &Bu, gcge_ops);
     //计算 || Au - \lambda Bu ||_2
-    gcge_ops->GetVecFromMultiVec(rhs, 1, &Au, gcge_ops);
+    gcge_ops->GetVecFromMultiVec(rhs, nconv+1, &Au, gcge_ops);
     //Au = A * sol[i]
     gcge_ops->MatDotVec(A, ui, Au, gcge_ops);
     gcge_ops->RestoreVecForMultiVec(sol, i, &ui, gcge_ops);
-    gcge_ops->GetVecFromMultiVec(rhs, 0, &Bu, gcge_ops);
+    gcge_ops->GetVecFromMultiVec(rhs, nconv, &Bu, gcge_ops);
     //Bu = Au - eval[i] * Bu
     gcge_ops->VecAxpby(1.0, Au, -eigenvalues[i], Bu, gcge_ops);
     //r_norm = || Bu ||_2
     gcge_ops->VecInnerProd(Bu, Bu, &r_norm, gcge_ops);
-    gcge_ops->RestoreVecForMultiVec(rhs, 0, &Bu, gcge_ops);
-    gcge_ops->RestoreVecForMultiVec(rhs, 1, &Au, gcge_ops);
-    //r_norm = || Au - \lambda Bu ||_2 / || ui ||_2
+    gcge_ops->RestoreVecForMultiVec(rhs, nconv, &Bu, gcge_ops);
+    gcge_ops->RestoreVecForMultiVec(rhs, nconv+1, &Au, gcge_ops);
+    //r_norm = || Au - \lambda Bu ||_2 / || ui ||_B
     r_norm = sqrt(r_norm)/u_norm;
     solver->abs_res_norm[i] = r_norm;
     if(solver->print_level > 2) {
@@ -1011,8 +1128,9 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
     }
     if(r_norm < atol || (r_norm/eigenvalues[i]) < rtol) {
       if(0 == flag) {
+        //计算(新的)未收敛的残差和
         //solver->nconv++;
-    solver->nconv = i+1;
+        solver->nconv = i+1;
       }
     } else {
       /* break; */
@@ -1021,6 +1139,19 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
   }
   while(check_multi[solver->nconv-1] < 1e-5 && solver->nconv > nconv) {
      solver->nconv--;
+  }
+  //如果需要检查效率, 计算残差和
+  if(solver->check_efficiency_flag == 1) {
+    solver->new_residual_for_old_nonconv = 0.0;
+    solver->new_nonconv_residual = 0.0;
+    //计算(旧的)未收敛的残差和
+    for(i = nconv; i < pase_nev; ++i) {
+      solver->new_residual_for_old_nonconv += solver->abs_res_norm[i];
+    }
+    //计算(新的)未收敛的残差和
+    for(i = solver->nconv; i < pase_nev; ++i) {
+      solver->new_nonconv_residual += solver->abs_res_norm[i];
+    }
   }
   /*
   //检查第一个为收敛的特征值与最后一个刚收敛的特征值是否有可能是重特征值，为保证之后的排序问题，需让重特征值同时在收敛的集合或未收敛的集合.
@@ -1035,7 +1166,7 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level)
 
   if(solver->print_level > 0) {
     //PASE_REAL error = fabs(solver->eigenvalues[0] - solver->exact_eigenvalues[0]);    
-    GCGE_Printf("nconv = %d, ", solver->nconv);
+    GCGE_Printf("idx_cycle = %d, aux_coarse_level: %d, nconv = %d, ", idx_cycle+1, solver->aux_coarse_level, solver->nconv);
     if(solver->nconv < solver->pase_nev) {
       GCGE_Printf("the first unconverged eigenvalues (residual) = %.8e (%1.6e)\n", 
             solver->eigenvalues[solver->nconv], solver->abs_res_norm[solver->nconv]);

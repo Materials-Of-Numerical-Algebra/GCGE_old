@@ -125,7 +125,8 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
     void     *rhs;                             //线性方程组求解时的右端项
     void     *x_current;                       //当前操作的X向量
     void     *w_current;                       //当前操作的W向量
-
+    GCGE_INT mv_s[5];
+    GCGE_INT mv_e[5];
 
     GCGE_INT idx = 0;
     GCGE_INT x_current_idx = 0;
@@ -186,7 +187,7 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
             ops->RestoreVecForMultiVec(V, w_current_idx, &w_current, ops);
             ops->RestoreVecForMultiVec(V_tmp, idx, &rhs, ops);
         }//end for idx_p      
-	    //如果有外部求解器, 解完后继续用BCG求解. 如果不要用BCG, 可以将cg_max_it设为0
+	//如果有外部求解器, 解完后继续用BCG求解. 如果不要用BCG, 可以将cg_max_it设为0
         //GCGE_BCG(A, V_tmp, V, w_start,w_length, ops, para,workspace);
     }
     else
@@ -196,8 +197,18 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
         //W存储在 V(:,w_start:w_start+w_length), RHS存储在V_tmp(:,0:w_length)
         if(para->if_use_bcg == 1)
         {
-            GCGE_BCG(A, V_tmp, V, w_start,w_length, para->cg_max_it, para->cg_rate, ops, 
-                 workspace->CG_p, workspace->evec, NULL, 
+	    mv_s[0] = 0;
+	    mv_e[0] = w_length;
+	    mv_s[1] = w_start;
+	    mv_e[1] = w_start+w_length;
+	    mv_s[2] = 0;
+	    mv_e[2] = w_length;
+	    mv_s[3] = 0;
+	    mv_e[3] = w_length;
+	    mv_s[4] = 0;
+	    mv_e[4] = w_length;
+            GCGE_BCG(A, V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
+		 ops, workspace->CG_p, workspace->evec, NULL, 
                  workspace->subspace_dtmp, workspace->subspace_itmp);
         }
         else
