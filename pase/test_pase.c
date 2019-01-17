@@ -30,7 +30,7 @@ void PETSCPrintVec(Vec x);
 void PETSCPrintBV(BV x, char *name);
 void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops);
 void GCGE_PETSCPrintMat(void *A);
-void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n);
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *num_levels);
 /* 
  *  Description:  测试PASE_MULTIGRID
  */
@@ -52,14 +52,24 @@ main ( int argc, char *argv[] )
     PASE_INT print_level = 1;
     PASE_INT aux_coarse_level = -1;
 
+    GetCommandLineInfo(argc, argv, &n, &num_levels);
+    GCGE_Printf("n: %d\n", n);
+    //如果n>0, 那就直接产生差分矩阵, 否则就从文件读入矩阵
+    if(n > 0) {
+      GetPetscMat(&A, &B, n, n);
+    } else {
+      char file_A[PETSC_MAX_PATH_LEN] = "fileinput";
+      ierr = PetscOptionsGetString(NULL, NULL, "-mat_A", file_A, sizeof(file_A), NULL);
+      char file_B[PETSC_MAX_PATH_LEN] = "fileinput";
+      ierr = PetscOptionsGetString(NULL, NULL, "-mat_B", file_B, sizeof(file_B), NULL);
+      SLEPC_ReadMatrixBinary(&A, file_A);
+      SLEPC_ReadMatrixBinary(&B, file_B);
+    }
+
     //给pase用到的参数赋值
     PASE_PARAMETER param;
     PASE_PARAMETER_Create(&param, num_levels, nev);
     PASE_PARAMETER_Get_from_command_line(param, argc, argv);
-
-    GetCommandLineInfo(argc, argv, &n);
-    GCGE_Printf("n: %d\n", n);
-    GetPetscMat(&A, &B, n, n);
 
     //创建gcge_ops
     GCGE_OPS *gcge_ops;
@@ -177,7 +187,7 @@ void GCGE_PETSCMultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
   PETSCPrintBV((BV)x, "x");
 }
 
-void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n)
+void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n, PASE_INT *num_levels)
 {
   PASE_INT arg_index = 0;
 
@@ -188,6 +198,11 @@ void GetCommandLineInfo(PASE_INT argc, char **argv, PASE_INT *n)
     {
       arg_index++;
       *n = atoi(argv[arg_index++]);
+    }
+    if ( strcmp(argv[arg_index], "-num_levels") == 0 )
+    {
+      arg_index++;
+      *num_levels = atoi(argv[arg_index++]);
     }
     else
     {
