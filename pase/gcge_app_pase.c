@@ -214,7 +214,10 @@ GCGE_SOLVER* GCGE_SOLVER_PASE_Create(PASE_Matrix A, PASE_Matrix B, int num_eigen
     pase_solver->para->num_unlock = num_unlock;
 
     if(num_eigenvalues != -1)
+    {
         pase_solver->para->nev = num_eigenvalues;
+    }
+    pase_solver->para->block_size = pase_solver->para->nev;
 
     GCGE_SOLVER_Setup(pase_solver);
     return pase_solver;

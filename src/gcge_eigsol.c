@@ -183,15 +183,16 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
             workspace->dim_x = nev;
             // 对 V(:,0:dim_x)进行正交化,正交矩阵 Orth_mat,V_tmp:用来做正交的辅助向量,一般只用V_tmp[0]
             //subspace_dtmp: 用来记录不同的两个向量之间的内积 (是一个数组)
-#if GET_PART_TIME
-            t1 = GCGE_GetTime();
-#endif
-            GCGE_Orthonormalization(evec, num_init_evec, &(workspace->dim_x), Orth_mat, ops, para, 
-                        workspace->V_tmp, workspace->subspace_dtmp);
-#if GET_PART_TIME
-            t2 = GCGE_GetTime();
-            stat_para->part_time_total->w_orth_time += t2-t1;
-#endif
+            if(strcmp(para->x_orth_type, "multi") == 0)
+            {
+                GCGE_StableMultiOrthonormalization(evec, num_init_evec, 
+            	  &(workspace->dim_x), Orth_mat, ops, para, workspace);
+            }
+            else
+            {
+                GCGE_Orthonormalization(evec, num_init_evec, &(workspace->dim_x), Orth_mat, 
+		      ops, para, workspace->V_tmp, workspace->subspace_dtmp);
+	    }
  
             num_init_evec = workspace->dim_x;
             //GCGE_Printf("num_init_evec = %d\n",num_init_evec);
@@ -199,8 +200,17 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
     }//end for Initialization for the eigenvectors   
     else
     {
-        GCGE_Orthonormalization(evec, 0, &(workspace->dim_x), Orth_mat, ops, para, 
-                    workspace->V_tmp, workspace->subspace_dtmp);
+        if(strcmp(para->x_orth_type, "multi") == 0)
+        {
+            GCGE_StableMultiOrthonormalization(evec, nev-para->num_unlock, 
+        	  &(workspace->dim_x), Orth_mat, ops, para, workspace);
+        }
+        else
+        {
+            GCGE_Orthonormalization(evec, nev - para->num_unlock, 
+		  &(workspace->dim_x), Orth_mat, ops, para, 
+                  workspace->V_tmp, workspace->subspace_dtmp);
+	}
     }
 #if GET_PART_TIME
     t2 = GCGE_GetTime();
@@ -337,8 +347,16 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
 #if GET_PART_TIME
     t1 = GCGE_GetTime();
 #endif
-    GCGE_Orthonormalization(V, workspace->dim_x, &(workspace->dim_xpw), Orth_mat, ops, para, 
+    if(strcmp(para->w_orth_type, "multi") == 0)
+    {
+        GCGE_StableMultiOrthonormalization(V, workspace->dim_x, 
+    	  &(workspace->dim_xpw), Orth_mat, ops, para, workspace);
+    }
+    else
+    {
+        GCGE_Orthonormalization(V, workspace->dim_x, &(workspace->dim_xpw), Orth_mat, ops, para, 
             workspace->V_tmp, workspace->subspace_dtmp);
+    }
 #if GET_PART_TIME
     t2 = GCGE_GetTime();
     stat_para->part_time_one_iter->w_orth_time = t2-t1;

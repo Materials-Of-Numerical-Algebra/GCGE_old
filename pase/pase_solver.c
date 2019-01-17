@@ -217,7 +217,8 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
   solver->check_efficiency_flag = param->check_efficiency_flag;
 
   //统计时间
-  solver->initialize_time = 0.0;
+  solver->initialize_convert_time = 0.0;
+  solver->initialize_amg_time = 0.0;
   solver->smooth_time = 0.0;
   solver->build_aux_time = 0.0;
   solver->prolong_time = 0.0;
@@ -243,8 +244,6 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
 PASE_INT
 PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
 {
-  clock_t start, end;
-  start = clock();
   //层指标
   PASE_INT idx_level = 0;
 
@@ -254,9 +253,11 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
 
   //以矩阵A，B作为最细层空间，创建多重网格结构
   //TODO 这里可能会修改max_levels?
-  PASE_INT error = PASE_MULTIGRID_Create(&(solver->multigrid), 
+  PASE_MULTIGRID_Create(&(solver->multigrid), 
         solver->num_levels, solver->mg_coarsest_level, 
-        A, B, gcge_ops, solver->pase_ops);
+        A, B, gcge_ops, solver->pase_ops, 
+	&(solver->initialize_convert_time), 
+	&(solver->initialize_amg_time));
   solver->multigrid->coarsest_level = solver->mg_coarsest_level;
 
   //--------------------------------------------------------------------
@@ -360,8 +361,6 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
     }
   }
 
-  end = clock();
-  solver->initialize_time += ((double)(end-start))/CLK_TCK;
   return 0;
 }
 
@@ -951,7 +950,7 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   //gcge_pase_solver->para->cg_max_it = 50;
   //gcge_pase_solver->para->orth_para->orth_zero_tol = 1e-13;
   //gcge_pase_solver->para->p_orth_type = "gs";
-  //gcge_pase_solver->para->w_orth_type = "multi";
+  gcge_pase_solver->para->x_orth_type = "multi";
   //求解
   GCGE_SOLVER_Solve(gcge_pase_solver);  
   memcpy(solver->eigenvalues+solver->nconv, solver->aux_eigenvalues+solver->nconv, 
@@ -1213,14 +1212,15 @@ PASE_Mg_print_result(PASE_MG_SOLVER solver)
   }
   if(solver->print_level > 0) {
     GCGE_Printf("=============================================================\n");
-    GCGE_Printf("initialize time       = %f seconds\n", solver->initialize_time);
-    GCGE_Printf("get initvec time      = %f seconds\n", solver->get_initvec_time);
-    GCGE_Printf("smooth time           = %f seconds\n", solver->smooth_time);
-    GCGE_Printf("build aux time        = %f seconds\n", solver->build_aux_time);
-    GCGE_Printf("prolong time          = %f seconds\n", solver->prolong_time);
-    GCGE_Printf("aux direct solve time = %f seconds\n", solver->aux_direct_solve_time);
-    GCGE_Printf("total solve time      = %f seconds\n", solver->total_solve_time);
-    GCGE_Printf("total time            = %f seconds\n", solver->total_time);
+    GCGE_Printf("initialize convert time = %f seconds\n", solver->initialize_convert_time);
+    GCGE_Printf("initialize amg time     = %f seconds\n", solver->initialize_amg_time);
+    GCGE_Printf("get initvec time        = %f seconds\n", solver->get_initvec_time);
+    GCGE_Printf("smooth time             = %f seconds\n", solver->smooth_time);
+    GCGE_Printf("build aux time          = %f seconds\n", solver->build_aux_time);
+    GCGE_Printf("prolong time            = %f seconds\n", solver->prolong_time);
+    GCGE_Printf("aux direct solve time   = %f seconds\n", solver->aux_direct_solve_time);
+    GCGE_Printf("total solve time        = %f seconds\n", solver->total_solve_time);
+    GCGE_Printf("total time              = %f seconds\n", solver->total_time);
     GCGE_Printf("=============================================================\n");
   }    
   return 0;

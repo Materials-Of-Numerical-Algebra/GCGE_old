@@ -129,7 +129,8 @@ typedef struct PASE_MG_SOLVER_PRIVATE_ {
   //打印level
   PASE_INT   print_level; 
   //统计时间
-  PASE_REAL  initialize_time;
+  PASE_REAL  initialize_convert_time;
+  PASE_REAL  initialize_amg_time;
   PASE_REAL  get_initvec_time;
   PASE_REAL  smooth_time;
   PASE_REAL  build_aux_time;

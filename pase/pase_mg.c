@@ -1,6 +1,8 @@
 #include "pase_mg.h"
 
-void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat);
+void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, 
+      HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat, 
+      PASE_REAL *convert_time, PASE_REAL *amg_time);
 /**
  * @brief 创建 PASE_MULTIGRID
  *
@@ -14,7 +16,8 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *nu
 PASE_INT 
 PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
         PASE_INT max_levels, PASE_INT mg_coarsest_level, 
-        void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops)
+        void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops, 
+	PASE_REAL *convert_time, PASE_REAL *amg_time)
 {
     /* P 是行多列少, P*v是从粗到细 */
     *multi_grid = (PASE_MULTIGRID)PASE_Malloc(sizeof(pase_MultiGrid));
@@ -32,11 +35,17 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     HYPRE_IJMatrix     hypre_ij_mat;
     HYPRE_ParCSRMatrix hypre_parcsr_mat;
     petsc_A = (Mat)A; petsc_B = (Mat)B;
+
+    clock_t start, end;
+    start = clock();
     MatrixConvertPETSC2HYPRE(&hypre_ij_mat, petsc_A);
+    end = clock();
+    *convert_time += ((double)(end-start))/CLK_TCK;
+
     HYPRE_IJMatrixGetObject(hypre_ij_mat, (void**) &hypre_parcsr_mat);
     /* Will malloc for A and P */
     //对输入的hypre格式的A矩阵进行AMG分层, 将得到的各层粗网格矩阵及prolong矩阵转化为petsc矩阵
-    GetMultigridMatFromHypreToPetsc(&A_array, &P_array, &((*multi_grid)->num_levels), hypre_parcsr_mat);
+    GetMultigridMatFromHypreToPetsc(&A_array, &P_array, &((*multi_grid)->num_levels), hypre_parcsr_mat, convert_time, amg_time);
     //将原来的最细层A矩阵指针给A_array
     A_array[0] = petsc_A;
     HYPRE_IJMatrixDestroy(hypre_ij_mat);
@@ -194,8 +203,12 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
 /* -------------------------- 利用AMG生成各个层的矩阵------------------ */
 //对输入的hypre矩阵进行AMG分层, 将得到的各层粗网格矩阵及prolong矩阵转化为petsc矩阵
 //不产生A0最细层petsc矩阵
-void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat)
+void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, 
+      HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat, 
+      PASE_REAL *convert_time, PASE_REAL *amg_time)
 {
+    clock_t start, end;
+    start = clock();
     /* Create solver */
     HYPRE_Solver      amg;
     HYPRE_BoomerAMGCreate(&amg);
@@ -234,10 +247,15 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *nu
         MatrixConvertHYPRE2PETSC((*A_array)+idx, hypre_mat[idx]);
     }
     hypre_mat = hypre_ParAMGDataPArray(amg_data);
+    end = clock();
+    *amg_time += ((double)(end-start))/CLK_TCK;
+    start = clock();
     for (idx = 0; idx < *num_levels-1; ++idx)
     {
         MatrixConvertHYPRE2PETSC((*P_array)+idx, hypre_mat[idx]);
     }
     HYPRE_BoomerAMGDestroy(amg);	
     hypre_ParVectorDestroy(hypre_par_vec);
+    end = clock();
+    *convert_time += ((double)(end-start))/CLK_TCK;
 }

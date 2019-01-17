@@ -42,7 +42,8 @@ typedef struct pase_MultiGrid_struct *PASE_MULTIGRID;
 PASE_INT 
 PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
         PASE_INT max_levels, PASE_INT mg_coarsest_level, 
-        void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops);
+        void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops, 
+	PASE_REAL *convert_time, PASE_REAL *amg_time);
 
 PASE_INT PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid);
 

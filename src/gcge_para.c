@@ -39,7 +39,8 @@ void GCGE_PARA_Create(GCGE_PARA **para)
     (*para)->orth_type       = "B"; //使用B正交
     (*para)->w_orth_type     = "multi"; //使用多重正交化方法
     (*para)->p_orth_type     = "multi"; //使用多重正交化方法
-    (*para)->x_orth_type     = "multi"; //使用多重正交化方法
+    (*para)->x_orth_type     = "bgs"; //使用普通的正交化方法，否则可能临时空间不足
+                                      //当block_size=nev时可以使用multi
     (*para)->conv_omega_norm = 0.0; //使用残差的Omega范数时，矩阵A的omega范数取多少
 
      //正交化参数

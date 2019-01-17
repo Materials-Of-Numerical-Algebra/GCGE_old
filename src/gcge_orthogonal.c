@@ -1841,41 +1841,44 @@ void GCGE_BlockOrthonormalizationInSubspace(GCGE_DOUBLE *V, GCGE_INT ldV,
 void GCGE_StableMultiOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
          void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
 {
-    GCGE_INT mv_s[2];
-    GCGE_INT mv_e[2];
-    //GCGE_Printf("in GCGE_StableMultiOrthonormalization\n");
+    if(start > 0)
+    {
+        GCGE_INT mv_s[2];
+        GCGE_INT mv_e[2];
+        //GCGE_Printf("in GCGE_StableMultiOrthonormalization\n");
+        
+        GCGE_DOUBLE value_inner = 1.0;
+        GCGE_DOUBLE norm_tmp = 0.0;
+        GCGE_DOUBLE *subspace_dtmp = workspace->subspace_dtmp;
+        void **V_tmp = workspace->V_tmp;
+        GCGE_INT iter = 0;
+        GCGE_INT i = 0;
+        GCGE_DOUBLE Orth_Tol = para->orth_para->scbgs_reorth_tol;
+        GCGE_INT max_reorth_time = para->orth_para->max_reorth_time;
+        mv_s[0] = 0;
+        mv_e[0] = start;
+        mv_s[1] = start;
+        mv_e[1] = *end;
 
-    GCGE_DOUBLE value_inner = 1.0;
-    GCGE_DOUBLE norm_tmp = 0.0;
-    GCGE_DOUBLE *subspace_dtmp = workspace->subspace_dtmp;
-    void **V_tmp = workspace->V_tmp;
-    GCGE_INT iter = 0;
-    GCGE_INT i = 0;
-    GCGE_DOUBLE Orth_Tol = para->orth_para->scbgs_reorth_tol;
-    GCGE_INT max_reorth_time = para->orth_para->max_reorth_time;
-    mv_s[0] = 0;
-    mv_e[0] = start;
-    mv_s[1] = start;
-    mv_e[1] = *end;
-
-    //先减去start之前的分量
-    while(value_inner > Orth_Tol)
-    {   
-        iter ++;      
-
-        GCGE_SubOrthonormalization(V, mv_s, mv_e, B, V_tmp, subspace_dtmp, ops);
-
-        value_inner = 0.0;
-        for(i=0;i<start*(*end - start);i++)
-        { 
-            norm_tmp = subspace_dtmp[i];
-            value_inner += norm_tmp*norm_tmp;
-        }
-        value_inner = sqrt(value_inner);
-        //GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
-        if(iter >= max_reorth_time)
-            break;
-    }//end while for value_inner
+        //先减去start之前的分量
+        while(value_inner > Orth_Tol)
+        {   
+            iter ++;      
+        
+            GCGE_SubOrthonormalization(V, mv_s, mv_e, B, V_tmp, subspace_dtmp, ops);
+        
+            value_inner = 0.0;
+            for(i=0;i<start*(*end - start);i++)
+            { 
+                norm_tmp = subspace_dtmp[i];
+                value_inner += norm_tmp*norm_tmp;
+            }
+            value_inner = sqrt(value_inner);
+            //GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
+            if(iter >= max_reorth_time)
+                break;
+        }//end while for value_inner
+    }
 
     //GCGE_Printf("in GCGE_StableMultiOrthonormalization, after GCGE_SubOrthonormalization\n");
     //然后start到end自身做正交化
@@ -2031,8 +2034,11 @@ void GCGE_MultiOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, void 
             }//end while for value_inner
 	    if(value_inner > Orth_Tol)
 	    {
-	       GCGE_Printf("in GCGE_SubOrthonormalization, V1: %d-%d, V2: %d-%d, reorth_count: %d, value_inner: %e\n", 
-		     start, mid-1, mid, *end, orth_para->max_reorth_time, value_inner);
+	        if(para->orth_para->print_orth_zero == 1)
+	        {
+	           GCGE_Printf("in GCGE_SubOrthonormalization, V1: %d-%d, V2: %d-%d, reorth_count: %d, value_inner: %e\n", 
+	                 start, mid-1, mid, *end, orth_para->max_reorth_time, value_inner);
+	        }
 	    }
 	}
         
