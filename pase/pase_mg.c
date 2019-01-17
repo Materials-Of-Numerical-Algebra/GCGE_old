@@ -242,8 +242,10 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array,
     hypre_ParCSRMatrix **hypre_mat;
     HYPRE_Int idx;
     hypre_mat = hypre_ParAMGDataAArray(amg_data);
+    GCGE_Printf("idx_level    global_num_rows\n");
     for (idx = 1; idx < *num_levels; ++idx)
     {
+        GCGE_Printf("  %3d       %10d\n", idx, hypre_mat[idx]->global_num_rows);
         MatrixConvertHYPRE2PETSC((*A_array)+idx, hypre_mat[idx]);
     }
     hypre_mat = hypre_ParAMGDataPArray(amg_data);

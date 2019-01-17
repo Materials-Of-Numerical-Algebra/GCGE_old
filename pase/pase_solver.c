@@ -564,8 +564,11 @@ PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT current_level,
       PASE_INT *idx_cycle, PASE_REAL cycle_time)
 {
   //如果不是最细层，直接返回
-  if(current_level > solver->finest_level)
+  if(current_level > solver->finest_level) {
+    GCGE_Printf("current_level: %d, idx_cycle = %d, aux_coarse_level: %d, cycle_time: %f\n", 
+	  current_level, idx_cycle+1, solver->aux_coarse_level, cycle_time);
     return 0;
+  }
   //如果是最细层，先检查收敛性
   PASE_Mg_error_estimate(solver, current_level, *idx_cycle, cycle_time);
   if(solver->check_efficiency_flag == 1) {
