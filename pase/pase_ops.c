@@ -590,7 +590,7 @@ void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a,
     MPI_Type_free(&SUBMATRIX);
 #endif
     //计算 a += y_aux_h_tmp
-    ops->gcge_ops->ArrayAXPBY(1.0, a_tmp, 1.0, a, ncols*lda);
+    ops->gcge_ops->ArrayAXPBY(1.0, a_tmp, 1.0, a, (ncols-1)*lda+nrows);
     //if(lda*(end[1]-start[1]) > num_aux_vec*num_aux_vec) {
     free(a_tmp); a_tmp = NULL;
     //}
