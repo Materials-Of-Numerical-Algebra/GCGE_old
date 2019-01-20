@@ -64,6 +64,7 @@ void GCGE_PARA_Create(GCGE_PARA **para)
      //cg type: 1: 普通的形式, 2: 并行计算的形式(向量内积计算放在一起计算)
     (*para)->cg_type         = 1; 
     (*para)->if_use_bcg      = 1; //默认使用BCG
+    (*para)->use_bcg_continuous = 0; //默认不使用要求连续收敛的BCG
 
     (*para)->num_iter        = 0; //output, old:-2
     (*para)->num_unlock      = 0; //output
@@ -243,6 +244,11 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
         {
             arg_index++;
             para->if_use_bcg = atoi(argv[arg_index++]);
+        }
+        else if(0 == strcmp(argv[arg_index], "-gcge_use_bcg_continuous")) 
+        {
+            arg_index++;
+            para->use_bcg_continuous = atoi(argv[arg_index++]);
         }
         else if(0 == strcmp(argv[arg_index], "-gcge_cg_max_it")) 
         {
@@ -662,6 +668,7 @@ void GCGE_PrintParaInfo(GCGE_PARA *para)
        GCGE_Printf("  print_orth_zero            : %8d, (print the zero index in orthogonal or not)\n", para->orth_para->print_orth_zero);
        GCGE_Printf("  if_use_cg                  : %8d, (use the internal cg or not)\n", para->if_use_cg      );
        GCGE_Printf("  if_use_bcg                 : %8d, (use the block cg or normal cg)\n", para->if_use_bcg      );
+       GCGE_Printf("  use_bcg_continuous         : %8d, (use the continuous converged block cg or not)\n", para->use_bcg_continuous);
        GCGE_Printf("  cg_max_it                  : %8d, (maximun numbers of cg iterations)\n", para->cg_max_it      );
        GCGE_Printf("  print_cg_error             : %8d, (print residual error in cg or not)\n", para->print_cg_error );
        GCGE_Printf("  print_eval                 : %8d, (print eigenvalue in each iteration or not)\n", para->print_eval     );

@@ -207,9 +207,18 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
 	    mv_e[3] = w_length;
 	    mv_s[4] = 0;
 	    mv_e[4] = w_length;
-            GCGE_BCG(A, V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
-		 ops, workspace->CG_p, workspace->evec, NULL, 
-                 workspace->subspace_dtmp, workspace->subspace_itmp);
+	    if(para->use_bcg_continuous)
+	    {
+                GCGE_BCG_Continuous(A, V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
+		    ops, workspace->CG_p, workspace->evec, NULL, 
+                    workspace->subspace_dtmp, workspace->subspace_itmp);
+	    }
+	    else
+	    {
+                GCGE_BCG(A, V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
+		    ops, workspace->CG_p, workspace->evec, NULL, 
+                    workspace->subspace_dtmp, workspace->subspace_itmp);
+	    }
         }
         else
         {

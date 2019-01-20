@@ -70,6 +70,7 @@ typedef struct GCGE_PARA_ {
     GCGE_DOUBLE cg_rate;            //终止CG迭代残差下降比例
     GCGE_INT    cg_type;			//CG迭代的类型: 1: 普通的形式, 2: 并行计算的形式(向量内积计算放在一起计算)
     GCGE_INT    if_use_bcg;			//是否使用BCG: 1: BCG, 2: CG
+    GCGE_INT    use_bcg_continuous; //是否使用要求连续收敛的BCG
 
     //GCGE迭代次数,因为统计的是[X,P,W]都参与计算的迭代次数，所以从-1开始
     GCGE_INT    num_iter;           //初始化为-2
