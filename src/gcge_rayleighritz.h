@@ -44,4 +44,5 @@ void GCGE_ComputeSubspaceEigenpairs(GCGE_DOUBLE *subspace_matrix,
 //对特征值和特征向量进行排序
 void GCGE_SortEigenpairs(GCGE_DOUBLE *eval, GCGE_DOUBLE *evec, GCGE_INT nev, GCGE_INT ldv, GCGE_DOUBLE *work);
 GCGE_DOUBLE GCGE_ModuleMaxDouble(GCGE_DOUBLE *a, GCGE_INT n);
+void GCGE_SortByMagnitude(GCGE_DOUBLE *a, GCGE_INT *idx, GCGE_INT left, GCGE_INT right);
 #endif

@@ -605,3 +605,11 @@ TODO
    1. src/parcsr_ls/par_amg_setup.c
    2. src/parcsr_mv/par_csr_matvec.c
    3. src/parcsr_mv/par_csr_communication.h
+
+2019.01.21 zhangning
+添加了求解模最小特征值的功能
+1. gcge_para.c.h中添加了eval_type参数，如果是sa则求值最小，sm则求模最小
+2. 修改了gcge_rayleighritz.c.h以处理模最小的情况
+3. 修改了gcge_workspace.c中subspace_evec的空间大小以适应模最小的情况
+4. 修改了test_slepc_solver.c，添加了位移的处理方法
+5. 修改了gcge_app_slepc.c添加了minres的配置方法

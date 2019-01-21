@@ -35,6 +35,7 @@ void GCGE_PARA_Create(GCGE_PARA **para)
     (*para)->num_init_evec   = 0;
     (*para)->ev_tol          = 1e-8;
 
+    (*para)->eval_type       = "sa"; //求值最小的nev个特征值
     (*para)->conv_type       = "R"; //使用相对残差判断收敛性
     (*para)->orth_type       = "B"; //使用B正交
     (*para)->w_orth_type     = "multi"; //使用多重正交化方法
@@ -75,6 +76,7 @@ void GCGE_PARA_Create(GCGE_PARA **para)
     (*para)->print_eval      = 0;
     //(*para)->print_matlab    = 0;
     (*para)->print_part_time = 0;
+    (*para)->print_final_part_time = 1;
     (*para)->print_para      = 1;
     (*para)->print_result    = 1;
     (*para)->print_conv      = 1;
@@ -169,6 +171,11 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
         {
             arg_index++;
             para->conv_type = argv[arg_index++];
+        }
+        else if(0 == strcmp(argv[arg_index], "-gcge_eval_type")) 
+        {
+            arg_index++;
+            para->eval_type = argv[arg_index++];
         }
         else if(0 == strcmp(argv[arg_index], "-gcge_conv_omega_norm")) 
         {
@@ -275,6 +282,11 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
             arg_index++;
             para->print_part_time = atoi(argv[arg_index++]);
         }
+        else if(0 == strcmp(argv[arg_index], "-gcge_print_final_part_time")) 
+        {
+            arg_index++;
+            para->print_final_part_time = atoi(argv[arg_index++]);
+        }
         else if(0 == strcmp(argv[arg_index], "-gcge_print_para")) 
         {
             arg_index++;
@@ -346,6 +358,7 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
        GCGE_Printf("  -gcge_print_cg_error     <i>: print residual error in cg or not             (default: 0[1])\n");
        GCGE_Printf("  -gcge_print_eval         <i>: print eigenvalue in each iteration or not     (default: 1[0])\n");
        GCGE_Printf("  -gcge_print_part_time    <i>: print time of each part in gcg or not         (default: 0[1])\n");
+       GCGE_Printf("  -gcge_print_final_part_time <i>: print total time of each part in gcg or not(default: 1[0])\n");
        GCGE_Printf("  -gcge_print_para         <i>: print the parameters not                      (default: 1[0])\n");
        GCGE_Printf("  -gcge_print_conv         <i>: print the parameters not                      (default: 1[0])\n");
        GCGE_Printf("  -gcge_print_result       <i>: print the final result or not                 (default: 1[0])\n");
@@ -387,6 +400,13 @@ void GCGE_PARA_Setup(GCGE_PARA *para)
     else if(para->block_size > nev)
     {
         para->block_size = nev;
+    }
+    if(strcmp(para->x_orth_type, "multi") == 0)
+    {
+        if(para->block_size < para->nev)
+	{
+	    para->x_orth_type = "gs";
+	}
     }
     if(para->orth_para->x_orth_block_size == 0)
     {
@@ -589,7 +609,7 @@ void GCGE_PrintFinalInfo(GCGE_DOUBLE *eval, GCGE_PARA *para)
                     para->num_unlock);
         }
     }
-    if(para->print_part_time == 1)
+    if(para->print_final_part_time == 1)
     {
         GCGE_INT num_process = 1;
 #if GCGE_USE_MPI
@@ -673,6 +693,7 @@ void GCGE_PrintParaInfo(GCGE_PARA *para)
        GCGE_Printf("  print_cg_error             : %8d, (print residual error in cg or not)\n", para->print_cg_error );
        GCGE_Printf("  print_eval                 : %8d, (print eigenvalue in each iteration or not)\n", para->print_eval     );
        GCGE_Printf("  print_part_time            : %8d, (print time of each part in gcg or not)\n", para->print_part_time);
+       GCGE_Printf("  print_final_part_time      : %8d, (print time of each part in gcg or not)\n", para->print_final_part_time);
        GCGE_Printf("  print_para                 : %8d, (print the parameters not)\n", para->print_para     );
        GCGE_Printf("  print_conv                 : %8d, (print the converge information or not)\n", para->print_conv     );
        GCGE_Printf("  print_result               : %8d, (print the final result or not)\n", para->print_result   );
@@ -684,6 +705,7 @@ void GCGE_PrintParaInfo(GCGE_PARA *para)
        GCGE_Printf("  w_orth_block_size          : %8d, (number of vectors orthogonalized in one patch)\n", para->orth_para->w_orth_block_size     );
        GCGE_Printf("  max_direct_orth_length     : %8d, (maximum length of direct orthogonal in multi orthogonal)\n", para->orth_para->max_direct_orth_length);
        GCGE_Printf("  conv_type                  : %8s, (use reletive or abosolute residual)\n", para->conv_type      );
+       GCGE_Printf("  eval_type                  : %8s, (compute the smallest eigenvalues by algebraic or magnitude)\n", para->eval_type      );
        GCGE_Printf("  conv_omega_norm            : %f, (the omega norm of matrix A)\n", para->conv_omega_norm);
        GCGE_Printf("  ev_tol                     : %3.2e, (convergence tolerance)\n", para->ev_tol         );
        GCGE_Printf("  orth_zero_tol              : %3.2e, (zero tolerance in orthogonal)\n", para->orth_para->orth_zero_tol  );

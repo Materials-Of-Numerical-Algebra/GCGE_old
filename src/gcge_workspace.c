@@ -96,7 +96,7 @@ void GCGE_WORKSPACE_Setup(GCGE_WORKSPACE *workspace, GCGE_PARA *para, GCGE_OPS *
     //+(lwork1>lwork2)?lwork1:lwork2, sizeof(GCGE_DOUBLE));
     workspace->subspace_itmp = (GCGE_INT*)calloc(100*max_dim_xpw, sizeof(GCGE_INT));
     //存储子空间矩阵的特征向量
-    workspace->subspace_evec = (GCGE_DOUBLE*)calloc(max_dim_xpw*max_dim_xpw, sizeof(GCGE_DOUBLE));
+    workspace->subspace_evec = (GCGE_DOUBLE*)calloc((max_dim_xpw+1)*max_dim_xpw, sizeof(GCGE_DOUBLE));
     //用于存储子空间矩阵
     workspace->subspace_matrix = (GCGE_DOUBLE*)calloc(max_dim_xpw*max_dim_xpw, sizeof(GCGE_DOUBLE));
 

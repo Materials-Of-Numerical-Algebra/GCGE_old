@@ -45,13 +45,15 @@ void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
     ierr = KSPSetType(*ksp, KSPCG);
     //这里的rtol应取作<=ev_tol
     //PetscErrorCode  KSPSetTolerances(KSP ksp,PetscReal rtol,PetscReal abstol,PetscReal dtol,PetscInt maxits)
-    ierr = KSPSetTolerances(*ksp, 1e-12, PETSC_DEFAULT, PETSC_DEFAULT, 1000);
+    ierr = KSPSetTolerances(*ksp, 1e-25, PETSC_DEFAULT, PETSC_DEFAULT, 15);
     PC pc;
-    ierr = KSPGetPC(*ksp, &pc);
-    ierr = PCSetType(pc, PCHYPRE);
-    ierr = PCHYPRESetType(pc, "boomeramg");
+    //ierr = KSPGetPC(*ksp, &pc);
+    //ierr = PCSetType(pc, PCHYPRE);
+    //ierr = PCHYPRESetType(pc, "boomeramg");
     //最后从命令行设置参数
     ierr = KSPSetFromOptions(*ksp);
+    //PetscViewer viewer;
+    ierr = KSPView(*ksp, PETSC_VIEWER_STDOUT_WORLD);
 }
 
 void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value)

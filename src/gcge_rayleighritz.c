@@ -394,6 +394,11 @@ void GCGE_ComputeSubspaceEigenpairs(GCGE_DOUBLE *subspace_matrix,
     workspace->num_soft_locked_in_last_iter = rr_eigen_start;
     //rr_eigen_start = 0;
     GCGE_INT    iu = (max_dim_x < ldm) ? max_dim_x : ldm;
+    if(strcmp(para->eval_type, "sm") == 0)
+    {
+        //如果要求的是模最小的特征值，那么要求到最大的一个特征值
+	iu = ldm;
+    }
     GCGE_INT    m = iu-il+1;
     GCGE_INT    lwork = 8*ldm;
     GCGE_INT    liwork = 5*ldm;
@@ -544,9 +549,9 @@ void GCGE_ComputeSubspaceEigenpairs(GCGE_DOUBLE *subspace_matrix,
         //此时, 如果使用 MPI 且要用 MPI_Bcast, 那么 非0号 进程 rank != 0, 
         //此时 0号 进程 rank==0, 如果 不用MPI_Bcast 也是 rank != 0
         //那么, 如果 rank==0, 就计算特征值问题, 否则不用计算, 等待广播
+        nrows -= rr_eigen_start;
         if(rank == 0)
         {
-            nrows -= rr_eigen_start;
             il -= rr_eigen_start;
             iu -= rr_eigen_start;
             ops->DenseMatEigenSolver( temp_matrix+rr_eigen_start*ncols+rr_eigen_start, 
@@ -559,12 +564,33 @@ void GCGE_ComputeSubspaceEigenpairs(GCGE_DOUBLE *subspace_matrix,
         {
 #if GCGE_USE_MPI
             memcpy(subspace_evec+iu*ldm, eval+rr_eigen_start, m*sizeof(GCGE_DOUBLE));
-            //GCGE_Printf("use MPI_Bcast\n");
             MPI_Bcast(subspace_evec+rr_eigen_start*ldm, m*ldm+m, MPI_DOUBLE, 
                     0, MPI_COMM_WORLD);
             memcpy(eval+rr_eigen_start, subspace_evec+iu*ldm, m*sizeof(GCGE_DOUBLE));
 #endif
         }
+    }
+    if(strcmp(para->eval_type, "sm") == 0)
+    {
+        //如果要求的是模最小的特征值，求解所有特征对后, 
+	//将模最小的(总的)rr_eigen_start到dim_x个特征对排到前面
+	//首先将eval(rr_eigen_start:ldm-1)中模最小的(max_dim_x-rr_eigen_start)个取出相应的编号
+	//将这部分eval进行按模从小到大排序, 并将对应的编号存入subspace_itmp
+	//然后将模最小的特征值对应的特征向量取出来放到dwork_space, 再统一拷贝回给subspace_evec
+        GCGE_INT     eval_length = ((max_dim_x < ldm) ? max_dim_x : ldm) - rr_eigen_start;
+	GCGE_DOUBLE *evec_start = subspace_evec+rr_eigen_start*ldm+rr_eigen_start;
+
+	for(i=0; i<nrows; i++)
+	{
+	    subspace_itmp[i] = i;
+	}
+	GCGE_SortByMagnitude(eval+rr_eigen_start, subspace_itmp, 0, nrows-1);
+	//实际取出来的evec是一个方阵, eval的个数也是这么多
+	for(i=0; i<eval_length; i++)
+	{
+	    memcpy(temp_matrix+i*ldm, evec_start+subspace_itmp[i]*ldm, nrows*sizeof(GCGE_DOUBLE));
+	}
+	memcpy(evec_start, temp_matrix, ((eval_length-1)*ldm+nrows)*sizeof(GCGE_DOUBLE));
     }
 #if GET_PART_TIME
     GCGE_DOUBLE t2 = GCGE_GetTime();
@@ -585,6 +611,43 @@ void GCGE_ComputeSubspaceEigenpairs(GCGE_DOUBLE *subspace_matrix,
 #endif
 }
 #endif
+
+//将这部分a进行按模从小到大排序, 并将对应的编号存入idx
+//即按a的大小也对int型的idx进行排序
+void GCGE_SortByMagnitude(GCGE_DOUBLE *a, GCGE_INT *idx, GCGE_INT left, GCGE_INT right)
+{
+    GCGE_INT i = left; 
+    GCGE_INT j = right;
+    GCGE_INT    idx_temp = idx[left];
+    GCGE_DOUBLE temp   = a[left];
+    GCGE_DOUBLE m_temp = fabs(a[left]);
+    if(left > right)
+        return;
+    while(i != j)
+    {
+        //如果模有这样的大小关系，就交换值
+        while((fabs(a[j]) >= m_temp)&&(j > i))
+            j--;
+        if(j > i)
+	{
+	    idx[i] = idx[j];
+            a[i++] = a[j];
+	}
+        while((fabs(a[i]) <= m_temp)&&(j > i))
+            i++;
+        if(j > i)
+	{
+	    idx[j] = idx[i];
+            a[j--] = a[i];
+	}
+    }
+    a[i] = temp;
+    idx[i] = idx_temp;
+    GCGE_SortByMagnitude(a, idx, left, i-1);
+    GCGE_SortByMagnitude(a, idx, i+1, right);
+    return;
+}
+
 
 //用A内积的话，特征值从小到大，就是原问题特征值倒数的从小到大，
 //所以顺序反向，同时特征值取倒数

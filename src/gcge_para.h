@@ -53,6 +53,7 @@ typedef struct GCGE_PARA_ {
     GCGE_DOUBLE conv_omega_norm;   //判定收敛时, 如果使用Omega范数, 那么Omega范数取多少
     GCGE_INT    num_unlock;        //nunlock表示未锁定的特征对个数(0<=nunlock<=nev)
     //GCGE_INT    unconv_bs;       //本次迭代中需要计算 P W 的个数
+    char*       eval_type;         //要求解特征值的类型, "sa"表示代数最小，"sm"表示按模最小, 默认是"sa"
 
      //正交化用到的参数
     char*       orth_type;          //确定是用Ａ正交还是Ｂ正交,A : A_ORTH, B : B_ORTH
@@ -92,6 +93,7 @@ typedef struct GCGE_PARA_ {
     GCGE_INT    print_result;       //是否打印最终结果以及每次迭代的收敛个数等
     GCGE_INT    print_matlab;       //如果要用matlab画图，那么就不要打印converged这些
     GCGE_INT    print_part_time;    //是否打印各部分的时间
+    GCGE_INT    print_final_part_time;//是否打印整个程序运行中各部分的时间
     GCGE_INT    print_level;        //用打印层级来控制打印多少东西
     GCGE_INT    print_conv;         //是否打印收敛信息
 
