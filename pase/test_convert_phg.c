@@ -22,10 +22,12 @@
 #include <math.h>
 #include <time.h>
 
-#include "gcge.h"
-#include "gcge_app_phg.h"
 
 #include "phg.h"
+#include "HYPRE.h"
+#include "HYPRE_IJ_mv.h"
+#include "_hypre_parcsr_mv.h"
+
 
 #if (PHG_VERSION_MAJOR <= 0 && PHG_VERSION_MINOR < 9)
 # undef ELEMENT
@@ -92,7 +94,7 @@ main(int argc, char *argv[])
     static INT mem_max = 3000;
     size_t mem, mem_peak;
     int i, j, k, n, nit;
-    INT pre_refines = 2;
+    INT pre_refines = 1;
     GRID *g;
     DOF *u_h;
     MAP *map;
@@ -151,22 +153,22 @@ main(int argc, char *argv[])
 	  A->rmap->nglobal, phgGetTime(NULL) - wtime);
     wtime = phgGetTime(NULL);
 
-
-#if 1
-
-    //PetscInitialize(&argc,&argv,(char*)0,help);
-    //PetscFinalize();
+#if 0
+    PHG这样转PETSC有问题, 首先PHG会重定义一些PETSC定义的东西
     Mat *petsc_mat;
     PetscViewer viewer;
-
     MatrixConvertPHG2PETSC(petsc_mat, A);
     MatView(*petsc_mat, viewer);
-
 #else
-    HYPRE_IJMatrix *hypre_ij_mat;
+    HYPRE_IJMatrix hypre_ij_mat;
 
-    MatrixConvertPHG2HYPRE(hypre_ij_mat, A);
+    MatrixConvertPHG2HYPRE(&hypre_ij_mat, A);
 
+    int row_start, row_end, col_start, col_end, rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,  &rank);
+    HYPRE_IJMatrixGetLocalRange(hypre_ij_mat,  &row_start,  &row_end,  &col_start,  &col_end);
+    printf ( "hypre,  %d: row_start = %d,  row_end = %d\n",  rank,  row_start,  row_end );
+    printf ( "hypre,  %d: col_start = %d,  col_end = %d\n",  rank,  col_start,  col_end );
 #endif
 
     phgMatDestroy(&B);

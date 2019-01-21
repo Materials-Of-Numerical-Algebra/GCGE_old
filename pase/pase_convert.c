@@ -110,9 +110,9 @@ void MatrixConvertPETSC2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, Mat petsc_mat)
  */
 void MatrixConvertPHG2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, MAT *phg_mat)
 {
+   const MAT_ROW *row;
    MAP *map = phg_mat->rmap;
    int idx, j;
-
    HYPRE_IJMatrixCreate(map->comm,  
 	 map->partition[map->rank], 
 	 map->partition[map->rank + 1] - 1, 
@@ -122,7 +122,6 @@ void MatrixConvertPHG2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, MAT *phg_mat)
    HYPRE_IJMatrixSetObjectType(*hypre_ij_mat,  HYPRE_PARCSR);
    HYPRE_IJMatrixInitialize(*hypre_ij_mat);
 
-   int idx, j;
    /* Put row j of phg mat into ij_mat of hypre */
    j = map->partition[map->rank];
    for (idx = 0; idx < map->nlocal; idx++,  j++) 
@@ -149,10 +148,12 @@ void MatrixConvertPHG2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, MAT *phg_mat)
       phgMatFreeMatrix(phg_mat);
 }
 
+/* 进行测试时, 总有问题, MPI的函数被PHG重新定义 */
 void MatrixConvertPHG2PETSC(Mat *petsc_mat, MAT *phg_mat)
 {
-
+   const MAT_ROW *row;
    MAP *map = phg_mat->rmap;
+   int idx, j;
 
    MatCreate(map->comm, petsc_mat);
    MatSetSizes(*petsc_mat, 
@@ -162,7 +163,6 @@ void MatrixConvertPHG2PETSC(Mat *petsc_mat, MAT *phg_mat)
    MatSetType(*petsc_mat, MATAIJ);
    MatSetUp(*petsc_mat);
 
-   int idx, j;
    /* Put row j of phg mat into Mat of petsc */
    j = map->partition[map->rank];
    for (idx = 0; idx < map->nlocal; idx++,  j++) 

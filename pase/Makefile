@@ -11,7 +11,7 @@ HEADERS = pase_convert.h gcge_app_pase.h pase_solver.h pase_config.h \
           pase_amg.h
 OBJS    = ${FILES:.c=.o}
 
-INC     = -I$(GCGEINC) -I$(SLEPCINC) -I$(HYPREINC) -I$(PETSCINC)
+INC     = -I$(GCGEINC) -I$(SLEPCINC) -I$(HYPREINC) -I$(PETSCINC) -I$(PHGINC)
 LIB     = $(LIBPASE)
 
 ########################################################################
@@ -59,6 +59,10 @@ $(OBJS): $(HEADERS)
 test:
 	$(CC)  $(CFLAGS) -c ./test_convert.c -o ./test_convert.o $(INC)
 	$(CLINKER)  $(LDFLAGS)  -o ./test_convert.exe ./test_convert.o $(LIBPASE) $(LIBPETSC) $(LIBHYPRE) 
+
+test_phg:
+	$(CC)  $(CFLAGS) -c ./test_convert_phg.c -o ./test_convert_phg.o $(INC)
+	$(CLINKER)  $(LDFLAGS)  -o ./test_convert_phg.exe ./test_convert_phg.o $(LIBPASE) $(LIBPHG) $(LIBPETSC) $(LIBHYPRE) 
 
 test_mg:
 	@$(CC)  $(CFLAGS) -c ./test_mg.c -o ./test_mg.o $(INC)
