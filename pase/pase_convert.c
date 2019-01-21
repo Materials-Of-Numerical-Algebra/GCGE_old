@@ -54,8 +54,8 @@ void MatrixConvertHYPRE2PETSC(Mat *petsc_mat, HYPRE_ParCSRMatrix hypre_mat)
    MatAssemblyBegin(*petsc_mat, MAT_FINAL_ASSEMBLY);
    MatAssemblyEnd(*petsc_mat, MAT_FINAL_ASSEMBLY);
 
-   MatGetOwnershipRange(*petsc_mat, &row_start, &row_end);
-   MatGetOwnershipRangeColumn(*petsc_mat, &col_start, &col_end);
+//   MatGetOwnershipRange(*petsc_mat, &row_start, &row_end);
+//   MatGetOwnershipRangeColumn(*petsc_mat, &col_start, &col_end);
 //   printf ( "petsc, %d: row_start = %d, row_end = %d\n", rank, row_start, row_end );
 //   printf ( "petsc, %d: col_start = %d, col_end = %d\n", rank, col_start, col_end );
 }
@@ -125,7 +125,7 @@ void MatrixConvertPHG2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, MAT *phg_mat)
    int idx, j;
    /* Put row j of phg mat into ij_mat of hypre */
    j = map->partition[map->rank];
-   for (idx = 0; idx < phg_mat->rmap->nlocal; idx++,  j++) 
+   for (idx = 0; idx < map->nlocal; idx++,  j++) 
    {
       row = phgMatGetRow(phg_mat,  idx);
       if (row->ncols <= 0)
@@ -144,6 +144,47 @@ void MatrixConvertPHG2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, MAT *phg_mat)
       }
    }
    HYPRE_IJMatrixAssemble(*hypre_ij_mat);
+
+   if (phg_mat->refcount == 0)
+      phgMatFreeMatrix(phg_mat);
+}
+
+void MatrixConvertPHG2PETSC(Mat *petsc_mat, MAT *phg_mat)
+{
+
+   MAP *map = phg_mat->rmap;
+
+   MatCreate(map->comm, petsc_mat);
+   MatSetSizes(*petsc_mat, 
+	 map->partition[map->rank+1] - map->partition[map->rank+1], 
+	 map->partition[map->rank+1] - map->partition[map->rank+1], 
+	 map->nglobal, map->nglobal);
+   MatSetType(*petsc_mat, MATAIJ);
+   MatSetUp(*petsc_mat);
+
+   int idx, j;
+   /* Put row j of phg mat into Mat of petsc */
+   j = map->partition[map->rank];
+   for (idx = 0; idx < map->nlocal; idx++,  j++) 
+   {
+      row = phgMatGetRow(phg_mat,  idx);
+      if (row->ncols <= 0)
+	 phgError(1,  "%s: matrix row %d is empty!\n",  __func__,  idx);
+
+      MatSetValues(*petsc_mat, 1, &j, row->ncols, row->cols, row->data, INSERT_VALUES); 
+
+      if (phg_mat->refcount == 0 && phg_mat->rows != NULL) 
+      {
+	 /*  free PHG matrix row */
+	 phgFree(phg_mat->rows[idx].cols);
+	 phgFree(phg_mat->rows[idx].data);
+	 phg_mat->rows[idx].cols = NULL;
+	 phg_mat->rows[idx].data = NULL;
+	 phg_mat->rows[idx].ncols = phg_mat->rows[idx].alloc = 0;
+      }
+   }
+   MatAssemblyBegin(*petsc_mat, MAT_FINAL_ASSEMBLY);
+   MatAssemblyEnd(*petsc_mat, MAT_FINAL_ASSEMBLY);
 
    if (phg_mat->refcount == 0)
       phgMatFreeMatrix(phg_mat);
