@@ -61,7 +61,7 @@ void MatrixConvertHYPRE2PETSC(Mat *petsc_mat, HYPRE_ParCSRMatrix hypre_mat)
 }
 
 /**
- * @brief HYPRE HYPRE_IJMatrix convert to PETSC Mat
+ * @brief PETSC Mat convert to HYPRE HYPRE_IJMatrix 
  *
  * @param hypre_ij_mat
  * @param petsc_mat
@@ -95,7 +95,56 @@ void MatrixConvertPETSC2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, Mat petsc_mat)
    }
    HYPRE_IJMatrixAssemble(*hypre_ij_mat);
 
-   HYPRE_IJMatrixGetLocalRange(*hypre_ij_mat, &row_start, &row_end, &col_start, &col_end);
+//   HYPRE_IJMatrixGetLocalRange(*hypre_ij_mat, &row_start, &row_end, &col_start, &col_end);
 //   printf ( "hypre, %d: row_start = %d, row_end = %d\n", rank, row_start, row_end );
 //   printf ( "hypre, %d: col_start = %d, col_end = %d\n", rank, col_start, col_end );
+}
+
+/**
+ * @brief PHG MAT convert to HYPRE HYPRE_IJMatrix 
+ * 
+ * and Destroy PHG MAT, is it necessary ?
+ *
+ * @param hypre_ij_mat
+ * @param phg_mat
+ */
+void MatrixConvertPHG2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, MAT *phg_mat)
+{
+   MAP *map = phg_mat->rmap;
+   int idx, j;
+
+   HYPRE_IJMatrixCreate(map->comm,  
+	 map->partition[map->rank], 
+	 map->partition[map->rank + 1] - 1, 
+	 map->partition[map->rank], 
+	 map->partition[map->rank + 1] - 1, 
+	 hypre_ij_mat); 
+   HYPRE_IJMatrixSetObjectType(*hypre_ij_mat,  HYPRE_PARCSR);
+   HYPRE_IJMatrixInitialize(*hypre_ij_mat);
+
+   int idx, j;
+   /* Put row j of phg mat into ij_mat of hypre */
+   j = map->partition[map->rank];
+   for (idx = 0; idx < phg_mat->rmap->nlocal; idx++,  j++) 
+   {
+      row = phgMatGetRow(phg_mat,  idx);
+      if (row->ncols <= 0)
+	 phgError(1,  "%s: matrix row %d is empty!\n",  __func__,  idx);
+
+      HYPRE_IJMatrixSetValues(*hypre_ij_mat, 1, &row->ncols, &j, row->cols, row->data);
+
+      if (phg_mat->refcount == 0 && phg_mat->rows != NULL) 
+      {
+	 /*  free PHG matrix row */
+	 phgFree(phg_mat->rows[idx].cols);
+	 phgFree(phg_mat->rows[idx].data);
+	 phg_mat->rows[idx].cols = NULL;
+	 phg_mat->rows[idx].data = NULL;
+	 phg_mat->rows[idx].ncols = phg_mat->rows[idx].alloc = 0;
+      }
+   }
+   HYPRE_IJMatrixAssemble(*hypre_ij_mat);
+
+   if (phg_mat->refcount == 0)
+      phgMatFreeMatrix(phg_mat);
 }
