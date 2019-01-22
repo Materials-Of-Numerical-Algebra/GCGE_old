@@ -40,7 +40,7 @@
 
 
 void SLEPC_ReadMatrixBinary(Mat *A, const char *filename);
-void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T);
+void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T, char *eval_type);
 void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value);
 
 void GCGE_SLEPC_SetOps(GCGE_OPS *ops);

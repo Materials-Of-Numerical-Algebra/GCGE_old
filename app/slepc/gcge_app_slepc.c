@@ -35,14 +35,21 @@ void SLEPC_ReadMatrixBinary(Mat *A, const char *filename)
     ierr = PetscPrintf(PETSC_COMM_WORLD, "Getting matrix... Done\n");
 }
 
-void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
+void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T, char *eval_type)
 {
     PetscErrorCode ierr;
     ierr = KSPCreate(PETSC_COMM_WORLD,ksp);
     ierr = KSPSetOperators(*ksp,A,T);
     ierr = KSPSetInitialGuessNonzero(*ksp, 1);
 
-    ierr = KSPSetType(*ksp, KSPCG);
+    if(eval_type == "sm")
+    {
+        ierr = KSPSetType(*ksp, KSPMINRES);
+    }
+    else
+    {
+        ierr = KSPSetType(*ksp, KSPCG);
+    }
     //这里的rtol应取作<=ev_tol
     //PetscErrorCode  KSPSetTolerances(KSP ksp,PetscReal rtol,PetscReal abstol,PetscReal dtol,PetscInt maxits)
     ierr = KSPSetTolerances(*ksp, 1e-25, PETSC_DEFAULT, PETSC_DEFAULT, 15);
@@ -458,7 +465,7 @@ GCGE_SOLVER* GCGE_SLEPC_Solver_Init_KSPDefault(Mat A, Mat B, Mat P, int num_eige
     GCGE_SOLVER *slepc_solver = GCGE_SLEPC_Solver_Init(A, B, num_eigenvalues, argc, argv);
     KSP ksp;
     //使用矩阵A和预条件矩阵P创建ksp,ksp的参数均为默认参数,要修改ksp参数只能用命令行参数进行设置
-    SLEPC_LinearSolverCreate(&ksp, (Mat)A, (Mat)P);
+    SLEPC_LinearSolverCreate(&ksp, (Mat)A, (Mat)P, slepc_solver->para->eval_type);
     //把ksp作为ops->linear_solver_workspace
     GCGE_SOLVER_SetOpsLinearSolverWorkspace(slepc_solver, (void*)ksp);
     //将线性解法器设为KSPSolve
