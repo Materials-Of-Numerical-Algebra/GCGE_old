@@ -613,3 +613,7 @@ TODO
 3. 修改了gcge_workspace.c中subspace_evec的空间大小以适应模最小的情况
 4. 修改了test_slepc_solver.c，添加了位移的处理方法
 5. 修改了gcge_app_slepc.c添加了minres的配置方法
+
+2019.01.27 zhangning
+pase_solver中添加了对aux_sol的排序，并将cg_double_tmp大小修改为max_nev*max_nev
+1. 修改了pase_solver.c pase_solver.h

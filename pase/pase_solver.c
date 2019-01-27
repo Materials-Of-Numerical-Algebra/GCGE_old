@@ -327,7 +327,7 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
 
   //--------------------------------------------------------------------
   //double_tmp在BCG中是6倍的空间, 用于存储BCG中的各种内积残差等
-  solver->cg_double_tmp = (PASE_REAL*)malloc(6* step_size* sizeof(PASE_REAL));
+  solver->cg_double_tmp = (PASE_REAL*)malloc(max_nev* max_nev* sizeof(PASE_REAL));
   //int_tmp在BCG中是1倍的空间，用于存储unlock
   solver->cg_int_tmp    = (PASE_INT*)malloc(step_size * sizeof(PASE_INT));
 
@@ -566,7 +566,7 @@ PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT current_level,
   //如果不是最细层，直接返回
   if(current_level > solver->finest_level) {
     GCGE_Printf("current_level: %d, idx_cycle = %d, aux_coarse_level: %d, cycle_time: %f\n", 
-	  current_level, idx_cycle+1, solver->aux_coarse_level, cycle_time);
+	  current_level, *idx_cycle+1, solver->aux_coarse_level, cycle_time);
     return 0;
   }
   //如果是最细层，先检查收敛性
@@ -629,18 +629,18 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_lev
   //GCGE_Printf("before presmoothing:, current_level: %d\n", current_level);
   PASE_Mg_smoothing(solver, current_level, max_presmooth_iter);
 
-  //GCGE_Printf("after presmoothing:\n");
+  GCGE_Printf("after presmoothing:\n");
   //PASE_Mg_error_estimate(solver, current_level);
 
   //构造复合矩阵 (solver, coarse_level, current_level)
   PASE_Mg_set_pase_aux_matrix(solver, coarse_level, current_level);
-  //GCGE_Printf("after set_aux_matrix:\n");
+  GCGE_Printf("after set_aux_matrix:\n");
   //构造复合向量 
   PASE_Mg_set_pase_aux_vector(solver, coarse_level, current_level);
-  //GCGE_Printf("after set_aux_vector:\n");
+  GCGE_Printf("after set_aux_vector:\n");
   //直接求解复合矩阵特征值问题
   PASE_Aux_direct_solve(solver, coarse_level);
-  //GCGE_Printf("after aux_direct:\n");
+  GCGE_Printf("after aux_direct:\n");
 
   //把aux向量转换成细空间上的向量
   PASE_Mg_prolong_from_pase_aux_vector(solver, coarse_level, current_level);
@@ -821,6 +821,7 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void ***aux_bH,
   mv_s[1] = coarse_nlock_auxmat;
   mv_e[1] = pase_nev;
   PASE_REAL *A_aux_hh = aux_A->aux_hh;
+
   //从aux_A->aux_hh的第coarse_nlock_auxmat_b列开始赋值
   gcge_ops->MultiVecInnerProd(sol, aux_bH[current_level], 
 	A_aux_hh+coarse_nlock_auxmat*num_aux_vec, 
@@ -946,6 +947,7 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->print_conv        = 0;
   gcge_pase_solver->para->print_eval        = 0;
   gcge_pase_solver->para->print_result      = 0;
+  gcge_pase_solver->para->print_final_part_time = 0;
   gcge_pase_solver->para->ev_tol            = solver->aux_rtol;
   gcge_pase_solver->para->ev_max_it         = solver->max_direct_count_each_level[coarse_level];
   gcge_pase_solver->para->num_init_evec     = solver->pase_nev;
@@ -956,6 +958,11 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->x_orth_type = "multi";
   //求解
   GCGE_SOLVER_Solve(gcge_pase_solver);  
+
+  //解完后选择每个细空间向量方向值最大的向量，重新排序
+  if(solver->nconv > 0) {
+    PASE_Aux_sol_sort(solver, coarse_level);
+  } 
   memcpy(solver->eigenvalues+solver->nconv, solver->aux_eigenvalues+solver->nconv, 
         num_unlock*sizeof(PASE_REAL));
   //释放空间
@@ -965,6 +972,130 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   solver->aux_direct_solve_time += ((double)(end-start))/CLK_TCK;
   return 0;
 }
+
+PASE_INT 
+PASE_Aux_sol_sort(PASE_MG_SOLVER solver, PASE_INT coarse_level)
+{
+  PASE_INT  nconv       = solver->nconv;
+  PASE_INT  pase_nev    = solver->pase_nev;
+  PASE_REAL *aux_h      = solver->aux_sol->aux_h;
+  PASE_INT  num_aux_vec = solver->aux_sol->num_aux_vec;
+  void      **vecs_tmp  = solver->cg_res[coarse_level];
+  PASE_INT  i           = 0;
+  PASE_INT  j           = 0;
+  GCGE_OPS  *gcge_ops   = solver->gcge_ops;
+  PASE_INT  position    = nconv;
+  PASE_REAL last_eval_nconv = solver->eigenvalues[nconv-1];
+  while((solver->aux_eigenvalues[position]>last_eval_nconv)&&(position>0)) {  
+    GCGE_Printf("aux_eigenvalues[%d] = %18.15e, last_eval_nconv: %18.15e\n", 
+	  position, solver->aux_eigenvalues[position], last_eval_nconv);
+    position--;
+  }
+  PASE_INT  unlock_start = position;
+  PASE_INT  mv_s[2];
+  PASE_INT  mv_e[2];
+  PASE_MultiVector aux_tmp = (PASE_MultiVector)malloc(sizeof(pase_MultiVector));
+  aux_tmp->num_aux_vec = num_aux_vec;
+  aux_tmp->num_vec     = num_aux_vec;
+  aux_tmp->b_H         = solver->aux_B->aux_Hh;
+  aux_tmp->aux_h       = solver->aux_B->aux_hh;
+  //取aux_sol的unlock_start:pase_nev-1
+  //u_h的unlock_start:pase_nev-1
+  mv_s[0] = unlock_start;
+  mv_e[0] = pase_nev;
+  mv_s[1] = unlock_start;
+  mv_e[1] = num_aux_vec;
+  PASE_REAL *inner_prod = solver->cg_double_tmp;
+  PASE_INT  ldi = mv_e[0] - mv_s[0];
+  solver->pase_ops->MultiVecInnerProd((void**)(solver->aux_sol), (void**)aux_tmp, 
+	inner_prod, "nonsym", mv_s, mv_e, ldi, 0, solver->pase_ops);
+
+#if 1
+  //inner_prod是一个方阵，行列+unlock_start后对应真正的特征对
+  PASE_INT  *max_idx = solver->cg_int_tmp; 
+  for(i=0; i<mv_e[1]-mv_s[1]; i++) {
+    for(j=0; j<i; j++) {
+      inner_prod[i*ldi+max_idx[j]] = 0.0;
+    }
+    PASE_Find_max_in_vector(max_idx+i, inner_prod+i*ldi, 0, ldi);
+  }
+  PASE_Sort_int(max_idx, 0, mv_e[1]-mv_s[1]);
+  position = pase_nev-1;
+  void *from_vec;
+  void *to_vec;
+  PASE_REAL *eigenvalues     = solver->eigenvalues;
+  PASE_REAL *aux_eigenvalues = solver->aux_eigenvalues;
+  PASE_INT   current_idx = 0;
+  GCGE_Printf("num_aux_vec: %d, pase_nev: %d, position: %d\n", 
+	num_aux_vec, pase_nev, position);
+  for(i=num_aux_vec-1; i>=nconv; i--) {
+    current_idx = max_idx[i-unlock_start]+unlock_start;
+    GCGE_Printf("unlock_start: %d, max_idx[%d] = %d, current_idx: %d, position: %d\n", 
+	  unlock_start, i, max_idx[i], current_idx, position);
+    if(current_idx != position) {
+      solver->pase_ops->GetVecFromMultiVec((void**)solver->aux_sol, current_idx, &from_vec, solver->pase_ops);
+      solver->pase_ops->GetVecFromMultiVec((void**)solver->aux_sol, position, &to_vec, solver->pase_ops);
+      solver->pase_ops->VecAxpby(1.0, from_vec, 0.0, to_vec, solver->pase_ops);
+      solver->pase_ops->RestoreVecForMultiVec((void**)solver->aux_sol, current_idx, &from_vec, solver->pase_ops);
+      solver->pase_ops->RestoreVecForMultiVec((void**)solver->aux_sol, position, &to_vec, solver->pase_ops);
+      aux_eigenvalues[position] = aux_eigenvalues[current_idx];
+      GCGE_Printf("sort, nconv: %d, unlock_start: %d, current_idx: %d, eigenvalues[%d] = %18.15lf\n", 
+	    nconv, unlock_start, current_idx, position, eigenvalues[position]);
+    }
+    position--;
+  }
+#endif
+
+  free(aux_tmp); aux_tmp = NULL;
+}
+
+PASE_INT 
+PASE_Sort_int(PASE_INT *a, PASE_INT left, PASE_INT right)
+{
+    PASE_INT i = 0; 
+    PASE_INT j = 0;
+    PASE_INT temp = 0;
+    i = left;
+    j = right;
+    temp = a[left];
+    if(left > right)
+        return 0;
+    while(i != j)
+    {
+        while((a[j] >= temp)&&(j > i))
+            j--;
+        if(j > i)
+            a[i++] = a[j];
+        while((a[i] <= temp)&&(j > i))
+            i++;
+        if(j > i)
+            a[j--] = a[i];
+    }
+    a[i] = temp;
+    PASE_Sort_int(a, left, i-1);
+    PASE_Sort_int(a, i+1, right);
+    return 0;
+}
+
+PASE_INT 
+PASE_Find_max_in_vector(PASE_INT *max_idx, PASE_REAL *vector, PASE_INT start, PASE_INT end)
+{
+  PASE_REAL max_value = fabs(vector[start]);
+  PASE_INT  max_index = start;
+  PASE_REAL tmp_value = 0.0;
+  PASE_INT  i = start;
+  //对每一列进行循环
+  for(i=start+1; i<end; i++) {
+    tmp_value = fabs(vector[i]);
+    //如果该列的第一行比最大值大，重新确定最大值及位置
+    if(tmp_value > max_value) {
+      max_index = i;
+      max_value = tmp_value;
+    }
+  }
+  *max_idx = max_index;
+}
+
 
 PASE_INT
 PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,

@@ -216,4 +216,13 @@ PASE_Get_min_double(PASE_REAL *a, PASE_INT start, PASE_INT end);
 PASE_INT
 PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT current_level, 
       PASE_INT *idx_cycle, PASE_REAL cycle_time);
+
+PASE_INT 
+PASE_Aux_sol_sort(PASE_MG_SOLVER solver, PASE_INT coarse_level);
+
+PASE_INT 
+PASE_Sort_int(PASE_INT *a, PASE_INT left, PASE_INT right);
+
+PASE_INT 
+PASE_Find_max_in_vector(PASE_INT *max_idx, PASE_REAL *vector, PASE_INT start, PASE_INT end);
 #endif
