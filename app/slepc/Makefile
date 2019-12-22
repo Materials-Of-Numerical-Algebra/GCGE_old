@@ -8,7 +8,7 @@ FILES   = gcge_app_slepc.c
 HEADERS = gcge_app_slepc.h
 OBJS    = ${FILES:.c=.o}
 
-INC     = -I$(GCGEINC) -I$(SLEPCINC) -I$(PETSCINC) $(SLEPCFLAGS)
+INC     = -I$(GCGEINC) $(SLEPCINC) $(PETSCINC) $(SLEPCFLAGS)
 LIB     = $(LIBGCGESLEPC)
 
 ########################################################################

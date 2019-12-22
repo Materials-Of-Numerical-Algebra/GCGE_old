@@ -29,15 +29,15 @@ C_PASE_CSR = pase_csr_solver.c
 C_PASE_SLEPC = pase_slepc_solver.c
            
 INC_CSR    = $(CSRFLAGS)   -I$(GCGEINC)            
-INC_HYPRE  = $(HYPREFLAGS) -I$(GCGEINC) -I$(HYPREINC) 
-INC_PETSC  = $(PETSCFLAGS) -I$(GCGEINC) -I$(PETSCINC)
-INC_PHG    = $(PHGFLAGS)   -I$(GCGEINC) -I$(PHGINC)   
-INC_SLEPC  = $(SLEPCFLAGS) -I$(GCGEINC) -I$(SLEPCINC) -I$(PETSCINC) 
+INC_HYPRE  = $(HYPREFLAGS) -I$(GCGEINC) $(HYPREINC) 
+INC_PETSC  = $(PETSCFLAGS) -I$(GCGEINC) $(PETSCINC)
+INC_PHG    = $(PHGFLAGS)   -I$(GCGEINC) $(PHGINC)   
+INC_SLEPC  = $(SLEPCFLAGS) -I$(GCGEINC) $(SLEPCINC) $(PETSCINC) 
 INC_PASE_CSR = $(PASEFLAGS)  -I$(GCGEINC)            
-INC_PASE_SLEPC = $(PASEFLAGS)  -I$(INC_SLEPC)            
+INC_PASE_SLEPC = $(PASEFLAGS)  $(INC_SLEPC)            
           
 LIBS_CSR   = $(LIBGCGECSR)   $(LIBGCGE) $(LIBLAPACK) $(LIBBLAS) $(LIBF)
-LIBS_HYPRE = $(LIBGCGEHYPRE) $(LIBGCGE) $(LIBHYPRE)
+LIBS_HYPRE = $(LIBGCGEHYPRE) $(LIBGCGE) $(LIBHYPRE) $(LIBLAPACK) $(LIBBLAS) $(LIBF)
 LIBS_PETSC = $(LIBGCGEPETSC) $(LIBGCGE) $(LIBPETSC)
 LIBS_PHG   = $(LIBGCGEPHG)   $(LIBGCGE) $(LIBPHG)
 LIBS_SLEPC = $(LIBGCGESLEPC) $(LIBGCGE) $(LIBSLEPC)
@@ -79,89 +79,89 @@ run-csr-solver: $(EXE_CSR)
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_CSR)
 
 run-hypre-solver: $(EXE_HYPRE)
-	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_HYPRE)
+	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXEC) $(EXECFLAGS) ./$(EXE_HYPRE)
 
-run-petsc-solver: $(EXE_PHG)
-	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_PETSC)
+run-petsc-solver: $(EXE_PETSC)
+	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXEC) $(EXECFLAGS) ./$(EXE_PETSC)
 
 run-phg-solver: $(EXE_PHG)
-	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_PHG)
+	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXEC) $(EXECFLAGS) ./$(EXE_PHG)
 
 run-slepc-solver: $(EXE_SLEPC)
-	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_SLEPC)
+	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXEC) $(EXECFLAGS) ./$(EXE_SLEPC)
 
 ############################################################
 
 $(EXE_CSR): $(OBJ_CSR)
 	@echo ''
 	@echo 'Creating executable $(EXE_CSR)'
-	@$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_CSR)
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_CSR)
 	@echo ''
 
 $(EXE_HYPRE): $(OBJ_HYPRE)
 	@echo ''
 	@echo 'Creating executable $(EXE_HYPRE)'
-	@$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_HYPRE)
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_HYPRE)
 	@echo ''
 
 $(EXE_PETSC): $(OBJ_PETSC)
 	@echo ''
 	@echo 'Creating executable $(EXE_PETSC)'
-	@$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_PETSC)
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_PETSC)
 	@echo ''
 
 $(EXE_PHG): $(OBJ_PHG)
 	@echo ''
 	@echo 'Creating executable $(EXE_PHG)'
-	@$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_PHG)
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_PHG)
 	@echo ''
 
 $(EXE_SLEPC): $(OBJ_SLEPC)
 	@echo ''
 	@echo 'Creating executable $(EXE_SLEPC)'
-	@$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_SLEPC)
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_SLEPC)
 	@echo ''
 
 $(EXE_PASE_CSR): $(OBJ_PASE_CSR)
 	@echo ''
 	@echo 'Creating executable $(EXE_PASE_CSR)'
-	@$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_PASE_CSR)
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_PASE_CSR)
 	@echo ''
 
 $(EXE_PASE_SLEPC): $(OBJ_PASE_SLEPC)
 	@echo ''
 	@echo 'Creating executable $(EXE_PASE_SLEPC)'
-	@$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_PASE_SLEPC)
+	$(CLINKER) $(LDFLAGS) -o $@ $< $(LIBS_PASE_SLEPC)
 	@echo ''
 
 ############################################################
 
 $(OBJ_CSR):$(C_CSR)
 	@echo '$(CC) $(CFLAGS) -c $(C_CSR)'
-	@$(CC)  $(CFLAGS) -c $(C_CSR) -o $(OBJ_CSR) $(INC_CSR)
+	$(CC)  $(CFLAGS) -c $(C_CSR) -o $(OBJ_CSR) $(INC_CSR)
 
 $(OBJ_HYPRE):$(C_HYPRE)
 	@echo '$(CC) $(CFLAGS) -c $(C_HYPRE)'
-	@$(CC)  $(CFLAGS) -c $(C_HYPRE) -o $(OBJ_HYPRE) $(INC_HYPRE)
+	$(CC)  $(CFLAGS) -c $(C_HYPRE) -o $(OBJ_HYPRE) $(INC_HYPRE)
 
 $(OBJ_PETSC):$(C_PETSC)
 	@echo '$(CC) $(CFLAGS) -c $(C_PETSC)'
-	@$(CC)  $(CFLAGS) -c $(C_PETSC) -o $(OBJ_PETSC) $(INC_PETSC)
+	$(CC)  $(CFLAGS) -c $(C_PETSC) -o $(OBJ_PETSC) $(INC_PETSC)
 
 $(OBJ_PHG):$(C_PHG)
 	@echo '$(CC) $(CFLAGS) -c $(C_PHG)'
-	@$(CC)  $(CFLAGS) -c $(C_PHG) -o $(OBJ_PHG) $(INC_PHG)
+	$(CC)  $(CFLAGS) -c $(C_PHG) -o $(OBJ_PHG) $(INC_PHG)
 
 $(OBJ_SLEPC):$(C_SLEPC)
 	@echo '$(CC) $(CFLAGS) -c $(C_SLEPC)'
-	@$(CC)  $(CFLAGS) -c $(C_SLEPC) -o $(OBJ_SLEPC) $(INC_SLEPC)
+	$(CC)  $(CFLAGS) -c $(C_SLEPC) -o $(OBJ_SLEPC) $(INC_SLEPC)
 
 $(OBJ_PASE_CSR):$(C_PASE_CSR)
 	@echo '$(CC) $(CFLAGS) -c $(C_PASE_CSR)'
-	@$(CC)  $(CFLAGS) -c $(C_PASE_CSR) -o $(OBJ_PASE_CSR) $(INC_PASE_CSR)
+	$(CC)  $(CFLAGS) -c $(C_PASE_CSR) -o $(OBJ_PASE_CSR) $(INC_PASE_CSR)
 
 $(OBJ_PASE_SLEPC):$(C_PASE_SLEPC)
 	@echo '$(CC) $(CFLAGS) -c $(C_PASE_SLEPC)'
-	@$(CC)  $(CFLAGS) -c $(C_PASE_SLEPC) -o $(OBJ_PASE_SLEPC) $(INC_PASE_SLEPC)
+	$(CC)  $(CFLAGS) -c $(C_PASE_SLEPC) -o $(OBJ_PASE_SLEPC) $(INC_PASE_SLEPC)
 
 ############################################################

@@ -53,6 +53,7 @@ void GCGE_HYPRE_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
   HYPRE_ParVector    y_hypre      = hypre_ParVectorCreate(comm, global_size, partitioning);
   hypre_ParVectorInitialize(y_hypre);
   hypre_ParVectorSetPartitioningOwner(y_hypre, 1);
+  hypre_ParVectorSetConstantValues(y_hypre, 0);
   *vec = (void *)y_hypre;
 }
 void GCGE_HYPRE_VecDestroy(void **vec, GCGE_OPS *ops)

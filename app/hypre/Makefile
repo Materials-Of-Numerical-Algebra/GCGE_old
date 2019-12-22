@@ -8,7 +8,7 @@ FILES   = gcge_app_hypre.c
 HEADERS = gcge_app_hypre.h
 OBJS    = ${FILES:.c=.o}
 
-INC     = -I$(GCGEINC) -I$(HYPREINC) $(HYPREFLAGS)
+INC     = -I$(GCGEINC) $(HYPREINC) $(HYPREFLAGS)
 LIB     = $(LIBGCGEHYPRE)
 
 ########################################################################

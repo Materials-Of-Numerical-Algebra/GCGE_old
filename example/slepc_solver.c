@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
     if(strcmp(file_P, "fileinput") != 0)
     {
         //设定线性求解器
-        SLEPC_LinearSolverCreate(&ksp, A, P);
+        SLEPC_LinearSolverCreate(&ksp, A, P, "sm");
         //PetscViewer viewer;
         //ierr = KSPView(ksp, viewer);
         //给slepc_solver设置KSP为线性求解器

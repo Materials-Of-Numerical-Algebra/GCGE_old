@@ -50,8 +50,16 @@ void PETSC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
     ierr = KSPSetTolerances(*ksp, 1e-12, PETSC_DEFAULT, PETSC_DEFAULT, 1000);
     PC pc;
     ierr = KSPGetPC(*ksp, &pc);
-    ierr = PCSetType(pc, PCHYPRE);
-    ierr = PCHYPRESetType(pc, "boomeramg");
+
+    //ierr = PCSetType(pc, PCHYPRE);
+    //ierr = PCHYPRESetType(pc, "boomeramg");
+    ierr = PCSetType(pc, PCHMG);
+    ierr = PCHMGSetInnerPCType(pc, PCGAMG);
+    ierr = PCHMGSetReuseInterpolation(pc, PETSC_TRUE);
+    ierr = PCHMGSetUseSubspaceCoarsening(pc, PETSC_TRUE);
+    ierr = PCHMGUseMatMAIJ(pc, PETSC_FALSE);
+    ierr = PCHMGSetCoarseningComponent(pc, 0);
+
     //最后从命令行设置参数
     ierr = KSPSetFromOptions(*ksp);
 }
@@ -92,6 +100,7 @@ void GCGE_PETSC_MultiVecCreateByMat(void ***multi_vec, GCGE_INT n_vec, void *mat
 	Vec vector;
     ierr = MatCreateVecs((Mat)mat, NULL, &vector);
     ierr = VecDuplicateVecs(vector, n_vec, (Vec**)multi_vec);
+    ierr = VecDestroy(&vector);
 }
 void GCGE_PETSC_VecDestroy(void **vec, GCGE_OPS *ops)
 {
@@ -204,11 +213,12 @@ GCGE_SOLVER* GCGE_PETSC_Solver_Init(Mat A, Mat B, int num_eigenvalues, int argc,
     double *eval = (double *)calloc(nev, sizeof(double)); 
     petsc_solver->eval = eval;
 
-	PetscErrorCode ierr;
+    PetscErrorCode ierr;
     Vec *evec;
-	Vec vector;
+    Vec vector;
     ierr = MatCreateVecs(A, NULL, &vector);
     ierr = VecDuplicateVecs(vector, nev, &evec);
+    ierr = VecDestroy(&vector);
 
     GCGE_SOLVER_SetMatA(petsc_solver, A);
     if(B != NULL)

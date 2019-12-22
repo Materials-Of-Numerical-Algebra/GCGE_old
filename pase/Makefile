@@ -11,7 +11,7 @@ HEADERS = pase_convert.h gcge_app_pase.h pase_solver.h pase_config.h \
           pase_amg.h
 OBJS    = ${FILES:.c=.o}
 
-INC     = -I$(GCGEINC) -I$(SLEPCINC) -I$(HYPREINC) -I$(PETSCINC) -I$(PHGINC)
+INC     = -I$(GCGEINC) $(SLEPCINC) $(HYPREINC) $(PETSCINC) $(PHGINC)
 LIB     = $(LIBPASE)
 
 ########################################################################

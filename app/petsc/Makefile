@@ -8,7 +8,7 @@ FILES   = gcge_app_petsc.c
 HEADERS = gcge_app_petsc.h
 OBJS    = ${FILES:.c=.o}
 
-INC     = -I$(GCGEINC) -I$(PETSCINC) $(PETSCFLAGS)
+INC     = -I$(GCGEINC) $(PETSCINC) $(PETSCFLAGS)
 LIB     = $(LIBGCGEPETSC)
 
 ########################################################################
