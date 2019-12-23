@@ -1,77 +1,54 @@
-########################################################################
+###########################################################
+
 GCGEHOME = ..
+PASEHOME = .
 include $(GCGEHOME)/config/make.inc
-.PHONY: all lib clean help
+.PHONY: all libs clean help test-csr test-hypre test-petsc test-phg test-slepc
 
-########################################################################
-FILES   = pase_convert.c gcge_app_pase.c pase_solver.c pase_matvec.c \
-          pase_ops.c pase_mg.c pase_amg.c pase_param.c
-HEADERS = pase_convert.h gcge_app_pase.h pase_solver.h pase_config.h \
-          pase_matvec.h pase_mg.h pase_ops.h pase.h pase_param.h     \
-          pase_amg.h
-OBJS    = ${FILES:.c=.o}
+###########################################################
 
-INC     = -I$(GCGEINC) $(SLEPCINC) $(HYPREINC) $(PETSCINC) $(PHGINC)
-LIB     = $(LIBPASE)
+all: 	help
 
-########################################################################
-all:    help
+install_libs = libgcge_pase
 
-lib:    $(LIB)
+libs: $(install_libs)
+	@echo "======================================="
+	@echo "Build $(strip $(subst -, , $(install_libs))) complete."
+	@echo "======================================="
+	
+libgcge_pase:
+	@echo "======================================="
+	@echo "        Making library GCGE APP        "
+	@cd $(PASEHOME)/src;      $(MAKE) lib
+
+test-csr: libs
+	@cd $(PASEHOME)/example;  $(MAKE) run-csr-solver
+
+test-slepc: libs
+	@cd $(PASEHOME)/example;  $(MAKE) run-slepc-solver
 
 clean:
-	@$(RM) $(RMFLAGS) *.o
+	@cd $(PASEHOME)/src;      make clean; rm -rf *~
+	@cd $(PASEHOME)/example;  make clean; rm -rf *~
+
+cleanall: clean
+	@cd $(PASEHOME)/lib;      $(RM) $(RMFLAGS) *.a
+	@cd $(PASEHOME)/include;  $(RM) $(RMFLAGS) *.h
 
 help:
-	@echo "make {lib|clean|help}"
 	@echo " "
-	@echo "   lib   - create library $(LIB)"
+	@echo "make {libs|clean|cleanlibs|help}" 
 	@echo " "
-	@echo "   clean - remove temporary files"
-	@echo "   help  - print this message"
+	@echo "   libs         - create all libraries"
 	@echo " "
-
-########################################################################
-.f.o:
-	@echo '$(F77) -c $(FFLAGS) ' $*.f
-	@$(F77) $(FFLAGS) -c $*.f -o $*.o $(INC)
-.c.o:
-	@echo '$(CC)  -c $(CFLAGS) ' $*.c
-	$(CC)  $(CFLAGS) -c $*.c -o $*.o $(INC)
-.cpp.o:
-	@echo '$(CPP)  -c $(CPPFLAGS) ' $*.cpp
-	@$(CPP)  $(CPPFLAGS) -c $*.cpp -o $*.o $(INC)
-
-########################################################################
-$(LIB): $(OBJS)
-	@echo ''
-	@echo 'Creating library $(LIB)'
-	@echo 'Creating header files $(GCGEINC)/{$(HEADERS)}'
-	@$(ARCH) $(ARCHFLAGS) $(LIB) $(OBJS)
-	@$(RANLIB) $(LIB)
-	@$(CP) -fR $(HEADERS) $(GCGEINC)
-#	@$(CP) -fR pase_*.h $(GCGEINC)
-#	@$(CP) -fR pase.h   $(GCGEINC)
-
-$(OBJS): $(HEADERS)
-########################################################################
-
-test:
-	$(CC)  $(CFLAGS) -c ./test_convert.c -o ./test_convert.o $(INC)
-	$(CLINKER)  $(LDFLAGS)  -o ./test_convert.exe ./test_convert.o $(LIBPASE) $(LIBPETSC) $(LIBHYPRE) 
-
-test_phg:
-	$(CC)  $(CFLAGS) -c ./test_convert_phg.c -o ./test_convert_phg.o $(INC)
-	$(CLINKER)  $(LDFLAGS)  -o ./test_convert_phg.exe ./test_convert_phg.o $(LIBPASE) $(LIBPHG) $(LIBPETSC) $(LIBHYPRE) 
-
-test_mg:
-	@$(CC)  $(CFLAGS) -c ./test_mg.c -o ./test_mg.o $(INC)
-	@$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBHYPRE) $(LIBGCGE) 
-
-test_pase:
-	@$(CC)  $(CFLAGS) -c ./test_pase.c -o ./test_pase.o $(INC)
-	@$(CLINKER)  $(LDFLAGS)  -o ./test_pase.exe ./test_pase.o $(LIBPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBHYPRE) $(LIBGCGE) 
-
-test_amg:
-	@$(CC)  $(CFLAGS) -c ./test_amg.c -o ./test_amg.o $(INC)
-	@$(CLINKER)  $(LDFLAGS)  -o ./test_amg.exe ./test_amg.o $(LIBPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBHYPRE) $(LIBGCGE) 
+	@echo "   test-csr     - test library GCGE"
+	@echo "   test-hypre   - test library GCGE HYPRE"
+	@echo "   test-petsc   - test library GCGE PETSC"
+	@echo "   test-phg     - test library GCGE PHG"
+	@echo "   test-slepc   - test library GCGE SLPEC"
+	@echo " "
+	@echo "   clean        - remove temporary files except libraries"
+	@echo "   cleanall     - remove libraries"
+	@echo " "
+	@echo "   help         - print this information"
+	@echo " "

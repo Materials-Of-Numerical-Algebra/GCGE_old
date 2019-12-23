@@ -1,5 +1,6 @@
 ############################################################
-GCGEHOME = ../..
+GCGEHOME = ../../..
+PASEHOME = ../..
 include $(GCGEHOME)/config/make.inc
 
 ############################################################
@@ -13,14 +14,17 @@ EXE2   = ./test_ops.exe
 EXE3   = ./test_pase_1.exe 
 EXE4   = ./test_slepc_pase_ops.exe 
 
+LIBGCGEPASE = $(PASEHOME)/lib/libgcge_pase.a
+
 #INC    = -I$(GCGEINC)
 #LIBS   = $(LIBPASE) $(LIBGCGECSR) $(LIBGCGE) $(LIBLAPACK) $(LIBBLAS) $(LIBF)
-INC    = -I$(GCGEINC) -I$(SLEPCINC) -I$(HYPREINC) -I$(PETSCINC)
-LIBS   = $(LIBPASE) $(LIBGCGESLEPC) $(LIBGCGE) $(LIBLAPACK) $(LIBBLAS) $(LIBF) $(LIBSLEPC)
+
+INC    = -I$(PASEHOME)/include -I$(GCGEINC) $(HYPREINC) $(PETSCINC) $(PHGINC) $(SLEPCINC) 
+LIBS   = $(LIBGCGEPASE) $(LIBGCGECSR) $(LIBGCGESLEPC) $(LIBGCGE) $(LIBLAPACK) $(LIBBLAS) $(LIBF) $(LIBSLEPC)
 
 ############################################################
-MAT_A = $(GCGEHOME)/test/data/testA
-MAT_M = $(GCGEHOME)/test/data/testB
+MAT_A = $(PASEHOME)/test/data/testA
+MAT_M = $(PASEHOME)/test/data/testB
 PARA = -file_A $(MAT_A) -file_B $(MAT_M)
 
 ############################################################
