@@ -416,9 +416,20 @@ void GCGE_Default_DenseMatEigenSolver( GCGE_DOUBLE *a, GCGE_INT lda,
     GCGE_INT    *ifail = iwork+5*nrows;
     GCGE_INT    info   = 0;
 
-    dsyevx_(jobz, range, uplo, &nrows, a, &lda, &vl, &vu, &il, &iu, 
+    //il的计数从1开始, 不是从0开始
+    if((il == 1)&&(iu == nrows))
+    {
+        lwork = 3*nrows;
+        dsyev_(jobz, uplo, &nrows, a, &lda, eval, dwork, &lwork, &info);
+        memcpy(evec, a, nrows*nrows*sizeof(GCGE_DOUBLE));
+    }
+    else
+    {
+        dsyevx_(jobz, range, uplo, &nrows, a, &lda, &vl, &vu, &il, &iu, 
             &abstol, &nev, eval, evec, &lde, dwork, &lwork, 
             iwork, ifail, &info);
+
+    }
 
     //对dsyevx:
     /* param:

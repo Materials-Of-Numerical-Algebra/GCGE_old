@@ -35,6 +35,9 @@ void PASE_PrintVec(PASE_Vector vecs);
 
 int main(int argc, char* argv[])
 {
+#if GCGE_USE_MPI
+    MPI_Init(&argc,  &argv);
+#endif
     srand(1);
 
     //创建矩阵
@@ -99,6 +102,9 @@ int main(int argc, char* argv[])
     GCGE_OPS_Free(&gcge_ops);
     PASE_OPS_Free(&pase_ops);
 
+#if GCGE_USE_MPI
+    MPI_Finalize();
+#endif
     return 0;
 }
 

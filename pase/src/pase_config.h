@@ -1,5 +1,5 @@
-#ifndef __PASE_CONFIG_H__
-#define __PASE_CONFIG_H__
+#ifndef _PASE_CONFIG_H_
+#define _PASE_CONFIG_H_
 
 //=============================================================================
 /* 基本数据类型的封装 */

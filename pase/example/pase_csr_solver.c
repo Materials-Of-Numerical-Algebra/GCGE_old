@@ -35,6 +35,10 @@ void PASE_PrintVec(PASE_Vector vecs);
 
 int main(int argc, char* argv[])
 {
+
+#if GCGE_USE_MPI
+   MPI_Init(&argc, &argv);
+#endif
     srand(1);
 
     //创建矩阵
@@ -74,6 +78,7 @@ int main(int argc, char* argv[])
     pase_mat_A->aux_hh[3] = 20;
 #else
 
+    /* 1089 is the number of rows in A_5.txt */
     memset(vecs[0]->Entries, 0.0, 1089*sizeof(double));
     memset(vecs[1]->Entries, 0.0, 1089*sizeof(double));
     pase_mat_A->aux_hh[0] = 1.0;
@@ -99,6 +104,9 @@ int main(int argc, char* argv[])
     GCGE_OPS_Free(&gcge_ops);
     PASE_OPS_Free(&pase_ops);
 
+#if GCGE_USE_MPI
+   MPI_Finalize();
+#endif
     return 0;
 }
 

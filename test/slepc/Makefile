@@ -26,7 +26,7 @@ MAIN1 = test_slepc_solver.c
 OBJS1 = test_slepc_solver.o
 EXE1 = ./test_slepc_solver.exe
 
-INC   = -I$(GCGEINC) -I$(SLEPCINC) -I$(PETSCINC)
+INC   = -I$(GCGEINC) $(SLEPCINC) $(PETSCINC)
 LIBS  = $(LIBGCGESLEPC) $(LIBGCGE) $(LIBSLEPC)
 
 all: $(OBJS1) $(EXE1)

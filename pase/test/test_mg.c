@@ -44,7 +44,7 @@ main ( int argc, char *argv[] )
     PetscInt n = 7, m = 3, row_start, row_end, col_start, col_end;
     /* 得到一个PETSC矩阵 */
     GetPetscMat(&petsc_mat_A, &petsc_mat_B, n, m);
-    HYPRE_Int idx, j, num_levels = 3;
+    HYPRE_Int idx, j, num_levels = 3, mg_coarsest_level = 2;
 
     //创建gcge_ops
     GCGE_OPS *gcge_ops;
@@ -56,11 +56,13 @@ main ( int argc, char *argv[] )
     PASE_OPS_Create(&pase_ops, gcge_ops);
 
     PASE_MULTIGRID multi_grid;
-    int error = PASE_MULTIGRID_Create(&multi_grid, num_levels, 
-            (void *)petsc_mat_A, (void *)petsc_mat_B, 
-            gcge_ops, pase_ops);
-    multi_grid->u_tmp = (void***)malloc(num_levels*sizeof(void**));
-    gcge_ops->MultiVecCreateByMat(&(multi_grid->u_tmp[1]), 3, multi_grid->A_array[1], gcge_ops);
+    PASE_REAL convert_time = 0.0;
+    PASE_REAL amg_time = 0.0;
+    PASE_MULTIGRID_Create(&multi_grid, num_levels, mg_coarsest_level, 
+	  (void *)petsc_mat_A, (void *)petsc_mat_B, 
+	  gcge_ops, &convert_time, &amg_time);
+    multi_grid->cg_p = (void***)malloc(num_levels*sizeof(void**));
+    gcge_ops->MultiVecCreateByMat(&(multi_grid->cg_p[1]), 3, multi_grid->A_array[1], gcge_ops);
 #if 1
     //先测试P与PT乘以单向量是否有问题
     Vec x;
@@ -146,7 +148,7 @@ main ( int argc, char *argv[] )
     gcge_ops->MultiVecDestroy((void***)(&vecs_j), num_vecs, gcge_ops);
 
     //注释掉Destroy不报错memory access out of range, 说明是Destroy时用错
-    gcge_ops->MultiVecDestroy(&(multi_grid->u_tmp[1]), 3, gcge_ops);
+    gcge_ops->MultiVecDestroy(&(multi_grid->cg_p[1]), 3, gcge_ops);
     error = PASE_MULTIGRID_Destroy(&multi_grid);
 
     ierr = MatDestroy(&petsc_mat_A);

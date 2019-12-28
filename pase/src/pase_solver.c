@@ -1,3 +1,4 @@
+#include <time.h>
 #include "pase_solver.h"
 
 /**
@@ -255,7 +256,7 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
   //TODO 这里可能会修改max_levels?
   PASE_MULTIGRID_Create(&(solver->multigrid), 
         solver->num_levels, solver->mg_coarsest_level, 
-        A, B, gcge_ops, solver->pase_ops, 
+        A, B, gcge_ops, 
 	&(solver->initialize_convert_time), 
 	&(solver->initialize_amg_time));
   solver->multigrid->coarsest_level = solver->mg_coarsest_level;

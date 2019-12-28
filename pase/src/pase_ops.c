@@ -149,8 +149,7 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
 
 
 //单向量线性组合 y = a*x + b*y
-void PASE_DefaultVecAxpby(PASE_REAL a, void *x, PASE_REAL b, void *y,
-        struct PASE_OPS_ *ops)
+void PASE_DefaultVecAxpby(PASE_REAL a, void *x, PASE_REAL b, void *y, struct PASE_OPS_ *ops)
 {
     void      *x_b_H      = ((PASE_Vector)x)->b_H;
     PASE_REAL *x_aux_h    = ((PASE_Vector)x)->aux_h;
@@ -423,7 +422,8 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
     mv_s[1] = start[1];
     mv_e[1] = end[1];
     ops->gcge_ops->MultiVecLinearComb(aux_Hh, y_b_H, 
-            mv_s, mv_e, x_aux_h+start[0]*num_aux_vec+start[1], num_aux_vec, 
+            //mv_s, mv_e, x_aux_h+start[0]*num_aux_vec+start[1], num_aux_vec, 
+            mv_s, mv_e, x_aux_h+start[0]*num_aux_vec, num_aux_vec, 
             0, alpha, beta,  ops->gcge_ops);
 
     //计算 y_aux_h_tmp = aux_hh^T * x->aux_h

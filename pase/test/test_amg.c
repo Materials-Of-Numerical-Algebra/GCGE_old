@@ -27,7 +27,6 @@ void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m);
 void PETSCPrintMat(Mat A, char *name);
 void PETSCPrintVec(Vec x);
 void PETSCPrintBV(BV x, char *name);
-void PrintParameter(PASE_PARAMETER param);
 void PASEGetCommandLineInfo(PASE_INT argc, char *argv[], PASE_INT *block_size, PASE_REAL *atol, PASE_INT *nsmooth);
 void PASE_BMG_TEST( PASE_MULTIGRID mg, 
                PASE_INT current_level, 
@@ -63,9 +62,12 @@ main ( int argc, char *argv[] )
 
     //进行multigrid分层
     int num_levels = 3;
+    int mg_coarsest_level = 2;
+    PASE_REAL convert_time = 0.0;
+    PASE_REAL amg_time = 0.0;
     PASE_MULTIGRID multi_grid;
-    int error = PASE_MULTIGRID_Create(&multi_grid, num_levels, 
-            (void *)A, (void *)B, gcge_ops, pase_ops);
+    int error = PASE_MULTIGRID_Create(&multi_grid, num_levels, mg_coarsest_level, 
+            (void *)A, (void *)B, gcge_ops, pase_ops, &convert_time, &amg_time);
 
     //申请工作空间
     int nev = 5;
@@ -91,13 +93,13 @@ main ( int argc, char *argv[] )
     }
     double *double_tmp = (double*)calloc(nev*nev, sizeof(double));
     int    *int_tmp    = (int*)calloc(nev*nev, sizeof(int));
-    multi_grid->u          = (void***)u;
+    multi_grid->sol        = (void***)u;
     multi_grid->rhs        = (void***)rhs;
-    multi_grid->u_tmp      = (void***)u_tmp;
-    multi_grid->u_tmp_1    = (void***)u_tmp_1;
-    multi_grid->u_tmp_2    = (void***)u_tmp_2;
-    multi_grid->double_tmp = double_tmp;
-    multi_grid->int_tmp    = int_tmp;
+    multi_grid->cg_p       = (void***)u_tmp;
+    multi_grid->cg_w       = (void***)u_tmp_1;
+    multi_grid->cg_res     = (void***)u_tmp_2;
+    multi_grid->cg_double_tmp = double_tmp;
+    multi_grid->cg_int_tmp    = int_tmp;
 
     gcge_ops->MultiVecSetRandomValue((void**)(u[0]), 0, nev, gcge_ops);
     PETSCPrintBV(u[0], "exact u[0]");
@@ -329,22 +331,6 @@ void PASEGetCommandLineInfo(PASE_INT argc, char *argv[], PASE_INT *block_size, P
   }
 }
 
-void PrintParameter(PASE_PARAMETER param)
-{
-    GCGE_Printf("PASE (Parallel Auxiliary Space Eigen-solver), parallel version\n"); 
-    GCGE_Printf("Please contact liyu@lsec.cc.ac.cn, if there is any bugs.\n"); 
-    GCGE_Printf("=============================================================\n" );
-    GCGE_Printf("\n");
-    GCGE_Printf("Set parameters:\n");
-    GCGE_Printf("block size      = %d\n", param->block_size);
-    GCGE_Printf("max pre iter    = %d\n", param->max_pre_iter);
-    GCGE_Printf("atol            = %e\n", param->atol);
-    GCGE_Printf("max cycle       = %d\n", param->max_cycle);
-    GCGE_Printf("min coarse size = %d\n", param->min_coarse_size);
-    GCGE_Printf("\n");
-}
-
-
 void PASE_BMG_TEST( PASE_MULTIGRID mg, 
                PASE_INT current_level, 
                void **rhs, void **sol, 
@@ -366,27 +352,27 @@ void PASE_BMG_TEST( PASE_MULTIGRID mg,
     void *A;
     PASE_INT mv_s[2];
     PASE_INT mv_e[2];
-    void **residual = mg->u_tmp[current_level];
+    void **residual = mg->cg_p[current_level];
     // obtain the 'enough' accurate solution on the coarest level
     //direct solving the linear equation
     if( current_level == coarest_level )
     {
         //最粗层？？？？？？？
         A = mg->A_array[coarest_level];
-        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+        GCGE_BCG(A, 0, 0.0, NULL, rhs, sol, start, end, 
                 max_coarest_nsmooth, coarest_rate, mg->gcge_ops, 
-                mg->u_tmp[coarest_level], mg->u_tmp_1[coarest_level], 
-                mg->u_tmp_2[coarest_level], 
-                mg->double_tmp, mg->int_tmp);
+                mg->cg_p[coarest_level], mg->cg_w[coarest_level], 
+                mg->cg_res[coarest_level], 
+                mg->cg_double_tmp, mg->cg_int_tmp);
     }
     else
     {   
         A = mg->A_array[current_level];
-        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+        GCGE_BCG(A, 0, 0.0, NULL, rhs, sol, start, end, 
                 nsmooth, rate, mg->gcge_ops, 
-                mg->u_tmp[current_level], mg->u_tmp_1[current_level], 
-		mg->u_tmp_2[current_level], 
-                mg->double_tmp, mg->int_tmp);
+                mg->cg_p[current_level], mg->cg_w[current_level], 
+		mg->cg_res[current_level], 
+                mg->cg_double_tmp, mg->cg_int_tmp);
 
         mv_s[0] = start[1];
         mv_e[0] = end[1];
@@ -413,7 +399,7 @@ void PASE_BMG_TEST( PASE_MULTIGRID mg,
         /* TODO coarse_sol????? */
 
         //求粗网格解问题，利用递归
-        void **coarse_sol = mg->u[coarse_level];
+        void **coarse_sol = mg->sol[coarse_level];
         mv_s[0] = 0;
         mv_e[0] = end[1]-start[1];
         mv_s[1] = 0;
@@ -441,11 +427,11 @@ void PASE_BMG_TEST( PASE_MULTIGRID mg,
         mg->gcge_ops->MultiVecAxpby(1.0, residual, 1.0, sol, mv_s, mv_e, mg->gcge_ops);
         
 	//后光滑
-        GCGE_BCG(A, rhs, sol, start[1], end[1]-start[1], 
+        GCGE_BCG(A, 0, 0.0, NULL, rhs, sol, start, end, 
                 nsmooth, rate, mg->gcge_ops, 
-                mg->u_tmp[current_level], mg->u_tmp_1[current_level], 
-		mg->u_tmp_2[current_level], 
-                mg->double_tmp, mg->int_tmp);
+                mg->cg_p[current_level], mg->cg_w[current_level], 
+		mg->cg_res[current_level], 
+                mg->cg_double_tmp, mg->cg_int_tmp);
     }//end for (if current_level)
 }
 

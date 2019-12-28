@@ -31,8 +31,20 @@ void PASE_PrintMat(PASE_Matrix pase_matrix);
 void PASE_PrintMultiVec(PASE_MultiVector vecs, char *name);
 void PASE_PrintVec(PASE_Vector vecs, char *name);
 
+void PASE_MatrixConvertDenseMatrix(PASE_Matrix pase_matrix, double **dense_mat, int *size);
+void Print_DenseMatrix(double *dense_mat, int *size);
+void PASE_MultiVectorConvertDenseMatrix(PASE_MultiVector vecs, double **dense_mat, int *size);
+void DenseMatrixDotDenseMatrix(double *matA, double *matX, double **matY, int *sizeA, int *sizeX, int *sizeY);
+
+
+
+
 int main(int argc, char* argv[])
 {
+#if GCGE_USE_MPI
+    MPI_Init(&argc,  &argv);
+#endif
+
     srand(1);
 
     //创建矩阵
@@ -73,21 +85,48 @@ int main(int argc, char* argv[])
     for(i=0; i<num_aux_vec*num_aux_vec; i++) {
         pase_matrix->aux_hh[i] = ((double)rand())/((double)RAND_MAX+1);
     }
+    PASE_PrintMat(pase_matrix);
     //对称化
     for(i=0; i<num_aux_vec; i++) {
         for(j=0; j<i; j++) {
             pase_matrix->aux_hh[i*num_aux_vec+j] 
-                = pase_matrix->aux_hh[j*num_aux_vec+j];
+                = pase_matrix->aux_hh[j*num_aux_vec+i];
         }
     }
+    PASE_PrintMat(pase_matrix);
 
     //给pase辅助向量组x赋初值
     pase_ops->MultiVecSetRandomValue((void**)multi_vec_x, 0, n_multivec, pase_ops);
+    PASE_PrintMultiVec(multi_vec_x, "multi_vec_x");
 
-    //printf ( "multi_vec_x\n");
-    //PASE_PrintMultiVec(multi_vec_x);
-    //printf ( "pase_matrix\n" );
-    //PASE_PrintMat(pase_matrix);
+
+
+
+    printf ( "dense_mat----------------------------------------------\n" );
+
+    double *dense_matA, *dense_matX, *dense_matY;
+    int    sizeA[2], sizeX[2], sizeY[2];
+    PASE_MatrixConvertDenseMatrix(pase_matrix, &dense_matA, sizeA);
+    Print_DenseMatrix(dense_matA, sizeA);
+    
+    printf ( "dense_mat----------------------------------------------\n" );
+    PASE_MultiVectorConvertDenseMatrix(multi_vec_x, &dense_matX, sizeX);
+    Print_DenseMatrix(dense_matX, sizeX);
+
+    printf ( "dense_mat----------------------------------------------\n" );
+    DenseMatrixDotDenseMatrix(dense_matA, dense_matX, &dense_matY, sizeA, sizeX, sizeY);
+    Print_DenseMatrix(dense_matY, sizeY);
+
+    free(dense_matA);
+    free(dense_matX);
+    free(dense_matY);
+
+
+    printf ( "dense_mat----------------------------------------------\n" );
+
+
+
+
     //gcge_ops->MultiVecPrint(pase_matrix->aux_Hh, n_multivec);
 
     PASE_Vector vec_x;
@@ -121,21 +160,26 @@ int main(int argc, char* argv[])
     PASE_PrintVec(vec_y, "vip_y");
     printf("vip = %f;\n", vvalue_ip);
 
+    printf ( "--------MatDotMultiVec------------------------------------------\n" );
+    PASE_PrintMat(pase_matrix);
+    PASE_PrintMultiVec(multi_vec_x, "multi_vec_x");
+    PASE_PrintMultiVec(multi_vec_y, "multi_vec_y");
     int mv_s[2];
     int mv_e[2];
-    mv_s[0] = 2;
+    mv_s[0] = 3;
     mv_e[0] = 4;
-    mv_s[1] = 1;
-    mv_e[1] = 3;
+    mv_s[1] = 3;
+    mv_e[1] = 4;
     //--------------------------------------------------------------
     /* It's ok. */
     pase_ops->MatDotMultiVec((void *)pase_matrix, (void **)multi_vec_x, 
             (void **)multi_vec_y, mv_s, mv_e, pase_ops);
     PASE_PrintMat(pase_matrix);
-    PASE_PrintMultiVec(multi_vec_x, "mdmv_x");
+    //PASE_PrintMultiVec(multi_vec_x, "mdmv_x");
     PASE_PrintMultiVec(multi_vec_y, "mdmv_y");
-    printf("mdmv_mv_s = [%d, %d];\n", mv_s[0]+1, mv_s[1]+1);
+    printf("mdmv_mv_s = [%d, %d];\n", mv_s[0], mv_s[1]);
     printf("mdmv_mv_e = [%d, %d];\n", mv_e[0], mv_e[1]);
+    printf ( "--------MatDotMultiVec------------------------------------------\n" );
 
     //--------------------------------------------------------------
     PASE_PrintMultiVec(multi_vec_x, "mvaxpby_x");
@@ -184,10 +228,10 @@ int main(int argc, char* argv[])
     //--------------------------------------------------------------
     double *values_ip = (double*)calloc(n_multivec*n_multivec, sizeof(double));
     /* It's ok. */
-    mv_s[0] = 2;
+    mv_s[0] = 0;
     mv_e[0] = 4;
-    mv_s[1] = 1;
-    mv_e[1] = 3;
+    mv_s[1] = 0;
+    mv_e[1] = 4;
     pase_ops->MultiVecInnerProd((void**)multi_vec_x, (void**)multi_vec_y,
             values_ip+mv_s[1]*n_multivec+mv_s[0], "nonsym", mv_s, mv_e, 
             n_multivec, 0, pase_ops);
@@ -202,6 +246,7 @@ int main(int argc, char* argv[])
         }
         printf("\n");
     }
+    free(values_ip);
     printf("];\n");
     printf("mvip_mv_s = [%d, %d];\n", mv_s[0]+1, mv_s[1]+1);
     printf("mvip_mv_e = [%d, %d];\n", mv_e[0], mv_e[1]);
@@ -227,7 +272,138 @@ int main(int argc, char* argv[])
     GCGE_OPS_Free(&gcge_ops);
     PASE_OPS_Free(&pase_ops);
 
+#if GCGE_USE_MPI
+    MPI_Finalize();
+#endif
+
     return 0;
+}
+
+void DenseMatrixDotDenseMatrix(double *matA, double *matX, double **matY, int *sizeA, int *sizeX, int *sizeY)
+{
+   int i, j, k;
+   int lddA, lddX, lddY;
+   sizeY[0] = sizeA[0];
+   sizeY[1] = sizeX[1];
+   lddA = sizeA[0];
+   lddX = sizeX[0];
+   lddY = sizeY[0];
+
+   *matY = (double*)calloc(sizeY[0]*sizeY[1], sizeof(double));
+
+   printf ( "size A = %d, %d\n", sizeA[0], sizeA[1]);
+   printf ( "size X = %d, %d\n", sizeX[0], sizeX[1]);
+   printf ( "size Y = %d, %d\n", sizeY[0], sizeY[1]);
+   for (i = 0; i < sizeY[0]; ++i)
+   {
+      for (j = 0; j < sizeY[1]; ++j)
+      {
+//	 printf ( "i = %d, j = %d\n", i, j );
+	 (*matY)[j*lddY+i] = 0;
+	 for (k = 0; k < sizeA[1]; ++k)
+	 {
+	    (*matY)[j*lddY+i] += matA[k*lddA+i]*matX[j*lddX+k];
+	 }
+      }
+   }
+}
+
+void PASE_MultiVectorConvertDenseMatrix(PASE_MultiVector vecs, double **dense_mat, int *size)
+{
+   int     num_vec = vecs->num_vec;
+   int     num_aux_vec = vecs->num_aux_vec;
+
+   CSR_VEC **b_H = (CSR_VEC**)(vecs->b_H);
+   int     nrows = b_H[0]->size;
+
+   int     ldd = nrows+num_aux_vec;
+   *dense_mat = (double*)calloc(ldd*num_vec, sizeof(double));
+
+   size[0] = ldd;
+   size[1] = num_vec;
+
+   int i, j;
+   for(j=0; j<num_vec; j++)
+   {
+      for(i=0; i<nrows; i++)
+      {
+	 (*dense_mat)[ldd*j+i] = b_H[j]->Entries[i];
+      }
+   }
+
+   double *aux_h = vecs->aux_h;
+   for(j=0; j<num_vec; j++)
+   {
+      for(i=0; i<num_aux_vec; i++)
+      {
+	 (*dense_mat)[ldd*j+i+nrows] = aux_h[j*num_aux_vec+i];
+      }
+   }
+}
+
+/* 只适用于方阵, dense按列存储 */
+void PASE_MatrixConvertDenseMatrix(PASE_Matrix pase_matrix, double **dense_mat, int *size)
+{
+    CSR_MAT *A_H = (CSR_MAT*)(pase_matrix->A_H);
+    int     num_aux_vec = pase_matrix->num_aux_vec;
+    int     nrows = A_H->N_Rows;
+    int     ldd = nrows+num_aux_vec;
+    *dense_mat = (double*)calloc(ldd*ldd, sizeof(double));
+    int     row = 0;
+    int     col = 0;
+    int     i   = 0;
+    int     j   = 0;
+    int     *rowptr  = A_H->RowPtr;
+    int     *kcol    = A_H->KCol;
+    double  *entries = A_H->Entries;
+
+    size[0] = ldd;
+    size[1] = ldd;
+    //将A_H部分赋值给dense_mat
+    for(row=0; row<nrows; row++)
+    {
+        for(i=rowptr[row]; i<rowptr[row+1]; i++)
+        {
+            col = kcol[i];
+            (*dense_mat)[col*ldd+row] = entries[i];
+        }
+    }
+    //将aux_Hh部分赋值给dense_mat
+    CSR_VEC **vecs = (CSR_VEC**)(pase_matrix->aux_Hh);
+    for(i=0; i<num_aux_vec; i++)
+    {
+        for(row=0; row<nrows; row++)
+        {
+            col = nrows+i;
+            (*dense_mat)[col*ldd+row] = vecs[i]->Entries[row];
+            //对称化
+            (*dense_mat)[row*ldd+col] = vecs[i]->Entries[row];
+        }
+    }
+    //aux_hh部分
+    for(i=0; i<num_aux_vec; i++)
+    {
+        for(j=0; j<num_aux_vec; j++)
+        {
+            col = nrows+i;
+            row = nrows+j;
+            (*dense_mat)[col*ldd+row] = pase_matrix->aux_hh[i*num_aux_vec+j];
+        }
+    }
+}
+
+void Print_DenseMatrix(double *dense_mat, int *size)
+{
+   int i, j;
+   int ldd = size[0];
+   for(i=0; i<size[0]; i++)
+   {
+      for(j=0; j<size[1]; j++)
+      {
+	 printf("%18.15f\t", dense_mat[j*ldd+i]);
+      }
+      printf ( "\n" );
+   }
 }
 
 void PASE_PrintMat(PASE_Matrix pase_matrix)

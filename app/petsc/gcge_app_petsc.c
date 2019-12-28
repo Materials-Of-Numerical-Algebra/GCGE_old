@@ -26,138 +26,133 @@
 
 void PETSC_ReadMatrixBinary(Mat *A, const char *filename)
 {
-    PetscErrorCode ierr;
     PetscViewer    viewer;
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Getting matrix...\n"); 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &viewer); 
-    ierr = MatCreate(PETSC_COMM_WORLD, A); 
-    ierr = MatSetFromOptions(*A); 
-    ierr = MatLoad(*A, viewer); 
-    ierr = PetscViewerDestroy(&viewer);
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Getting matrix... Done\n");
+    PetscPrintf(PETSC_COMM_WORLD, "Getting matrix...\n"); 
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &viewer); 
+    MatCreate(PETSC_COMM_WORLD, A); 
+    MatSetFromOptions(*A); 
+    MatLoad(*A, viewer); 
+    PetscViewerDestroy(&viewer);
+    PetscPrintf(PETSC_COMM_WORLD, "Getting matrix... Done\n");
 }
 
 void PETSC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
 {
-    PetscErrorCode ierr;
-    ierr = KSPCreate(PETSC_COMM_WORLD,ksp);
-    ierr = KSPSetOperators(*ksp,A,T);
-    ierr = KSPSetInitialGuessNonzero(*ksp, 1);
+    KSPCreate(PETSC_COMM_WORLD,ksp);
+    KSPSetOperators(*ksp,A,T);
+    KSPSetInitialGuessNonzero(*ksp, 1);
 
-    ierr = KSPSetType(*ksp, KSPCG);
+    KSPSetType(*ksp, KSPCG);
     //这里的rtol应取作<=ev_tol
-    //PetscErrorCode  KSPSetTolerances(KSP ksp,PetscReal rtol,PetscReal abstol,PetscReal dtol,PetscInt maxits)
-    ierr = KSPSetTolerances(*ksp, 1e-12, PETSC_DEFAULT, PETSC_DEFAULT, 1000);
+    //  KSPSetTolerances(KSP ksp,PetscReal rtol,PetscReal abstol,PetscReal dtol,PetscInt maxits)
+    KSPSetTolerances(*ksp, 1e-12, PETSC_DEFAULT, PETSC_DEFAULT, 1000);
     PC pc;
-    ierr = KSPGetPC(*ksp, &pc);
-
-    //ierr = PCSetType(pc, PCHYPRE);
-    //ierr = PCHYPRESetType(pc, "boomeramg");
-    ierr = PCSetType(pc, PCHMG);
-    ierr = PCHMGSetInnerPCType(pc, PCGAMG);
-    ierr = PCHMGSetReuseInterpolation(pc, PETSC_TRUE);
-    ierr = PCHMGSetUseSubspaceCoarsening(pc, PETSC_TRUE);
-    ierr = PCHMGUseMatMAIJ(pc, PETSC_FALSE);
-    ierr = PCHMGSetCoarseningComponent(pc, 0);
-
+    KSPGetPC(*ksp, &pc);
+    //PCSetType(pc, PCHYPRE);
+    //PCHYPRESetType(pc, "boomeramg");
+    PCSetType(pc, PCHMG);
+    PCHMGSetInnerPCType(pc, PCGAMG);
+    PCHMGSetReuseInterpolation(pc, PETSC_TRUE);
+    PCHMGSetUseSubspaceCoarsening(pc, PETSC_TRUE);
+    PCHMGUseMatMAIJ(pc, PETSC_FALSE);
+    PCHMGSetCoarseningComponent(pc, 0);
     //最后从命令行设置参数
-    ierr = KSPSetFromOptions(*ksp);
+    KSPSetFromOptions(*ksp);
 }
 
 void PETSC_VecLocalInnerProd(Vec x, Vec y, double *value)
 {
-    PetscErrorCode     ierr;
     const PetscScalar *local_x;
     const PetscScalar *local_y;
     PetscInt           low, high, length, i = 0;
-    ierr = VecGetOwnershipRange(x, &low, &high);
+    VecGetOwnershipRange(x, &low, &high);
     length = high-low;
-    ierr = VecGetArrayRead(x,&local_x);
-    ierr = VecGetArrayRead(y,&local_y);
+    VecGetArrayRead(x,&local_x);
+    VecGetArrayRead(y,&local_y);
     *value = 0.0;
     for(i=0; i<length; i++)
     {
         *value += local_x[i]*local_y[i];
     }
-    ierr = VecRestoreArrayRead(x,&local_x);
-    ierr = VecRestoreArrayRead(y,&local_y);
+    VecRestoreArrayRead(x,&local_x);
+    VecRestoreArrayRead(y,&local_y);
 }
 
 
 void GCGE_PETSC_VecCreateByVec(void **d_vec, void *s_vec, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr;
-    ierr = VecDuplicate((Vec)s_vec, (Vec*)d_vec);
+	
+    VecDuplicate((Vec)s_vec, (Vec*)d_vec);
 }
 void GCGE_PETSC_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr;
-    ierr = MatCreateVecs((Mat)mat, NULL, (Vec*)vec);
+	
+    MatCreateVecs((Mat)mat, NULL, (Vec*)vec);
 }
 void GCGE_PETSC_MultiVecCreateByMat(void ***multi_vec, GCGE_INT n_vec, void *mat, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr;
-	Vec vector;
-    ierr = MatCreateVecs((Mat)mat, NULL, &vector);
-    ierr = VecDuplicateVecs(vector, n_vec, (Vec**)multi_vec);
-    ierr = VecDestroy(&vector);
+
+   Vec vector;
+   MatCreateVecs((Mat)mat, NULL, &vector);
+   VecDuplicateVecs(vector, n_vec, (Vec**)multi_vec);
+   VecDestroy(&vector);
 }
 void GCGE_PETSC_VecDestroy(void **vec, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr;
-    ierr = VecDestroy((Vec*)vec);
+	
+    VecDestroy((Vec*)vec);
 }
 void GCGE_PETSC_MultiVecDestroy(void ***MultiVec, GCGE_INT n_vec, struct GCGE_OPS_ *ops)
 {
-	PetscErrorCode ierr;
-    ierr = VecDestroyVecs(n_vec, (Vec**)MultiVec);
+	
+    VecDestroyVecs(n_vec, (Vec**)MultiVec);
 }
 
 void GCGE_PETSC_VecSetRandomValue(void *vec, GCGE_OPS *ops)
 {
     PetscRandom    rctx;
-    PetscErrorCode ierr;
-    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
-    ierr = PetscRandomSetFromOptions(rctx);
-    ierr = VecSetRandom((Vec)vec, rctx);
-    ierr = PetscRandomDestroy(&rctx);
+    
+    PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
+    PetscRandomSetFromOptions(rctx);
+    VecSetRandom((Vec)vec, rctx);
+    PetscRandomDestroy(&rctx);
 }
 void GCGE_PETSC_MultiVecSetRandomValue(void **multi_vec, GCGE_INT start, GCGE_INT n_vec, struct GCGE_OPS_ *ops)
 {
     PetscRandom    rctx;
-    PetscErrorCode ierr;
+    
     PetscInt       i;
-    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
-    ierr = PetscRandomSetFromOptions(rctx);
+    PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
+    PetscRandomSetFromOptions(rctx);
     for(i=0; i<n_vec; i++)
     {
-        ierr = VecSetRandom(((Vec*)multi_vec)[i], rctx);
+        VecSetRandom(((Vec*)multi_vec)[i], rctx);
     }
-    ierr = PetscRandomDestroy(&rctx);
+    PetscRandomDestroy(&rctx);
 }
 
 void GCGE_PETSC_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
-    PetscErrorCode ierr = MatMult((Mat)mat, (Vec)x, (Vec)r);
+     MatMult((Mat)mat, (Vec)x, (Vec)r);
 }
 
 void GCGE_PETSC_MatTransposeDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
-    PetscErrorCode ierr = MatMultTranspose((Mat)mat, (Vec)x, (Vec)r);
+     MatMultTranspose((Mat)mat, (Vec)x, (Vec)r);
 }
 
 void GCGE_PETSC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
-    PetscErrorCode ierr;
-	ierr = VecScale((Vec)y, b);
+    
+	VecScale((Vec)y, b);
     if(x != y)
     {
-	    ierr = VecAXPY((Vec)y, a, (Vec)x);
+	    VecAXPY((Vec)y, a, (Vec)x);
     }
 }
 void GCGE_PETSC_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr = VecDot((Vec)x, (Vec)y, value_ip);
+	 VecDot((Vec)x, (Vec)y, value_ip);
 }
 
 void GCGE_PETSC_VecLocalInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
@@ -167,8 +162,8 @@ void GCGE_PETSC_VecLocalInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_
 
 void GCGE_PETSC_LinearSolver(void *Matrix, void *b, void *x, struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr;
-    ierr = KSPSolve((KSP)(ops->linear_solver_workspace), (Vec)b, (Vec)x);
+    
+    KSPSolve((KSP)(ops->linear_solver_workspace), (Vec)b, (Vec)x);
 }
 
 void GCGE_PETSC_SetOps(GCGE_OPS *ops)
@@ -207,18 +202,18 @@ GCGE_SOLVER* GCGE_PETSC_Solver_Init(Mat A, Mat B, int num_eigenvalues, int argc,
     GCGE_SOLVER_Create(&petsc_solver);
     if(num_eigenvalues != -1)
         petsc_solver->para->nev = num_eigenvalues;
-    GCGE_INT error = GCGE_PARA_SetFromCommandLine(petsc_solver->para, argc, argv);
+    GCGE_PARA_SetFromCommandLine(petsc_solver->para, argc, argv);
     //设置初始值
     int nev = petsc_solver->para->nev;
     double *eval = (double *)calloc(nev, sizeof(double)); 
     petsc_solver->eval = eval;
 
-    PetscErrorCode ierr;
+	
     Vec *evec;
     Vec vector;
-    ierr = MatCreateVecs(A, NULL, &vector);
-    ierr = VecDuplicateVecs(vector, nev, &evec);
-    ierr = VecDestroy(&vector);
+    MatCreateVecs(A, NULL, &vector);
+    VecDuplicateVecs(vector, nev, &evec);
+    VecDestroy(&vector);
 
     GCGE_SOLVER_SetMatA(petsc_solver, A);
     if(B != NULL)
@@ -267,4 +262,55 @@ void GCGE_SOLVER_SetPETSCOpsLinearSolver(GCGE_SOLVER *solver, KSP ksp)
     GCGE_SOLVER_SetOpsLinearSolverWorkspace(solver, (void*)ksp);
     //将线性解法器设为KSPSolve
     solver->ops->LinearSolver = GCGE_PETSC_LinearSolver;
+}
+
+void GCGE_SOLVER_PETSC_Create(GCGE_SOLVER **petsc_solver)
+{
+    GCGE_SOLVER_Create(petsc_solver);
+    GCGE_SOLVER_SetPETSCOps(*petsc_solver);
+}
+
+void GCGE_SOLVER_PETSC_Setup(GCGE_SOLVER *petsc_solver, void *A, void *B, void *P)
+{
+    //给特征值和特征向量分配nev大小的空间
+    GCGE_INT nev = petsc_solver->para->nev;
+    double *eval = (double *)calloc(nev, sizeof(double)); 
+    Vec *evec;
+    petsc_solver->ops->MultiVecCreateByMat((void***)(&evec), nev, (void*)A, petsc_solver->ops);
+
+    //将矩阵与特征对设置到petsc_solver中
+    GCGE_SOLVER_SetMatA(petsc_solver, A);
+    if(B != NULL)
+    {
+        GCGE_SOLVER_SetMatB(petsc_solver, B);
+    }
+    GCGE_SOLVER_SetEigenvalues(petsc_solver, eval);
+    GCGE_SOLVER_SetEigenvectors(petsc_solver, (void**)evec);
+
+    //如果读入了预条件矩阵, 就使用PETSc的求解器
+    if(P != NULL)
+    {
+        KSP ksp;
+        //设定线性求解器
+        PETSC_LinearSolverCreate(&ksp, A, P);
+        //PetscViewer viewer;
+        //KSPView(ksp, viewer);
+        //给petsc_solver设置KSP为线性求解器
+        GCGE_SOLVER_SetPETSCOpsLinearSolver(petsc_solver, ksp);
+    }
+    //对petsc_solver进行setup，检查参数，分配工作空间等
+    GCGE_SOLVER_Setup(petsc_solver);
+}
+
+void GCGE_SOLVER_PETSC_Free(GCGE_SOLVER **petsc_solver)
+{
+    //释放特征值、特征向量、KSP空间
+    free((*petsc_solver)->eval); (*petsc_solver)->eval = NULL;
+    (*petsc_solver)->ops->MultiVecDestroy((void***)(&(*petsc_solver)->evec), 
+            (*petsc_solver)->para->nev, (*petsc_solver)->ops);
+    if((*petsc_solver)->ops->linear_solver_workspace != NULL)
+    {
+        KSPDestroy((KSP*)(&(*petsc_solver)->ops->linear_solver_workspace));
+    }
+    GCGE_SOLVER_Free(petsc_solver);
 }

@@ -22,7 +22,18 @@
 
 #ifndef  _PASE_H_
 #define  _PASE_H_
+
+#include "pase_convert.h"
+
+#include "pase_config.h"
+
+#include "pase_param.h"
+
 #include "pase_matvec.h"
 #include "pase_ops.h"
-#include "pase_config.h"
+
+#include "pase_mg.h"
+#include "pase_amg.h"
+
+#include "pase_solver.h"
 #endif

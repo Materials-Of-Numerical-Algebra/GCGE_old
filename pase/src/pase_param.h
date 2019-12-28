@@ -1,5 +1,5 @@
-#ifndef __PASE_PARAM_H__
-#define __PASE_PARAM_H__
+#ifndef _PASE_PARAM_H_
+#define _PASE_PARAM_H_
 
 #include "pase_config.h"
 

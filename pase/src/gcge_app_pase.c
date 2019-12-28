@@ -20,7 +20,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
-#include "pase.h"
 #include "gcge_app_pase.h"
 
 void GCGE_PASE_VecCreateByVec(void **des_vec, void *src_vec, struct GCGE_OPS_ *ops)

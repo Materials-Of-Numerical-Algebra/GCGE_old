@@ -24,129 +24,128 @@
 
 void SLEPC_ReadMatrixBinary(Mat *A, const char *filename)
 {
-    PetscErrorCode ierr;
+    
     PetscViewer    viewer;
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Getting matrix...\n"); 
-    ierr = PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &viewer); 
-    ierr = MatCreate(PETSC_COMM_WORLD, A); 
-    ierr = MatSetFromOptions(*A); 
-    ierr = MatLoad(*A, viewer); 
-    ierr = PetscViewerDestroy(&viewer);
-    ierr = PetscPrintf(PETSC_COMM_WORLD, "Getting matrix... Done\n");
+    PetscPrintf(PETSC_COMM_WORLD, "Getting matrix...\n"); 
+    PetscViewerBinaryOpen(PETSC_COMM_WORLD, filename, FILE_MODE_READ, &viewer); 
+    MatCreate(PETSC_COMM_WORLD, A); 
+    MatSetFromOptions(*A); 
+    MatLoad(*A, viewer); 
+    PetscViewerDestroy(&viewer);
+    PetscPrintf(PETSC_COMM_WORLD, "Getting matrix... Done\n");
 }
 
-void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T, char *eval_type)
+void SLEPC_LinearSolverCreate(KSP *ksp, Mat A, Mat T)
 {
-    PetscErrorCode ierr;
-    ierr = KSPCreate(PETSC_COMM_WORLD,ksp);
-    ierr = KSPSetOperators(*ksp,A,T);
-    ierr = KSPSetInitialGuessNonzero(*ksp, 1);
+    
+    KSPCreate(PETSC_COMM_WORLD,ksp);
+    KSPSetOperators(*ksp,A,T);
+    KSPSetInitialGuessNonzero(*ksp, 1);
 
-    if(eval_type == "sm")
-    {
-        ierr = KSPSetType(*ksp, KSPMINRES);
-    }
-    else
-    {
-        ierr = KSPSetType(*ksp, KSPCG);
-    }
+    KSPSetType(*ksp, KSPCG);
     //这里的rtol应取作<=ev_tol
-    //PetscErrorCode  KSPSetTolerances(KSP ksp,PetscReal rtol,PetscReal abstol,PetscReal dtol,PetscInt maxits)
-    ierr = KSPSetTolerances(*ksp, 1e-25, PETSC_DEFAULT, PETSC_DEFAULT, 15);
+    //  KSPSetTolerances(KSP ksp,PetscReal rtol,PetscReal abstol,PetscReal dtol,PetscInt maxits)
+    KSPSetTolerances(*ksp, 1e-25, PETSC_DEFAULT, PETSC_DEFAULT, 15);
     PC pc;
-    //ierr = KSPGetPC(*ksp, &pc);
-    //ierr = PCSetType(pc, PCHYPRE);
-    //ierr = PCHYPRESetType(pc, "boomeramg");
+    KSPGetPC(*ksp, &pc);
+    //PCSetType(pc, PCHYPRE);
+    //PCHYPRESetType(pc, "boomeramg");
+    PCSetType(pc, PCHMG);
+    PCHMGSetInnerPCType(pc, PCGAMG);
+    PCHMGSetReuseInterpolation(pc, PETSC_TRUE);
+    PCHMGSetUseSubspaceCoarsening(pc, PETSC_TRUE);
+    PCHMGUseMatMAIJ(pc, PETSC_FALSE);
+    PCHMGSetCoarseningComponent(pc, 0);
+
     //最后从命令行设置参数
-    ierr = KSPSetFromOptions(*ksp);
+    KSPSetFromOptions(*ksp);
     //PetscViewer viewer;
-    ierr = KSPView(*ksp, PETSC_VIEWER_STDOUT_WORLD);
+    KSPView(*ksp, PETSC_VIEWER_STDOUT_WORLD);
 }
 
 void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value)
 {
-    PetscErrorCode     ierr;
     const PetscScalar *local_x;
     const PetscScalar *local_y;
     PetscInt           low, high, length, i = 0;
-    ierr = VecGetOwnershipRange(x, &low, &high);
+    VecGetOwnershipRange(x, &low, &high);
     length = high-low;
-    ierr = VecGetArrayRead(x,&local_x);
-    ierr = VecGetArrayRead(y,&local_y);
+    VecGetArrayRead(x,&local_x);
+    VecGetArrayRead(y,&local_y);
     *value = 0.0;
     for(i=0; i<length; i++)
     {
         *value += local_x[i]*local_y[i];
     }
-    ierr = VecRestoreArrayRead(x,&local_x);
-    ierr = VecRestoreArrayRead(y,&local_y);
+    VecRestoreArrayRead(x,&local_x);
+    VecRestoreArrayRead(y,&local_y);
 }
 
 
 void GCGE_SLEPC_VecCreateByVec(void **d_vec, void *s_vec, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr;
-    ierr = VecDuplicate((Vec)s_vec, (Vec*)d_vec);
+	
+    VecDuplicate((Vec)s_vec, (Vec*)d_vec);
 }
 void GCGE_SLEPC_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr;
-    ierr = MatCreateVecs((Mat)mat, NULL, (Vec*)vec);
+	
+    MatCreateVecs((Mat)mat, NULL, (Vec*)vec);
 }
 void GCGE_SLEPC_VecDestroy(void **vec, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr;
-    ierr = VecDestroy((Vec*)vec);
+	
+    VecDestroy((Vec*)vec);
 }
 
 void GCGE_SLEPC_VecSetRandomValue(void *vec, GCGE_OPS *ops)
 {
     PetscRandom    rctx;
-    PetscErrorCode ierr;
-    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
-    ierr = PetscRandomSetFromOptions(rctx);
-    ierr = VecSetRandom((Vec)vec, rctx);
-    ierr = PetscRandomDestroy(&rctx);
+    
+    PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
+    PetscRandomSetFromOptions(rctx);
+    VecSetRandom((Vec)vec, rctx);
+    PetscRandomDestroy(&rctx);
 }
 void GCGE_SLEPC_MultiVecSetRandomValue(void **multi_vec, GCGE_INT start, GCGE_INT n_vec, struct GCGE_OPS_ *ops)
 {
     PetscRandom    rctx;
-    PetscErrorCode ierr;
+    
     PetscInt       i;
     Vec            x;
-    ierr = PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
-    ierr = PetscRandomSetFromOptions(rctx);
+    PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
+    PetscRandomSetFromOptions(rctx);
     for(i=0; i<n_vec; i++)
     {
-        ierr = BVGetColumn((BV)multi_vec, i, &x);
-        ierr = VecSetRandom(x, rctx);
-        ierr = BVRestoreColumn((BV)multi_vec, i, &x);
+        BVGetColumn((BV)multi_vec, i, &x);
+        VecSetRandom(x, rctx);
+        BVRestoreColumn((BV)multi_vec, i, &x);
     }
-    ierr = PetscRandomDestroy(&rctx);
+    PetscRandomDestroy(&rctx);
 }
 
 void GCGE_SLEPC_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
-    PetscErrorCode ierr = MatMult((Mat)mat, (Vec)x, (Vec)r);
+     MatMult((Mat)mat, (Vec)x, (Vec)r);
 }
 
 void GCGE_SLEPC_MatTransposeDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
-    PetscErrorCode ierr = MatMultTranspose((Mat)mat, (Vec)x, (Vec)r);
+     MatMultTranspose((Mat)mat, (Vec)x, (Vec)r);
 }
 
 void GCGE_SLEPC_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
-    PetscErrorCode ierr;
-	ierr = VecScale((Vec)y, b);
+    
+	VecScale((Vec)y, b);
     if(x != y)
     {
-	    ierr = VecAXPY((Vec)y, a, (Vec)x);
+	    VecAXPY((Vec)y, a, (Vec)x);
     }
 }
 void GCGE_SLEPC_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
-	PetscErrorCode ierr = VecDot((Vec)x, (Vec)y, value_ip);
+	 VecDot((Vec)x, (Vec)y, value_ip);
 }
 
 void GCGE_SLEPC_VecLocalInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
@@ -156,47 +155,47 @@ void GCGE_SLEPC_VecLocalInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_
 
 void GCGE_SLEPC_LinearSolver(void *Matrix, void *b, void *x, struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr;
-    ierr = KSPSolve((KSP)(ops->linear_solver_workspace), (Vec)b, (Vec)x);
+    
+    KSPSolve((KSP)(ops->linear_solver_workspace), (Vec)b, (Vec)x);
 }
 
 void GCGE_SLEPC_GetVecFromMultiVec(void **V, GCGE_INT j, void **x, GCGE_OPS *ops)
 {
-    PetscErrorCode ierr = BVGetColumn((BV)V, j, (Vec*)x);
+     BVGetColumn((BV)V, j, (Vec*)x);
 }
 
 void GCGE_SLEPC_RestoreVecForMultiVec(void **V, GCGE_INT j, void **x, GCGE_OPS *ops)
 {
-    PetscErrorCode ierr = BVRestoreColumn((BV)V, j, (Vec*)x);
+     BVRestoreColumn((BV)V, j, (Vec*)x);
 }
 
 void GCGE_SLEPC_MultiVecCreateByMat(void ***multi_vec, 
         GCGE_INT n_vec, void *mat, struct GCGE_OPS_ *ops)
 {
-	PetscErrorCode ierr;
+	
 	Vec            vector;
-    ierr = MatCreateVecs((Mat)mat, NULL, &vector);
-    ierr = BVCreate(PETSC_COMM_WORLD, (BV*)multi_vec);
-    ierr = BVSetType((BV)(*multi_vec), BVMAT);
-    ierr = BVSetSizesFromVec((BV)(*multi_vec), vector, n_vec);
-    ierr = VecDestroy(&vector);
+    MatCreateVecs((Mat)mat, NULL, &vector);
+    BVCreate(PETSC_COMM_WORLD, (BV*)multi_vec);
+    BVSetType((BV)(*multi_vec), BVMAT);
+    BVSetSizesFromVec((BV)(*multi_vec), vector, n_vec);
+    VecDestroy(&vector);
 }
 
 void GCGE_SLEPC_MultiVecDestroy(void ***MultiVec, GCGE_INT n_vec, struct GCGE_OPS_ *ops)
 {
     GCGE_INT n = 1;
-    PetscErrorCode ierr;
-    ierr = BVGetSizes((BV)(*MultiVec), &n, NULL, NULL);
-    ierr = BVDestroy((BV*)MultiVec);
+    
+    BVGetSizes((BV)(*MultiVec), &n, NULL, NULL);
+    BVDestroy((BV*)MultiVec);
 }
 
 void GCGE_SLEPC_MatDotMultiVec(void *mat, void **x, void **y, 
         GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr;
-    ierr = BVSetActiveColumns((BV)x, start[0], end[0]);
-    ierr = BVSetActiveColumns((BV)y, start[1], end[1]);
-    ierr = BVMatMult((BV)x, (Mat)mat, (BV)y);
+    
+    BVSetActiveColumns((BV)x, start[0], end[0]);
+    BVSetActiveColumns((BV)y, start[1], end[1]);
+    BVMatMult((BV)x, (Mat)mat, (BV)y);
 }
 
 /* vec_y[j] = \sum_{i=sx}^{ex} vec_x[i] a[i][j] */
@@ -206,19 +205,19 @@ void GCGE_SLEPC_MultiVecLinearComb(void **x, void **y,
         GCGE_INT if_Vec, GCGE_DOUBLE alpha, GCGE_DOUBLE beta,
         struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr;
-    ierr = BVSetActiveColumns((BV)x, start[0], end[0]);
+    
+    BVSetActiveColumns((BV)x, start[0], end[0]);
     if(if_Vec == 0)
     {
-        ierr = BVSetActiveColumns((BV)y, start[1], end[1]);
+        BVSetActiveColumns((BV)y, start[1], end[1]);
         Mat dense_mat;
         //y = x * dense_mat，因此dense_mat的行数为x的列数,列数为y的列数
         GCGE_INT nrows = end[0];
         GCGE_INT ncols = end[1];
-        ierr = MatCreateSeqDense(PETSC_COMM_SELF, nrows, ncols, NULL, &dense_mat);
+        MatCreateSeqDense(PETSC_COMM_SELF, nrows, ncols, NULL, &dense_mat);
         //将稠密矩阵a中的元素赋值给dense_mat
         GCGE_DOUBLE *q;
-        ierr = MatDenseGetArray(dense_mat, &q);
+        MatDenseGetArray(dense_mat, &q);
         memset(q, 0.0, nrows*ncols*sizeof(GCGE_DOUBLE));
         GCGE_INT i = 0;
         for(i=start[1]; i<end[1]; i++)
@@ -226,13 +225,13 @@ void GCGE_SLEPC_MultiVecLinearComb(void **x, void **y,
             //默认输入的矩阵a是要从第一个元素开始用的,所以q的位置要+start[0]
             memcpy(q+i*nrows+start[0], a+(i-start[1])*lda, (end[0]-start[0])*sizeof(GCGE_DOUBLE));
         }
-        ierr = MatDenseRestoreArray(dense_mat, &q);
-        ierr = BVMult((BV)y, alpha, beta, (BV)x, dense_mat);
-        ierr = MatDestroy(&dense_mat);
+        MatDenseRestoreArray(dense_mat, &q);
+        BVMult((BV)y, alpha, beta, (BV)x, dense_mat);
+        MatDestroy(&dense_mat);
     }
     else
     {
-        ierr = BVMultVec((BV)x, alpha, beta, (Vec)(y[0]), a);
+        BVMultVec((BV)x, alpha, beta, (Vec)(y[0]), a);
     }
 
 }
@@ -243,8 +242,8 @@ void GCGE_SLEPC_MultiVecInnerProd(void **V, void **W, GCGE_DOUBLE *a,
         char *is_sym, GCGE_INT *start, GCGE_INT *end, 
         GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr;
-    ierr = BVSetActiveColumns((BV)V, start[0], end[0]);
+    
+    BVSetActiveColumns((BV)V, start[0], end[0]);
 
     //如果W是BV结构
     if(if_Vec == 0)
@@ -255,17 +254,17 @@ void GCGE_SLEPC_MultiVecInnerProd(void **V, void **W, GCGE_DOUBLE *a,
         //col_length表示实际用到的稠密矩阵的列数,即W的列数
         GCGE_INT col_length = end[1]-start[1];
         GCGE_INT row_length = end[0]-start[0];
-        ierr = BVSetActiveColumns((BV)W, start[1], end[1]);
+        BVSetActiveColumns((BV)W, start[1], end[1]);
         //计算VT*W的L2内积,要先把W的矩阵设为NULL
-        ierr = BVSetMatrix((BV)W, NULL, PETSC_TRUE);
+        BVSetMatrix((BV)W, NULL, PETSC_TRUE);
         Mat dense_mat;
-        ierr = MatCreateSeqDense(PETSC_COMM_SELF, nrows, ncols, NULL, &dense_mat);
+        MatCreateSeqDense(PETSC_COMM_SELF, nrows, ncols, NULL, &dense_mat);
 
-        ierr = BVDot((BV)W, (BV)V, dense_mat);
+        BVDot((BV)W, (BV)V, dense_mat);
 
         //将稠密矩阵a中的元素赋值给dense_mat
         GCGE_DOUBLE *q;
-        ierr = MatDenseGetArray(dense_mat, &q);
+        MatDenseGetArray(dense_mat, &q);
         GCGE_INT i = 0;
  
         for(i=0; i<col_length; i++)
@@ -273,14 +272,14 @@ void GCGE_SLEPC_MultiVecInnerProd(void **V, void **W, GCGE_DOUBLE *a,
             //默认输入的矩阵a是要从第一个元素开始用的,q的位置要从start[1]列开始用,每列加start[0]
             memcpy(a+i*lda, q+(start[1]+i)*nrows+start[0], row_length*sizeof(GCGE_DOUBLE));
         }
-        ierr = MatDenseRestoreArray(dense_mat, &q);
-        ierr = MatDestroy(&dense_mat);
+        MatDenseRestoreArray(dense_mat, &q);
+        MatDestroy(&dense_mat);
     }
     else
     {
         //如果W是Vec*结构
-        ierr = BVSetMatrix((BV)V, NULL, PETSC_TRUE);
-        ierr = BVDotVec((BV)V, (Vec)(W[0]), a);
+        BVSetMatrix((BV)V, NULL, PETSC_TRUE);
+        BVDotVec((BV)V, (Vec)(W[0]), a);
     }
 
 }
@@ -291,42 +290,44 @@ void GCGE_SLEPC_MultiVecInnerProdLocal(void **V, void **W, GCGE_DOUBLE *a,
         char *is_sym, GCGE_INT *start, GCGE_INT *end, 
         GCGE_INT lda, GCGE_INT if_Vec, struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr;
-    ierr = BVSetActiveColumns((BV)V, start[0], end[0]);
+    
+    BVSetActiveColumns((BV)V, start[0], end[0]);
 
     const PetscScalar *V_array, *W_array;
     GCGE_INT     V_nrows,  V_ncols = end[0]-start[0];
     GCGE_INT     W_nrows,  W_ncols = end[1]-start[1];
     GCGE_DOUBLE alpha = 1.0;
     GCGE_DOUBLE beta  = 0.0;
-    ierr = BVGetArrayRead((BV)V, &V_array);
-    ierr = BVGetSizes((BV)V, &V_nrows, NULL, NULL);
+    BVGetArrayRead((BV)V, &V_array);
+    BVGetSizes((BV)V, &V_nrows, NULL, NULL);
     //如果W是BV结构
     if(if_Vec == 0)
     {
-	ierr = BVGetArrayRead((BV)W, &W_array);
-	ierr = BVGetSizes((BV)W, &W_nrows, NULL, NULL);
+	BVGetArrayRead((BV)W, &W_array);
+	BVGetSizes((BV)W, &W_nrows, NULL, NULL);
 
-	ops->DenseMatDotDenseMat("T", "N", &V_ncols, &W_ncols, &V_nrows, 
+	char transa = 'T', transb = 'N';
+	ops->DenseMatDotDenseMat(&transa, &transb, &V_ncols, &W_ncols, &V_nrows, 
 	      &alpha, (double*)V_array+start[0]*V_nrows, &V_nrows, 
 	      (double*)W_array+start[1]*W_nrows, &W_nrows, 
 	      &beta, a, &lda);
 
-	ierr = BVRestoreArrayRead((BV)W, &W_array);
+	BVRestoreArrayRead((BV)W, &W_array);
     }
     else
     {
         //如果W是Vec*结构
-	ierr = VecGetArrayRead((Vec)(W[0]), &W_array);
+	VecGetArrayRead((Vec)(W[0]), &W_array);
 	W_nrows = V_nrows;
 
-	ops->DenseMatDotDenseMat("T", "N", &V_ncols, &W_ncols, &V_nrows, 
+	char transa = 'T', transb = 'N';
+	ops->DenseMatDotDenseMat(&transa, &transb, &V_ncols, &W_ncols, &V_nrows, 
 	      &alpha, (double*)V_array+start[0]*V_nrows, &V_nrows, 
 	      (double*)W_array, &W_nrows, &beta, a, &lda);
 
-	ierr = VecRestoreArrayRead((Vec)(W[0]), &W_array);
+	VecRestoreArrayRead((Vec)(W[0]), &W_array);
     }
-    ierr = BVRestoreArrayRead((BV)V, &V_array);
+    BVRestoreArrayRead((BV)V, &V_array);
 
 }
 
@@ -334,17 +335,17 @@ void GCGE_SLEPC_MultiVecInnerProdLocal(void **V, void **W, GCGE_DOUBLE *a,
 void GCGE_SLEPC_MultiVecAxpby(GCGE_DOUBLE a, void **x, GCGE_DOUBLE 
         b, void **y, GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr;
-    ierr = BVSetActiveColumns((BV)x, start[0], end[0]);
-    ierr = BVSetActiveColumns((BV)y, start[1], end[1]);
+    
+    BVSetActiveColumns((BV)x, start[0], end[0]);
+    BVSetActiveColumns((BV)y, start[1], end[1]);
     //If matrix Q is NULL, then an AXPY operation Y = beta*Y + alpha*X is done
     if(x == y)
     {
-        ierr = BVScale((BV)y, a+b);
+        BVScale((BV)y, a+b);
     }
     else
     {
-        ierr = BVMult((BV)y, a, b, (BV)x, NULL);
+        BVMult((BV)y, a, b, (BV)x, NULL);
     }
 }
 
@@ -352,13 +353,13 @@ void GCGE_SLEPC_MultiVecAxpby(GCGE_DOUBLE a, void **x, GCGE_DOUBLE
 void GCGE_SLEPC_MultiVecSwap(void **V_1, void **V_2, 
         GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops)
 {
-    PetscErrorCode ierr;
+    
     if(V_1 != V_2)
     {
-        ierr = BVSetActiveColumns((BV)V_1, start[0], end[0]);
-        ierr = BVSetActiveColumns((BV)V_2, start[1], end[1]);
+        BVSetActiveColumns((BV)V_1, start[0], end[0]);
+        BVSetActiveColumns((BV)V_2, start[1], end[1]);
         //BVCopy是将前面的copy给后面的
-        ierr = BVCopy((BV)V_2, (BV)V_1);
+        BVCopy((BV)V_2, (BV)V_1);
     }
     else
     {
@@ -368,12 +369,12 @@ void GCGE_SLEPC_MultiVecSwap(void **V_1, void **V_2,
 
         for(i=0; i<length; i++)
         {
-            ierr = BVGetColumn((BV)V_1, i+start[0], &x);
-            ierr = BVGetColumn((BV)V_2, i+start[1], &y);
+            BVGetColumn((BV)V_1, i+start[0], &x);
+            BVGetColumn((BV)V_2, i+start[1], &y);
             //VecCopy是将前面的copy给后面的
-            ierr = VecCopy(y, x);
-            ierr = BVRestoreColumn((BV)V_1, i+start[0], &x);
-            ierr = BVRestoreColumn((BV)V_2, i+start[1], &y);
+            VecCopy(y, x);
+            BVRestoreColumn((BV)V_1, i+start[0], &x);
+            BVRestoreColumn((BV)V_2, i+start[1], &y);
         }
     }
 }
@@ -432,17 +433,17 @@ GCGE_SOLVER* GCGE_SLEPC_Solver_Init(Mat A, Mat B, int num_eigenvalues, int argc,
     GCGE_SOLVER_Create(&slepc_solver);
     if(num_eigenvalues != -1)
         slepc_solver->para->nev = num_eigenvalues;
-    GCGE_INT error = GCGE_PARA_SetFromCommandLine(slepc_solver->para, argc, argv);
+    GCGE_PARA_SetFromCommandLine(slepc_solver->para, argc, argv);
     //设置初始值
     int nev = slepc_solver->para->nev;
     double *eval = (double *)calloc(nev, sizeof(double)); 
     slepc_solver->eval = eval;
 
-	PetscErrorCode ierr;
+	
     Vec *evec;
 	Vec vector;
-    ierr = MatCreateVecs(A, NULL, &vector);
-    ierr = VecDuplicateVecs(vector, nev, &evec);
+    MatCreateVecs(A, NULL, &vector);
+    VecDuplicateVecs(vector, nev, &evec);
 
     GCGE_SOLVER_SetMatA(slepc_solver, A);
     if(B != NULL)
@@ -465,7 +466,7 @@ GCGE_SOLVER* GCGE_SLEPC_Solver_Init_KSPDefault(Mat A, Mat B, Mat P, int num_eige
     GCGE_SOLVER *slepc_solver = GCGE_SLEPC_Solver_Init(A, B, num_eigenvalues, argc, argv);
     KSP ksp;
     //使用矩阵A和预条件矩阵P创建ksp,ksp的参数均为默认参数,要修改ksp参数只能用命令行参数进行设置
-    SLEPC_LinearSolverCreate(&ksp, (Mat)A, (Mat)P, slepc_solver->para->eval_type);
+    SLEPC_LinearSolverCreate(&ksp, (Mat)A, (Mat)P);
     //把ksp作为ops->linear_solver_workspace
     GCGE_SOLVER_SetOpsLinearSolverWorkspace(slepc_solver, (void*)ksp);
     //将线性解法器设为KSPSolve

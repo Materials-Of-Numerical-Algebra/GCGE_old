@@ -221,7 +221,6 @@ main(int argc, char *argv[])
 {
     static char *fn = "../test/data/cube4.dat";
     static INT mem_max = 3000;
-    size_t mem, mem_peak;
     int i, j, k, n, nit;
     INT nev = 5;
     INT pre_refines = 3;
@@ -229,7 +228,7 @@ main(int argc, char *argv[])
     DOF **u_h, *error;
     MAP *map;
     MAT *A, *B;
-    FLOAT tol = 1e-3, PEoo, thres;
+    FLOAT tol = 1e-3;
     FLOAT *evals;
     double wtime;
 
@@ -377,6 +376,9 @@ while( TRUE ){
     if (flag == 1)
        break;
 #if 0
+
+    size_t mem, mem_peak;
+    FLOAT PEoo, thres;
     for (i = 0; i < nev; i++) {
        FLOAT err_tau;
        nit = modes[i][0] * modes[i][0] +

@@ -299,7 +299,8 @@ void GCGE_BCG_Continuous(void *Matrix, void **RHS, void**V, GCGE_INT *start,
 }//end for this subprogram
 
 //以下的BCG允许不连续收敛, 不做矩阵统一乘以向量组的优化
-void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT *start, 
+void GCGE_BCG(void *Matrix, GCGE_INT if_shift, GCGE_DOUBLE shift, void *B, 
+      void **RHS, void**V, GCGE_INT *start, 
       GCGE_INT *end, GCGE_INT max_it, GCGE_DOUBLE rate,
       GCGE_OPS *ops, void *V_tmp1, void **V_tmp2, void **V_tmp3,
       GCGE_DOUBLE *subspace_dtmp, GCGE_INT *subspace_itmp)
@@ -309,6 +310,12 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT *start,
    void        **CG_R = RHS, **CG_P = V_tmp1, **CG_W = V_tmp2, **CG_X = V;
    //V中用到的向量个数
    GCGE_INT    x_length = end[1] - start[1];
+   void        *Bx;
+   //GCGE_Printf("if_shift: %d\n", if_shift);
+   if((if_shift == 1)&&(B != NULL))
+   {
+      ops->VecCreateByMat(&Bx, Matrix, ops);
+   }
    if(V_tmp3 != NULL)
    {
        //使用V_tmp3作为运行中使用的r
@@ -338,6 +345,21 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT *start,
       ops->GetVecFromMultiVec(CG_X, start[1]+idx, &x, ops);   //取出初始值 x      
       ops->GetVecFromMultiVec(CG_W, start[3]+idx, &r, ops); //取出暂存残差r的变量
       ops->MatDotVec(Matrix,x,r, ops); //r = A*x
+      if(if_shift == 1)
+      {
+	 if(B == NULL)
+	 {
+             //计算r=Ax+shift*x
+	     ops->VecAxpby(shift, x, 1.0, r, ops);
+	 }
+	 else
+	 {
+             //计算r=Ax+shift*Bx
+             ops->MatDotVec(B,x,Bx, ops); 
+	     ops->VecAxpby(shift, Bx, 1.0, r, ops);
+	 }
+      }
+      
       ops->RestoreVecForMultiVec(CG_X, start[1]+idx, &x, ops);
       // b = b - r;
       ops->GetVecFromMultiVec(CG_R, start[0]+idx, &b, ops);    //取出右端项 b
@@ -386,6 +408,20 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT *start,
        //compute the vector w = A*p和p^Tw = ptw
        ops->GetVecFromMultiVec(CG_W, start[3]+idx, &w, ops);   //取出 w
        ops->MatDotVec(Matrix,p,w,ops);  //w = A*p
+       if(if_shift == 1)
+       {
+          if(B == NULL)
+          {
+              //计算w=Ap+shift*p
+              ops->VecAxpby(shift, p, 1.0, w, ops);
+          }
+          else
+          {
+              //计算w=Ap+shift*Bp
+              ops->MatDotVec(B,p,Bx, ops); 
+              ops->VecAxpby(shift, Bx, 1.0, w, ops);
+          }
+       }
        //做局部内积（在每个进程内部做局部的内积）
        ops->VecLocalInnerProd(p,w,ptw+id, ops);
        ops->RestoreVecForMultiVec(CG_P, start[2]+idx, &p, ops);
@@ -449,4 +485,8 @@ void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT *start,
      //update the iteration time
      niter++;       
    }//end while((last_error/error >= rate)&&(niter<max_it))
+   if((if_shift == 1)&&(B != NULL))
+   {
+      ops->VecDestroy(&Bx, ops);
+   }
 }//end for this subprogram

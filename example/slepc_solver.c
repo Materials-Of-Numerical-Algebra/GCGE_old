@@ -84,7 +84,7 @@ int main(int argc, char* argv[])
 //    slepc_solver->para->print_eval = 0;//设置是否打印每次迭代的特征值
 
     //从命令行读入GCGE_PARA中的一些参数
-    GCGE_INT error = GCGE_PARA_SetFromCommandLine(slepc_solver->para, argc, argv);
+    GCGE_PARA_SetFromCommandLine(slepc_solver->para, argc, argv);
 
     //给特征值和特征向量分配nev大小的空间
     nev = slepc_solver->para->nev;
@@ -106,7 +106,7 @@ int main(int argc, char* argv[])
     if(strcmp(file_P, "fileinput") != 0)
     {
         //设定线性求解器
-        SLEPC_LinearSolverCreate(&ksp, A, P, "sm");
+        SLEPC_LinearSolverCreate(&ksp, A, P);
         //PetscViewer viewer;
         //ierr = KSPView(ksp, viewer);
         //给slepc_solver设置KSP为线性求解器
@@ -152,22 +152,21 @@ void PetscGetDifferenceMatrix(Mat *A, PetscInt n, PetscInt m)
 {
     PetscInt N = n*m;
     PetscInt Istart, Iend, II, i, j;
-    PetscErrorCode ierr;
-    ierr = MatCreate(PETSC_COMM_WORLD,A);
-    ierr = MatSetSizes(*A,PETSC_DECIDE,PETSC_DECIDE,N,N);
-    ierr = MatSetFromOptions(*A);
-    ierr = MatSetUp(*A);
+    MatCreate(PETSC_COMM_WORLD,A);
+    MatSetSizes(*A,PETSC_DECIDE,PETSC_DECIDE,N,N);
+    MatSetFromOptions(*A);
+    MatSetUp(*A);
     
-    ierr = MatGetOwnershipRange(*A,&Istart,&Iend);
+    MatGetOwnershipRange(*A,&Istart,&Iend);
     for (II=Istart;II<Iend;II++) {
       i = II/n; j = II-i*n;
-      if (i>0) { ierr = MatSetValue(*A,II,II-n,-1.0,INSERT_VALUES); }
-      if (i<m-1) { ierr = MatSetValue(*A,II,II+n,-1.0,INSERT_VALUES); }
-      if (j>0) { ierr = MatSetValue(*A,II,II-1,-1.0,INSERT_VALUES); }
-      if (j<n-1) { ierr = MatSetValue(*A,II,II+1,-1.0,INSERT_VALUES); }
-      ierr = MatSetValue(*A,II,II,4.0,INSERT_VALUES);
+      if (i>0) { MatSetValue(*A,II,II-n,-1.0,INSERT_VALUES); }
+      if (i<m-1) { MatSetValue(*A,II,II+n,-1.0,INSERT_VALUES); }
+      if (j>0) { MatSetValue(*A,II,II-1,-1.0,INSERT_VALUES); }
+      if (j<n-1) { MatSetValue(*A,II,II+1,-1.0,INSERT_VALUES); }
+      MatSetValue(*A,II,II,4.0,INSERT_VALUES);
     }
     
-    ierr = MatAssemblyBegin(*A,MAT_FINAL_ASSEMBLY);
-    ierr = MatAssemblyEnd(*A,MAT_FINAL_ASSEMBLY);
+    MatAssemblyBegin(*A,MAT_FINAL_ASSEMBLY);
+    MatAssemblyEnd(*A,MAT_FINAL_ASSEMBLY);
 }

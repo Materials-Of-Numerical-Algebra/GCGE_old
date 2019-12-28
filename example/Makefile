@@ -65,16 +65,16 @@ run-csr-solver: $(EXE_CSR)
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_CSR)
 
 run-hypre-solver: $(EXE_HYPRE)
-	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXEC) $(EXECFLAGS) ./$(EXE_HYPRE)
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_HYPRE)
 
 run-petsc-solver: $(EXE_PETSC)
-	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXEC) $(EXECFLAGS) ./$(EXE_PETSC)
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_PETSC)
 
 run-phg-solver: $(EXE_PHG)
-	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXEC) $(EXECFLAGS) ./$(EXE_PHG)
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_PHG)
 
 run-slepc-solver: $(EXE_SLEPC)
-	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXEC) $(EXECFLAGS) ./$(EXE_SLEPC)
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./$(EXE_SLEPC)
 
 ############################################################
 

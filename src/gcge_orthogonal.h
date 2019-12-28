@@ -49,6 +49,8 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
       void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace);
 void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
       void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace);
+void GCGE_CBOrthonormalizationPartly(void **V, GCGE_INT start, GCGE_INT *end, 
+      void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace);
 void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
       void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace);
 
@@ -68,6 +70,8 @@ void GCGE_SCBOrth_Minus(void **V, GCGE_INT start, GCGE_INT *end,
 
 //Multi Orthonormalization:
 void GCGE_StableMultiOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
+         void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace);
+void GCGE_StableMultiOrthonormalizationPartly(void **V, GCGE_INT start, GCGE_INT *end, 
          void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace);
 void *GCGE_SubOrthonormalization(void **V, GCGE_INT *start, GCGE_INT *end,
       void *B, void *V_tmp, GCGE_DOUBLE *subspace_dtmp, GCGE_OPS *ops);

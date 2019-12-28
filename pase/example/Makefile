@@ -14,8 +14,8 @@ OBJ_SLEPC  = pase_slepc_solver.o
 C_CSR      = pase_csr_solver.c
 C_SLEPC    = pase_slepc_solver.c
            
-INC_CSR    = $(CSRFLAGS)   -I$(PASEHOME)/include -I$(GCGEINC)          
-INC_SLEPC  = $(SLEPCFLAGS) -I$(PASEHOME)/include -I$(GCGEINC) $(SLEPCINC) $(PETSCINC)
+INC_CSR    = $(CSRFLAGS)   -I$(PASEHOME)/include -I$(GCGEINC) $(HYPREINC) $(PETSCINC) $(PHGINC) $(SLEPCINC)
+INC_SLEPC  = $(SLEPCFLAGS) -I$(PASEHOME)/include -I$(GCGEINC) $(HYPREINC) $(PETSCINC) $(PHGINC) $(SLEPCINC)
           
 LIBGCGEPASE     = $(PASEHOME)/lib/libgcge_pase.a
 LIBS_CSR        = $(LIBGCGECSR)   $(LIBGCGE) $(LIBLAPACK) $(LIBBLAS) $(LIBF)

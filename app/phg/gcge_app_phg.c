@@ -67,7 +67,6 @@ void GCGE_PHG_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OP
 }
 void GCGE_PHG_MultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
 {
-   char file_name[16];
    GCGE_INT i = 0;
    for(i=0; i<n; i++)
    {
@@ -106,7 +105,7 @@ GCGE_SOLVER* GCGE_PHG_Solver_Init(MAT *A, MAT *B, int num_eigenvalues, int argc,
     if(num_eigenvalues != -1)
         phg_solver->para->nev = num_eigenvalues;
     //设置初始值
-    GCGE_INT error = GCGE_PARA_SetFromCommandLine(phg_solver->para, argc, argv);
+    GCGE_PARA_SetFromCommandLine(phg_solver->para, argc, argv);
     int nev = phg_solver->para->nev;
     double *eval = (double *)calloc(nev, sizeof(double)); 
     phg_solver->eval = eval;

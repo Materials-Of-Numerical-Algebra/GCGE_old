@@ -22,10 +22,7 @@
 #include "gcge_config.h"
 #include "gcge_ops.h"
 #include "gcge_solver.h"
-#include "gcge_app_csr.h"
 #include "pase.h"
-
-
 
 void GCGE_PASE_SetOps(GCGE_OPS *ops, PASE_OPS *pase_ops);
 

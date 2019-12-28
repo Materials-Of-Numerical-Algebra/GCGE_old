@@ -7,7 +7,7 @@ include $(GCGEHOME)/config/make.inc
 ########################################################################
 
 
-INC         = -I$(GCGEINC) -I$(PASEHOME)/include $(HYPREINC) $(PETSCINC) $(PHGINC) $(SLEPCINC)  
+INC         = -I$(GCGEINC) -I$(PASEHOME)/include $(HYPREINC) $(PETSCINC) $(PHGINC) $(SLEPCINC)
 LIBGCGEPASE = $(PASEHOME)/lib/libgcge_pase.a
 
 ########################################################################
@@ -29,6 +29,21 @@ help:
 	@echo "   help  - print this message"
 	@echo " "
 
+run-convert:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_convert.exe
+
+run-convert_phg:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_convert_phg.exe
+	
+run-mg:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg.exe
+
+run-pase:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase.exe
+
+run-amg:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_amg.exe
+
 ########################################################################
 .f.o:
 	@echo '$(F77) -c $(FFLAGS) ' $*.f
@@ -44,7 +59,7 @@ help:
 
 test_convert:
 	$(CC)  $(CFLAGS) -c ./test_convert.c -o ./test_convert.o $(INC)
-	$(CLINKER)  $(LDFLAGS)  -o ./test_convert.exe ./test_convert.o $(LIBGCGEPASE) $(LIBPETSC) $(LIBHYPRE) 
+	$(CLINKER)  $(LDFLAGS)  -o ./test_convert.exe ./test_convert.o $(LIBGCGEPASE) $(LIBPHG) $(LIBPETSC) $(LIBHYPRE) 
 
 test_convert_phg:
 	$(CC)  $(CFLAGS) -c ./test_convert_phg.c -o ./test_convert_phg.o $(INC)
@@ -52,7 +67,7 @@ test_convert_phg:
 
 test_mg:
 	@$(CC)  $(CFLAGS) -c ./test_mg.c -o ./test_mg.o $(INC)
-	@$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBHYPRE) $(LIBGCGE) 
+	@$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
 
 test_pase:
 	@$(CC)  $(CFLAGS) -c ./test_pase.c -o ./test_pase.o $(INC)

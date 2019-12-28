@@ -48,10 +48,15 @@ void GCGE_CG(void *Matrix, void *b, void *x, GCGE_OPS *ops, GCGE_PARA *para,
 //W存储在 V(:,w_start:w_start+w_length), RHS存储在V_tmp(:,0:w_length)
 // V_tmp = [r, p, w]的方式来组织
 //以下的BCG允许不连续收敛, 不做矩阵统一乘以向量组的优化
-void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT *start, 
+void GCGE_BCG(void *Matrix, GCGE_INT if_shift, GCGE_DOUBLE shift, void *B, 
+      void **RHS, void**V, GCGE_INT *start, 
       GCGE_INT *end, GCGE_INT max_it, GCGE_DOUBLE rate,
       GCGE_OPS *ops, void *V_tmp1, void **V_tmp2, void **V_tmp3,
       GCGE_DOUBLE *subspace_dtmp, GCGE_INT *subspace_itmp);
+//void GCGE_BCG(void *Matrix, void **RHS, void**V, GCGE_INT *start, 
+//      GCGE_INT *end, GCGE_INT max_it, GCGE_DOUBLE rate,
+//      GCGE_OPS *ops, void *V_tmp1, void **V_tmp2, void **V_tmp3,
+//      GCGE_DOUBLE *subspace_dtmp, GCGE_INT *subspace_itmp);
 //以下的GCGE_BCG_Continuous只允许连续收敛, 会做矩阵统一乘以向量组的优化
 void GCGE_BCG_Continuous(void *Matrix, void **RHS, void**V, GCGE_INT *start, 
       GCGE_INT *end, GCGE_INT max_it, GCGE_DOUBLE rate,

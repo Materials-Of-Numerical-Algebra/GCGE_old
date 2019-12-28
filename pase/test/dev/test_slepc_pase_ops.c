@@ -198,9 +198,9 @@ int main(int argc, char* argv[])
     //--------------------------------------------------------------
     double values_ip[4];
     /* It's ok. */
-    mv_s[0] = 1;
+    mv_s[0] = 0;
     mv_e[0] = 2;
-    mv_s[1] = 1;
+    mv_s[1] = 0;
     mv_e[1] = 2;
     pase_ops->MultiVecInnerProd((void**)multi_vec_x, (void**)multi_vec_y,
             (double*)values_ip, "nonsym", mv_s, mv_e, num_aux_vec,

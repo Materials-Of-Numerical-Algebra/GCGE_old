@@ -155,7 +155,7 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
         if(fabs(eval[x_current_idx]) <= 1.0)
         {
             //如果lambda <= 1.0, rhs = lambda * rhs
-            ops->VecAxpby(0.0, rhs, eval[x_current_idx], rhs, ops);
+            ops->VecAxpby(0.0, rhs, eval[x_current_idx]+para->shift, rhs, ops);
             //给CG迭代赋初值： w = x; (A*x = lambda *B *x)
             ops->VecAxpby(1.0, x_current, 0.0, w_current, ops);	  
         }
@@ -163,7 +163,7 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
         {
             //当lambda>1.0的时候，定义初值解为: 1/lambda*x; 
             //线性方程: (A*(x/lambda) = B * x)
-            ops->VecAxpby(1.0/eval[x_current_idx], x_current, 0.0, w_current, ops);	  
+            ops->VecAxpby(1.0/(eval[x_current_idx]+para->shift), x_current, 0.0, w_current, ops);	  
         }
         //再把x_current 和 w_current 返回回去
         ops->RestoreVecForMultiVec(V, x_current_idx, &x_current, ops);
@@ -207,6 +207,11 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
 	    mv_e[3] = w_length;
 	    mv_s[4] = 0;
 	    mv_e[4] = w_length;
+	    if(para->if_shift == 1)
+	    {
+	        //如果要做位移，那就不使用GCGE_BCG_Continuous
+	        para->use_bcg_continuous = 0;
+	    }
 	    if(para->use_bcg_continuous)
 	    {
                 GCGE_BCG_Continuous(A, V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
@@ -215,7 +220,8 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
 	    }
 	    else
 	    {
-                GCGE_BCG(A, V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
+                GCGE_BCG(A, para->if_shift, para->shift, B, 
+		    V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
 		    ops, workspace->CG_p, workspace->evec, NULL, 
                     workspace->subspace_dtmp, workspace->subspace_itmp);
 	    }
@@ -328,6 +334,16 @@ void GCGE_ComputeP(GCGE_DOUBLE *subspace_evec, void **V, GCGE_OPS *ops, GCGE_PAR
     GCGE_INT    current_x = 0; //当前X向量的位置
     GCGE_INT    p_end     = 0; //P向量的终点位置
 
+#if 0
+    for(current_p=0; current_p<p_ncols; current_p++)
+    {
+	if(unlock[current_p] > para->nev-2)
+	{
+	    p_ncols = current_p;
+	    break;
+	}
+    }
+#endif
     /* XX  PX 
      * XP  PP 
      * XW  PW 

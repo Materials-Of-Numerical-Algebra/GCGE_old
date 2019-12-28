@@ -69,6 +69,8 @@ void GCGE_PARA_Create(GCGE_PARA **para)
 
     (*para)->num_iter        = 0; //output, old:-2
     (*para)->num_unlock      = 0; //output
+    (*para)->num_conv        = 0; //output
+    (*para)->num_conv_continuous = 0; //output
 
     (*para)->use_mpi_bcast   = 1; //Rayleigh-Ritz广播子空间特征向量
 
@@ -80,6 +82,7 @@ void GCGE_PARA_Create(GCGE_PARA **para)
     (*para)->print_para      = 1;
     (*para)->print_result    = 1;
     (*para)->print_conv      = 1;
+    (*para)->print_split     = 0;
     /* print_level: 0：什么都不打印
                     1：打印最终结果
                     2：多打印每次迭代的特征值和残差
@@ -100,6 +103,12 @@ void GCGE_PARA_Create(GCGE_PARA **para)
     (*para)->opt_rr_eig_partly = 1;
     (*para)->opt_bcast = 1;
     (*para)->opt_allgatherv = 0;
+    (*para)->min_nev_each_proc = 1;
+    (*para)->if_shift = 0;
+    (*para)->use_shift = 0;
+    (*para)->shift = 0;
+    (*para)->partition_type = "average";
+
     return;
 }
 
@@ -177,6 +186,11 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
             arg_index++;
             para->eval_type = argv[arg_index++];
         }
+        else if(0 == strcmp(argv[arg_index], "-gcge_partition_type")) 
+        {
+            arg_index++;
+            para->partition_type = argv[arg_index++];
+        }
         else if(0 == strcmp(argv[arg_index], "-gcge_conv_omega_norm")) 
         {
             arg_index++;
@@ -231,6 +245,11 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
         {
             arg_index++;
             para->orth_para->print_orth_zero = atoi(argv[arg_index++]);
+        }
+        else if(0 == strcmp(argv[arg_index], "-gcge_print_split")) 
+        {
+            arg_index++;
+            para->print_split = atoi(argv[arg_index++]);
         }
         else if(0 == strcmp(argv[arg_index], "-gcge_multi_tol")) 
         {
@@ -317,6 +336,16 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
             arg_index++;
             para->opt_allgatherv = atoi(argv[arg_index++]);
         }
+        else if(0 == strcmp(argv[arg_index], "-gcge_min_nev_each_proc")) 
+        {
+            arg_index++;
+            para->min_nev_each_proc = atoi(argv[arg_index++]);
+        }
+        else if(0 == strcmp(argv[arg_index], "-gcge_use_shift")) 
+        {
+            arg_index++;
+            para->use_shift = atoi(argv[arg_index++]);
+        }
         else if (0 == strcmp(argv[arg_index], "-gcge_help"))
         {
            print_usage = 1;
@@ -351,6 +380,7 @@ GCGE_INT GCGE_PARA_SetFromCommandLine(GCGE_PARA *para, GCGE_INT argc, char **arg
        GCGE_Printf("  -gcge_max_reorth_time    <i>: maximun reorthogonal times                    (default: 3)\n");
        GCGE_Printf("  -gcge_scbgs_wself_max_reorth_time <i>: maximun reorthogonal times in scbgs  (default: 1)\n");
        GCGE_Printf("  -gcge_print_orth_zero    <i>: print the zero index in orthogonal or not     (default: 0[1])\n");
+       GCGE_Printf("  -gcge_print_split        <i>: print the split information of RR eval or not (default: 0[1])\n");
        GCGE_Printf("  -gcge_multi_tol          <d>: tolerance for eigenvalue multiplicity         (default: 0.2)\n");
        GCGE_Printf("  -gcge_multi_tol_for_lock <d>: tolerance for eigenvalue multiplicity to lock (default: 1e-6)\n");
        GCGE_Printf("  -gcge_cg_max_it          <i>: maximun numbers of cg iterations              (default: 20)\n");
@@ -386,10 +416,6 @@ void GCGE_PARA_Setup(GCGE_PARA *para)
     GCGE_INT nev = para->nev;
      //设置初始没有收敛的特征值的个数，这里设置成nev呢还是再多算一些特征值？ 
      //应该再多算一些特征值    
-    if(para->num_unlock == 0)
-    {
-        para->num_unlock = nev;
-    }
      //分批计算特征值的个数: 默认情况下设置为求解特征值的个数
     if(para->block_size == 0)
     {
@@ -401,6 +427,7 @@ void GCGE_PARA_Setup(GCGE_PARA *para)
     {
         para->block_size = nev;
     }
+#if 0
     if(strcmp(para->x_orth_type, "multi") == 0)
     {
         if(para->block_size < para->nev)
@@ -408,6 +435,7 @@ void GCGE_PARA_Setup(GCGE_PARA *para)
 	    para->x_orth_type = "gs";
 	}
     }
+#endif
     if(para->orth_para->x_orth_block_size == 0)
     {
         para->orth_para->x_orth_block_size = nev/5;
@@ -420,6 +448,7 @@ void GCGE_PARA_Setup(GCGE_PARA *para)
     para->orth_para->scbgs_reorth_tol += DBL_EPSILON;
     para->res = (GCGE_DOUBLE*)calloc(nev, sizeof(GCGE_DOUBLE));
     GCGE_INT i = 0;
+    printf ( "nev = %d\n", nev );
     //每个特征值相应的残差大小     
     for(i=0; i<nev; i++)
     {
@@ -433,12 +462,11 @@ void GCGE_PrintIterationInfo(GCGE_DOUBLE *eval, GCGE_PARA *para)
 {
     GCGE_INT i = 0;
     GCGE_INT num_iter   = para->num_iter; 
-    GCGE_INT num_unlock = para->num_unlock;
     GCGE_STATISTIC_PARA *stat_para = para->stat_para;
     if(para->print_conv == 1)
     {
-        GCGE_Printf("num_unlock(%3d) = %3d; max_res(%3d) = %e; min_res(%3d) = %e;\n", 
-            num_iter, num_unlock, 
+        GCGE_Printf("num_conv_continuous(%3d) = %3d; max_res(%3d) = %e; min_res(%3d) = %e;\n", 
+            num_iter, para->num_conv_continuous, 
             num_iter, para->max_res,
             num_iter, para->min_res);
     }
@@ -598,15 +626,15 @@ void GCGE_PrintFinalInfo(GCGE_DOUBLE *eval, GCGE_PARA *para)
     {
         GCGE_Printf("\nTotal gcg iteration: %d, total time: %.2lf. ",
                 para->num_iter, total_time);
-        if(para->num_unlock == 0)
+        if(para->num_conv_continuous == para->nev)
         {
             GCGE_Printf("All %d eigenpairs converged! ", para->nev);
         }
         else
         {
             GCGE_Printf("%d converged, %d unconverged. ",
-                    para->nev - para->num_unlock,
-                    para->num_unlock);
+                    para->num_conv_continuous,
+                    para->nev - para->num_conv_continuous);
         }
     }
     if(para->print_final_part_time == 1)
@@ -686,6 +714,7 @@ void GCGE_PrintParaInfo(GCGE_PARA *para)
        GCGE_Printf("  max_reorth_time            : %8d, (maximun reorthogonal times)\n", para->orth_para->max_reorth_time);
        GCGE_Printf("  scbgs_wself_max_reorth_time: %8d, (maximun reorthogonal times)\n", para->orth_para->scbgs_wself_max_reorth_time);
        GCGE_Printf("  print_orth_zero            : %8d, (print the zero index in orthogonal or not)\n", para->orth_para->print_orth_zero);
+       GCGE_Printf("  print_split                : %8d, (print the split information of RR eval or not)\n", para->print_split);
        GCGE_Printf("  if_use_cg                  : %8d, (use the internal cg or not)\n", para->if_use_cg      );
        GCGE_Printf("  if_use_bcg                 : %8d, (use the block cg or normal cg)\n", para->if_use_bcg      );
        GCGE_Printf("  use_bcg_continuous         : %8d, (use the continuous converged block cg or not)\n", para->use_bcg_continuous);
@@ -706,6 +735,7 @@ void GCGE_PrintParaInfo(GCGE_PARA *para)
        GCGE_Printf("  max_direct_orth_length     : %8d, (maximum length of direct orthogonal in multi orthogonal)\n", para->orth_para->max_direct_orth_length);
        GCGE_Printf("  conv_type                  : %8s, (use reletive or abosolute residual)\n", para->conv_type      );
        GCGE_Printf("  eval_type                  : %8s, (compute the smallest eigenvalues by algebraic or magnitude)\n", para->eval_type      );
+       GCGE_Printf("  partition_type             : %8s, (use average partition or maxgap partition)\n", para->partition_type );
        GCGE_Printf("  conv_omega_norm            : %f, (the omega norm of matrix A)\n", para->conv_omega_norm);
        GCGE_Printf("  ev_tol                     : %3.2e, (convergence tolerance)\n", para->ev_tol         );
        GCGE_Printf("  orth_zero_tol              : %3.2e, (zero tolerance in orthogonal)\n", para->orth_para->orth_zero_tol  );
@@ -715,7 +745,9 @@ void GCGE_PrintParaInfo(GCGE_PARA *para)
        GCGE_Printf("  multi_tol                  : %3.2e, (tolerance for eigenvalue multiplicity)\n", para->multi_tol      );
        GCGE_Printf("  multi_tol_for_lock         : %3.2e, (tolerance for eigenvalue multiplicity(forward))\n", para->multi_tol_for_lock);
        GCGE_Printf("  opt_bcast                  : %8d, (use the optimization before bcast or not)\n", para->opt_bcast);
-       GCGE_Printf("  opt_allgatherv             : %8d, (use the optimization before bcast or not)\n", para->opt_allgatherv);
+       GCGE_Printf("  opt_allgatherv             : %8d, (use the optimization of split the eigenvalues to each processors or not)\n", para->opt_allgatherv);
+       GCGE_Printf("  min_nev_each_proc          : %8d, (number of minimal eigenpairs computed in each processor)\n", para->min_nev_each_proc);
+       GCGE_Printf("  use_shift                  : %8d, (the minimum of the number eigenvalues in each processor)\n", para->use_shift);
        GCGE_Printf("  opt_rr_eig_partly          : %8d, (use the optimization in rr for less eigenpairs or not)\n", para->opt_rr_eig_partly);
        GCGE_Printf("\n");
     }

@@ -72,7 +72,9 @@ int main(int argc, char* argv[])
         SLEPC_ReadMatrixBinary(&P, file_P);
         //ierr = MatShift(P, -1.0);
     }
-    ierr = MatShift(A, -0.2);
+    PetscReal shift = 0.0;
+    ierr = PetscOptionsGetReal(NULL, NULL, "-shift", &shift, NULL);
+    ierr = MatShift(A, shift);
 
     //创建petsc_solver
     GCGE_SOLVER *slepc_solver;
@@ -173,5 +175,4 @@ void PetscGetDifferenceMatrix(Mat *A, PetscInt n, PetscInt m)
     
     ierr = MatAssemblyBegin(*A,MAT_FINAL_ASSEMBLY);
     ierr = MatAssemblyEnd(*A,MAT_FINAL_ASSEMBLY);
-    ierr = MatScale(*A, (double)(m*n));
 }

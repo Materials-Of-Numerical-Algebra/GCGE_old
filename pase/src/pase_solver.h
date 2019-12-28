@@ -1,11 +1,8 @@
-#ifndef __PASE_MG_SOLVER_H__
-#define __PASE_MG_SOLVER_H__
+#ifndef _PASE_SOLVER_H_
+#define _PASE_SOLVER_H_
 
-#include <math.h>
-#include "pase_mg.h"
-#include "pase_param.h"
-#include "pase.h"
 #include "gcge.h"
+#include "pase.h"
 #include "gcge_app_pase.h"
 
 typedef struct PASE_MG_SOLVER_PRIVATE_ {
@@ -225,4 +222,10 @@ PASE_Sort_int(PASE_INT *a, PASE_INT left, PASE_INT right);
 
 PASE_INT 
 PASE_Find_max_in_vector(PASE_INT *max_idx, PASE_REAL *vector, PASE_INT start, PASE_INT end);
+
+PASE_INT
+PASE_Mg_print_result(PASE_MG_SOLVER solver);
+
+PASE_INT
+PASE_Mg_print_param(PASE_MG_SOLVER solver);
 #endif

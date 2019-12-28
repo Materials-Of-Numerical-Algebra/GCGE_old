@@ -755,6 +755,74 @@ void GCGE_OrthonormalizationInSubspace(double *V, GCGE_INT ldV, GCGE_INT start, 
  *
  */
 //Classical Block Orthonormalizationization
+#if 0
+void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
+                      void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
+{
+    GCGE_INT V_tmp_size = workspace->V_tmp_size;
+    //要正交化的向量个数的和
+    GCGE_INT total_length = *end - start;
+    //如果V_tmp的空间不够
+    if(V_tmp_size < total_length)
+    {
+        //当前次正交化的向量的起止位置与个数
+        GCGE_INT current_start  = start;
+        GCGE_INT current_end    = start+V_tmp_size;
+        GCGE_INT old_end = 0;
+        GCGE_INT n_zero  = 0;
+        GCGE_INT copy_start = 0;
+	GCGE_INT mv_s[2];
+	GCGE_INT mv_e[2];
+	while(current_end <= *end)
+	{
+	    //GCGE_Printf("V_tmp_size: %d, current_start: %d, current_end: %d\n", V_tmp_size, current_start, current_end);
+	    old_end = current_end;
+            GCGE_CBOrthonormalizationPartly(V, current_start, 
+		  &current_end, B, ops, para, workspace);
+	    if(old_end < *end)
+	    {
+	        if(current_end < old_end)
+		{
+		    //0向量的个数
+		    n_zero = old_end - current_end;
+		    copy_start = *end - n_zero;
+		    if(old_end <= copy_start)
+		    {
+                        mv_s[0] = current_end;
+                        mv_e[0] = old_end;
+                        mv_s[1] = copy_start;
+                        mv_e[1] = *end;
+                        ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+		    }
+		    else
+		    {
+                        mv_s[0] = current_end;
+                        mv_e[0] = copy_start;
+                        mv_s[1] = old_end;
+                        mv_e[1] = *end;
+                        ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+		    }
+		    //更新*end
+		    *end = copy_start;
+		}
+		//更新下次正交化的起止位置
+	        current_start = current_end;
+		current_end   = (*end < current_start+V_tmp_size)?(*end):(current_start+V_tmp_size);
+	    }
+	    else
+	    {
+	        current_end = *end +1;
+	    }
+	}
+    }
+    else
+    {
+        GCGE_CBOrthonormalizationPartly(V, start, end, 
+	      B, ops, para, workspace);
+    }
+}
+#endif
+
 void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
                       void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
 {
@@ -992,7 +1060,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
     void           *vec_tmp;
     void          **CG_p = workspace->CG_p;
     //void          **evec = workspace->evec;
-    void           **V_tmp = workspace->V_tmp;
+    void          **V_tmp = workspace->V_tmp;
     GCGE_INT        i = 0, j = 0;
 
     //求解特征值问题所用参数
@@ -1056,7 +1124,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             value_inner += tmp*tmp;
          }
          value_inner = sqrt(value_inner);
-         GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
+         //GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
          
 
         //计算 V_tmp = [V1,V2] * subspace_dtmp
@@ -1176,7 +1244,7 @@ void GCGE_SCBOrth_Minus(void **V, GCGE_INT start, GCGE_INT *end,
             value_inner += tmp*tmp;
          }
          value_inner = sqrt(value_inner);
-         GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
+         //GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
          
 
         //计算 V_tmp = W1 * subspace_dtmp
@@ -1510,7 +1578,7 @@ void GCGE_BOrthonormalizationInSubspace(double *V, GCGE_INT ldV, GCGE_INT nrows,
         GCGE_INT *end, void *B, GCGE_INT ldB, GCGE_ORTH_PARA *orth_para, 
         GCGE_DOUBLE *d_tmp, GCGE_OPS *ops)
 {
-    GCGE_Printf("Use GCGE_BOrthonormalizationInSubspace.\n");
+    //GCGE_Printf("Use GCGE_BOrthonormalizationInSubspace.\n");
     GCGE_INT    current = 0;        //当前进行正交化操作的向量编号
     GCGE_INT    current_V2 = 0;     //当前进行正交化操作的向量编号
     GCGE_INT    reorth_count = 0;
@@ -1628,7 +1696,7 @@ void GCGE_SCBOrthonormalizationInSubspace(double *V, GCGE_INT ldV, GCGE_INT nrow
         GCGE_INT *end, void *B, GCGE_INT ldB, GCGE_ORTH_PARA *orth_para, 
         GCGE_WORKSPACE *workspace, GCGE_OPS *ops)
 {
-    GCGE_Printf("Use GCGE_SCBOrthonormalizationInSubspace.\n");
+    //GCGE_Printf("Use GCGE_SCBOrthonormalizationInSubspace.\n");
     GCGE_INT    current = 0; //当前进行正交化操作的向量编号
     GCGE_INT    current_V2 = 0; //当前进行正交化操作的向量编号
     GCGE_INT    reorth_count = 0;
@@ -1841,11 +1909,75 @@ void GCGE_BlockOrthonormalizationInSubspace(GCGE_DOUBLE *V, GCGE_INT ldV,
 void GCGE_StableMultiOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
          void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
 {
+    GCGE_INT V_tmp_size = workspace->V_tmp_size;
+    //要正交化的向量个数的和
+    GCGE_INT total_length = *end - start;
+    //如果V_tmp的空间不够
+    if(V_tmp_size < total_length)
+    {
+        //当前次正交化的向量的起止位置与个数
+        GCGE_INT current_start  = start;
+        GCGE_INT current_end    = start+V_tmp_size;
+        GCGE_INT old_end = 0;
+        GCGE_INT n_zero  = 0;
+        GCGE_INT copy_start = 0;
+	GCGE_INT mv_s[2];
+	GCGE_INT mv_e[2];
+	while(current_end <= *end)
+	{
+	    //GCGE_Printf("V_tmp_size: %d, current_start: %d, current_end: %d\n", V_tmp_size, current_start, current_end);
+	    old_end = current_end;
+            GCGE_StableMultiOrthonormalizationPartly(V, current_start, 
+		  &current_end, B, ops, para, workspace);
+	    if(old_end < *end)
+	    {
+	        if(current_end < old_end)
+		{
+		    //0向量的个数
+		    n_zero = old_end - current_end;
+		    copy_start = *end - n_zero;
+		    if(old_end <= copy_start)
+		    {
+                        mv_s[0] = current_end;
+                        mv_e[0] = old_end;
+                        mv_s[1] = copy_start;
+                        mv_e[1] = *end;
+                        ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+		    }
+		    else
+		    {
+                        mv_s[0] = current_end;
+                        mv_e[0] = copy_start;
+                        mv_s[1] = old_end;
+                        mv_e[1] = *end;
+                        ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+		    }
+		    //更新*end
+		    *end = copy_start;
+		}
+		//更新下次正交化的起止位置
+	        current_start = current_end;
+		current_end   = (*end < current_start+V_tmp_size)?(*end):(current_start+V_tmp_size);
+	    }
+	    else
+	    {
+	        current_end = *end +1;
+	    }
+	}
+    }
+    else
+    {
+        GCGE_StableMultiOrthonormalizationPartly(V, start, end, 
+	      B, ops, para, workspace);
+    }
+}
+void GCGE_StableMultiOrthonormalizationPartly(void **V, GCGE_INT start, GCGE_INT *end, 
+         void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
+{
     if(start > 0)
     {
         GCGE_INT mv_s[2];
         GCGE_INT mv_e[2];
-        //GCGE_Printf("in GCGE_StableMultiOrthonormalization\n");
         
         GCGE_DOUBLE value_inner = 1.0;
         GCGE_DOUBLE norm_tmp = 0.0;
@@ -1880,7 +2012,6 @@ void GCGE_StableMultiOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         }//end while for value_inner
     }
 
-    //GCGE_Printf("in GCGE_StableMultiOrthonormalization, after GCGE_SubOrthonormalization\n");
     //然后start到end自身做正交化
     GCGE_MultiOrthonormalization(V, start, end, B, ops, para, workspace);
 

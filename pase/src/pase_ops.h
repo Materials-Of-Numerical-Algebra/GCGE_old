@@ -7,6 +7,11 @@
  *        基于GCGE的ops的单向量生成pase的单向量
  *        基于GCGE的ops的多向量生成pase的多向量
  *
+ * GCGE将接口传给PASE, PASE生成自己的矩阵向量操作
+ * PASE再以此调用GCGE, 即将其矩阵向量操作再赋给GCGE
+ *
+ * SLEPC->GCGE-------->PASE->GCGE
+ *
  *        Version:  1.0
  *        Created:  2018年09月24日 09时50分16秒
  *       Revision:  none
@@ -89,5 +94,32 @@ void PASE_MatrixCreate( PASE_Matrix* pase_matrix,
 void PASE_MatrixDestroy( PASE_Matrix*  matrix, 
                          PASE_OPS *ops );
 
+
+void PASE_DefaultVecSetRandomValue(void *vec, PASE_INT seed, struct PASE_OPS_ *ops);
+void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops);
+void PASE_DefaultVecAxpby(PASE_REAL a, void *x, PASE_REAL b, void *y, struct PASE_OPS_ *ops);
+void PASE_DefaultVecInnerProd(void *x, void *y, PASE_REAL *value_ip, struct PASE_OPS_ *ops);
+void PASE_DefaultVecLocalInnerProd(void *x, void *y, PASE_REAL *value_ip, struct PASE_OPS_ *ops);
+void PASE_DefaultVecCreateByVec(void **des_vec, void *src_vec, struct PASE_OPS_ *ops);
+void PASE_DefaultVecCreateByMat(void **vec, void *mat, struct PASE_OPS_ *ops);
+void PASE_DefaultVecDestroy(void **vec, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecCreateByVec(void ***multi_vec, PASE_INT n_vec, void *vec, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecCreateByMat(void ***multi_vec, PASE_INT n_vec, void *mat, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecCreateByMultiVec(void **init_vec, void ***multi_vec, PASE_INT n_vec, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecDestroy(void ***MultiVec, PASE_INT n_vec, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecSetRandomValue(void **multi_vec, PASE_INT start, PASE_INT n_vec, struct PASE_OPS_ *ops);
+void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y, PASE_INT *start, PASE_INT *end, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecAxpby(PASE_REAL a, void **x, PASE_REAL b, void **y, PASE_INT *start, PASE_INT *end, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecAxpbyColumn(PASE_REAL a, void **x, PASE_INT col_x, PASE_REAL b, void **y, PASE_INT col_y, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecLinearComb(void **x, void **y, PASE_INT *start, 
+        PASE_INT *end, PASE_REAL *a, PASE_INT lda, PASE_INT if_Vec, 
+        PASE_REAL alpha, PASE_REAL beta, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a, 
+        char *is_sym, PASE_INT *start, PASE_INT *end, PASE_INT lda, 
+        PASE_INT if_Vec, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecSwap(void **V_1, void **V_2, PASE_INT *start, PASE_INT *end, struct PASE_OPS_ *ops);
+void PASE_DefaultMultiVecPrint(void **x, PASE_INT n, struct PASE_OPS_ *ops);
+void PASE_DefaultGetVecFromMultiVec(void **V, PASE_INT j, void **x, struct PASE_OPS_ *ops);
+void PASE_DefaultRestoreVecForMultiVec(void **V, PASE_INT j, void **x, struct PASE_OPS_ *ops);
 
 #endif

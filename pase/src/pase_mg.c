@@ -1,8 +1,9 @@
+#include <time.h>
 #include "pase_mg.h"
 
 void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, 
       HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat, 
-      PASE_REAL *convert_time, PASE_REAL *amg_time);
+      GCGE_DOUBLE *convert_time, GCGE_DOUBLE *amg_time);
 /**
  * @brief 创建 PASE_MULTIGRID
  *
@@ -13,18 +14,17 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array,
  *
  * @return PASE_MULTIGRID
  */
-PASE_INT 
+GCGE_INT 
 PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
-        PASE_INT max_levels, PASE_INT mg_coarsest_level, 
-        void *A, void *B, GCGE_OPS *gcge_ops, PASE_OPS *pase_ops, 
-	PASE_REAL *convert_time, PASE_REAL *amg_time)
+        GCGE_INT max_levels, GCGE_INT mg_coarsest_level, 
+        void *A, void *B, GCGE_OPS *gcge_ops,
+	GCGE_DOUBLE *convert_time, GCGE_DOUBLE *amg_time)
 {
     /* P 是行多列少, P*v是从粗到细 */
     *multi_grid = (PASE_MULTIGRID)PASE_Malloc(sizeof(pase_MultiGrid));
     (*multi_grid)->num_levels = max_levels;
     (*multi_grid)->coarsest_level = mg_coarsest_level;
     (*multi_grid)->gcge_ops = gcge_ops;
-    (*multi_grid)->pase_ops = pase_ops;
     (*multi_grid)->A_array = NULL;
     (*multi_grid)->B_array = NULL;
     (*multi_grid)->P_array = NULL;
@@ -67,7 +67,7 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     return 0;
 }
 
-PASE_INT 
+GCGE_INT 
 PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
 {
     PetscErrorCode ierr;
@@ -111,10 +111,10 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
  *
  * @return 
  */
-PASE_INT 
+GCGE_INT 
 PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid, 
-        PASE_INT level_i, PASE_INT level_j, 
-        PASE_INT *mv_s, PASE_INT *mv_e, 
+        GCGE_INT level_i, GCGE_INT level_j, 
+        GCGE_INT *mv_s, GCGE_INT *mv_e, 
         void **pvx_i, void** pvx_j)
 {
 #if 0
@@ -131,9 +131,9 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
 #endif
     void **from_vecs;
     void **to_vecs;
-    PASE_INT k = 0;
-    PASE_INT start[2];
-    PASE_INT end[2];
+    GCGE_INT k = 0;
+    GCGE_INT start[2];
+    GCGE_INT end[2];
     if(level_i > level_j)
     {
         //从粗层到细层，延拓，用P矩阵直接乘
@@ -205,7 +205,7 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
 //不产生A0最细层petsc矩阵
 void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, 
       HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat, 
-      PASE_REAL *convert_time, PASE_REAL *amg_time)
+      GCGE_DOUBLE *convert_time, GCGE_DOUBLE *amg_time)
 {
     clock_t start, end;
     start = clock();

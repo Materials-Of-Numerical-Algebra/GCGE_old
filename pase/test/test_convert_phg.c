@@ -22,12 +22,13 @@
 #include <math.h>
 #include <time.h>
 
-
-#include "phg.h"
+#include "pase_convert.h"
+/*
 #include "HYPRE.h"
 #include "HYPRE_IJ_mv.h"
 #include "_hypre_parcsr_mv.h"
-
+#include "phg.h"
+*/
 
 #if (PHG_VERSION_MAJOR <= 0 && PHG_VERSION_MINOR < 9)
 # undef ELEMENT
@@ -87,10 +88,11 @@ bc_map(int bctype)
     return DIRICHLET;	/* set Dirichlet BC on all boundaries */
 }
 
+/* PHG -> HYPRE */
 int
 main(int argc, char *argv[])
 {
-    static char *fn = "../test/data/cube4.dat";
+    static char *fn = "./data/cube4.dat";
     static INT mem_max = 3000;
     size_t mem, mem_peak;
     int i, j, k, n, nit;

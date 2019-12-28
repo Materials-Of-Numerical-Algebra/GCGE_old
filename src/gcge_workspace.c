@@ -89,24 +89,42 @@ void GCGE_WORKSPACE_Setup(GCGE_WORKSPACE *workspace, GCGE_PARA *para, GCGE_OPS *
     GCGE_INT max_dim_xpw = max_dim_x + 2 * block_size;
     //近似特征值
     workspace->eval      = (GCGE_DOUBLE*)calloc(max_dim_xpw, sizeof(GCGE_DOUBLE));
+#if GCGE_USE_MPI
+    //并行的情况为了使第一次计算时尽量平均分配，eval按进程平均赋值
+    GCGE_INT nproc = 1;
+    MPI_Comm_size(MPI_COMM_WORLD, &nproc);
+    GCGE_INT nev_each_proc = nev;
+    nev_each_proc = nev/nproc;
+    GCGE_INT j = 0;
+    for(i=0; i<nproc; i++)
+    {
+        for(j=i*nev_each_proc; j<(i+1)*nev_each_proc; j++)
+	{
+	    workspace->eval[j] = (GCGE_DOUBLE)i;
+	}
+    }
+    for(i=nproc*nev_each_proc; i<nev; i++)
+    {
+	workspace->eval[i] = (GCGE_DOUBLE)(nproc-1);
+    }
+#endif
     //小规模的临时工作空间
     //GCGE_INT lwork1 = 26*max_dim_xpw;
     //GCGE_INT lwork2 = 1+6*max_dim_xpw+2*max_dim_xpw*max_dim_xpw;
-    workspace->subspace_dtmp = (GCGE_DOUBLE*)calloc(max_dim_xpw*max_dim_xpw+40*max_dim_xpw, sizeof(GCGE_DOUBLE));
+    workspace->subspace_dtmp = (GCGE_DOUBLE*)calloc(2*max_dim_xpw*max_dim_xpw+40*max_dim_xpw, sizeof(GCGE_DOUBLE));
     //+(lwork1>lwork2)?lwork1:lwork2, sizeof(GCGE_DOUBLE));
     workspace->subspace_itmp = (GCGE_INT*)calloc(100*max_dim_xpw, sizeof(GCGE_INT));
     //存储子空间矩阵的特征向量
-    workspace->subspace_evec = (GCGE_DOUBLE*)calloc((max_dim_xpw+1)*max_dim_xpw, sizeof(GCGE_DOUBLE));
+    workspace->subspace_evec = (GCGE_DOUBLE*)calloc(max_dim_xpw*max_dim_xpw, sizeof(GCGE_DOUBLE));
     //用于存储子空间矩阵
     workspace->subspace_matrix = (GCGE_DOUBLE*)calloc(max_dim_xpw*max_dim_xpw, sizeof(GCGE_DOUBLE));
 
     //存储前nev个特征对中未收敛的特征对编号
     workspace->unlock = (GCGE_INT*)calloc(max_dim_x, sizeof(GCGE_INT));
     //for(i=0; i<nev; i++)
-    GCGE_INT num_locked = nev - para->num_unlock;
-    for(i=0; i<para->num_unlock; i++)
+    for(i=0; i<max_dim_x-para->num_conv; i++)
     {
-        workspace->unlock[i] = i+num_locked;
+        workspace->unlock[i] = i+para->num_conv;
     }
     //正交化时用到的临时GCGE_INT*型空间,用于临时存储非0的编号
     //workspace->orth_ind = (GCGE_INT*)calloc(max_dim_xpw, sizeof(GCGE_INT));

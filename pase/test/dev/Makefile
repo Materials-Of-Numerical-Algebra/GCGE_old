@@ -4,14 +4,14 @@ PASEHOME = ../..
 include $(GCGEHOME)/config/make.inc
 
 ############################################################
-OBJS1  = test_csr_pase_solver.o
-OBJS2  = test_ops.o
-OBJS3  = test_pase_1.o
+OBJS1  = test_ops_1.o
+OBJS2  = test_ops_2.o
+OBJS3  = test_csr_pase_solver.o
 OBJS4  = test_slepc_pase_ops.o
 
-EXE1   = ./test_csr_pase_solver.exe 
-EXE2   = ./test_ops.exe 
-EXE3   = ./test_pase_1.exe 
+EXE1   = ./test_ops_1.exe 
+EXE2   = ./test_ops_2.exe 
+EXE3   = ./test_csr_pase_solver.exe 
 EXE4   = ./test_slepc_pase_ops.exe 
 
 LIBGCGEPASE = $(PASEHOME)/lib/libgcge_pase.a
@@ -54,14 +54,17 @@ help:
 	@echo "   help  - print this message"
 	@echo " "
 
-run-ops:
-	$(EXE1)
-	
-run-ops-debug:
+run-ops1:
 	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXE1)
 
-run-debug:
-	valgrind -v $(EXE1)
+run-ops2:
+	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXE2)
+	
+run-csr:
+	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXE3)
+
+run-slepc:
+	$(DEBUGEXEC) $(DEBUGFLAGS) $(EXE4)
 
 ############################################################
 .f.o:

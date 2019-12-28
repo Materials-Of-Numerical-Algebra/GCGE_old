@@ -128,6 +128,12 @@ typedef struct GCGE_OPS_ {
    
 }GCGE_OPS;
 
+extern void dsyev_(char *jobz, char *uplo, 
+        GCGE_INT    *nrows,  GCGE_DOUBLE *a,    GCGE_INT *lda, 
+        GCGE_DOUBLE *eval,
+        GCGE_DOUBLE *work,   GCGE_INT *lwork, 
+        GCGE_INT *info);
+
 extern void dsyevx_(char *jobz, char *range, char *uplo, 
         GCGE_INT    *nrows,  GCGE_DOUBLE *a,    GCGE_INT *lda, 
         GCGE_DOUBLE *vl,     GCGE_DOUBLE *vu,   GCGE_INT *il,  GCGE_INT *iu, 

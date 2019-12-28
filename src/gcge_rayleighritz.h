@@ -32,7 +32,8 @@
 #endif
 
 //计算 work_space = V^T * A * W
-void GCGE_ComputeSubspaceMatrixVTAW(void **V, void *A, GCGE_INT start_W, GCGE_INT end_V, GCGE_DOUBLE *subspace_mat, GCGE_OPS *ops, void **workspace);
+void GCGE_ComputeSubspaceMatrixVTAW(void **V, void *A, GCGE_INT start_W, GCGE_INT start_V, 
+      GCGE_INT end_V, GCGE_DOUBLE *subspace_mat, GCGE_OPS *ops, void **workspace);
 //计算 subspace_matrix = V^T * A * V
 void GCGE_ComputeSubspaceMatrix(void *A, void **V, 
         GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace);
@@ -45,4 +46,10 @@ void GCGE_ComputeSubspaceEigenpairs(GCGE_DOUBLE *subspace_matrix,
 void GCGE_SortEigenpairs(GCGE_DOUBLE *eval, GCGE_DOUBLE *evec, GCGE_INT nev, GCGE_INT ldv, GCGE_DOUBLE *work);
 GCGE_DOUBLE GCGE_ModuleMaxDouble(GCGE_DOUBLE *a, GCGE_INT n);
 void GCGE_SortByMagnitude(GCGE_DOUBLE *a, GCGE_INT *idx, GCGE_INT left, GCGE_INT right);
+void GCGE_SortAscendInt(GCGE_INT *a, GCGE_INT left, GCGE_INT right);
+void GCGE_SortDescend(GCGE_DOUBLE *a, GCGE_INT *idx, GCGE_INT left, GCGE_INT right);
+void GCGE_GetEvalSplit(GCGE_DOUBLE *eval, GCGE_INT num_eval, 
+        GCGE_DOUBLE multi_tol_for_lock, GCGE_INT min_nev_each_proc, GCGE_INT *counts, GCGE_INT *displs);
+void GCGE_GetEvalReSplit(GCGE_INT true_nproc, GCGE_INT nproc, 
+      GCGE_INT min_nev_each_proc, GCGE_INT *counts, GCGE_INT *displs);
 #endif
