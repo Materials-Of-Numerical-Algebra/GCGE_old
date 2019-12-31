@@ -226,6 +226,7 @@ PASE_Mg_solver_create(PASE_PARAMETER param)
   solver->aux_direct_solve_time = 0.0;
   solver->total_solve_time = 0.0;
   solver->total_time = 0.0;
+  solver->get_initvec_time = 0.0;
 
   return solver;
 }
@@ -251,15 +252,6 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
   //用gcge_ops创建pase_ops
   PASE_OPS_Create(&(solver->pase_ops), gcge_ops);
   solver->gcge_ops = gcge_ops;
-
-  //以矩阵A，B作为最细层空间，创建多重网格结构
-  //TODO 这里可能会修改max_levels?
-  PASE_MULTIGRID_Create(&(solver->multigrid), 
-        solver->num_levels, solver->mg_coarsest_level, 
-        A, B, gcge_ops, 
-	&(solver->initialize_convert_time), 
-	&(solver->initialize_amg_time));
-  solver->multigrid->coarsest_level = solver->mg_coarsest_level;
 
   //--------------------------------------------------------------------
   //--特征值工作空间-----------------------------------------------------
@@ -288,11 +280,6 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
   PASE_INT *cg_p_size   = (PASE_INT*)calloc(num_levels, sizeof(PASE_INT));
   PASE_INT *cg_w_size   = (PASE_INT*)calloc(num_levels, sizeof(PASE_INT));
   PASE_INT *cg_res_size = (PASE_INT*)calloc(num_levels, sizeof(PASE_INT));
-  void ***sol           = (void***)malloc(num_levels * sizeof(void**));
-  void ***rhs           = (void***)malloc(num_levels * sizeof(void**));
-  void ***cg_p          = (void***)malloc(num_levels * sizeof(void**));
-  void ***cg_w          = (void***)malloc(num_levels * sizeof(void**));
-  void ***cg_res        = (void***)malloc(num_levels * sizeof(void**));
   //分批计算时的step_size
   PASE_INT step_size = solver->bmg_step_size;
   //先确定每个向量组要取多少个向量 
@@ -304,22 +291,32 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
     cg_w_size[idx_level]   = step_size;
     cg_res_size[idx_level] = step_size;
   }
-  //具体的在每一层上分配空间（节约内存开销）
-  void **A_array = solver->multigrid->A_array;
-  for(idx_level=0; idx_level< solver->num_levels; idx_level++) {
-    A_array[idx_level];
-    gcge_ops->MultiVecCreateByMat(&(sol[idx_level]),    sol_size[idx_level],    A_array[idx_level], gcge_ops);
-    gcge_ops->MultiVecCreateByMat(&(rhs[idx_level]),    rhs_size[idx_level],    A_array[idx_level], gcge_ops);
-    gcge_ops->MultiVecCreateByMat(&(cg_p[idx_level]),   cg_p_size[idx_level],   A_array[idx_level], gcge_ops);
-    gcge_ops->MultiVecCreateByMat(&(cg_w[idx_level]),   cg_w_size[idx_level],   A_array[idx_level], gcge_ops);
-    gcge_ops->MultiVecCreateByMat(&(cg_res[idx_level]), cg_res_size[idx_level], A_array[idx_level], gcge_ops);
-  }
+  int **size = (int**)malloc(5*sizeof(int*));
+  size[0] = sol_size;
+  size[1] = rhs_size;
+  size[2] = cg_p_size;
+  size[3] = cg_w_size;
+  size[4] = cg_res_size;
+  int size_dtmp = 6*step_size;
+  int size_itmp = step_size;
 
-  solver->sol         = sol;
-  solver->rhs         = rhs;
-  solver->cg_p        = cg_p;
-  solver->cg_w        = cg_w;
-  solver->cg_res      = cg_res;
+  //以矩阵A，B作为最细层空间，创建多重网格结构
+  //TODO 这里可能会修改max_levels?
+  PASE_MULTIGRID_Create(&(solver->multigrid), 
+        solver->num_levels, solver->mg_coarsest_level, 
+        size, size_dtmp, size_itmp,
+        A, B, gcge_ops,
+	&(solver->initialize_convert_time), 
+	&(solver->initialize_amg_time));
+  free(size); size = NULL;
+  solver->multigrid->coarsest_level = solver->mg_coarsest_level;
+
+
+  solver->sol         = solver->multigrid->sol;
+  solver->rhs         = solver->multigrid->rhs;
+  solver->cg_p        = solver->multigrid->cg_p;
+  solver->cg_w        = solver->multigrid->cg_w;
+  solver->cg_res      = solver->multigrid->cg_res;
   solver->sol_size    = sol_size;
   solver->rhs_size    = rhs_size;
   solver->cg_p_size   = cg_p_size;
@@ -328,18 +325,10 @@ PASE_Mg_set_up(PASE_MG_SOLVER solver, void *A, void *B, GCGE_OPS *gcge_ops)
 
   //--------------------------------------------------------------------
   //double_tmp在BCG中是6倍的空间, 用于存储BCG中的各种内积残差等
-  solver->cg_double_tmp = (PASE_REAL*)malloc(max_nev* max_nev* sizeof(PASE_REAL));
+  solver->cg_double_tmp = solver->multigrid->cg_double_tmp;
   //int_tmp在BCG中是1倍的空间，用于存储unlock
-  solver->cg_int_tmp    = (PASE_INT*)malloc(step_size * sizeof(PASE_INT));
+  solver->cg_int_tmp    = solver->multigrid->cg_int_tmp;
 
-  //给multigrid中需要的工作空间赋值
-  solver->multigrid->sol           = solver->sol;
-  solver->multigrid->rhs           = solver->rhs;
-  solver->multigrid->cg_p          = solver->cg_p;
-  solver->multigrid->cg_w          = solver->cg_w;
-  solver->multigrid->cg_res        = solver->cg_res;
-  solver->multigrid->cg_double_tmp = solver->cg_double_tmp;
-  solver->multigrid->cg_int_tmp    = solver->cg_int_tmp;
   //--------------------------------------------------------------
   //检查一些参数的不合理设置
   //如果辅助矩阵的粗层比获取初值的网格层要细, 或者是同一层
@@ -403,23 +392,16 @@ PASE_Mg_solver_destroy(PASE_MG_SOLVER solver)
   }
   //-----------------------------------------------------
   //释放向量工作空间
-  for(i=0; i< solver->num_levels; i++) {
-    solver->gcge_ops->MultiVecDestroy(&(solver->sol[i]),   
-          solver->sol_size[i], solver->gcge_ops);
-    solver->gcge_ops->MultiVecDestroy(&(solver->rhs[i]), 
-          solver->rhs_size[i], solver->gcge_ops);
-    solver->gcge_ops->MultiVecDestroy(&(solver->cg_p[i]), 
-          solver->cg_p_size[i], solver->gcge_ops);
-    solver->gcge_ops->MultiVecDestroy(&(solver->cg_w[i]), 
-          solver->cg_w_size[i], solver->gcge_ops);
-    solver->gcge_ops->MultiVecDestroy(&(solver->cg_res[i]), 
-          solver->cg_res_size[i], solver->gcge_ops);
+  int **size = (int**)malloc(5*sizeof(int*));
+  size[0] = solver->sol_size;
+  size[1] = solver->rhs_size;
+  size[2] = solver->cg_p_size;
+  size[3] = solver->cg_w_size;
+  size[4] = solver->cg_res_size;
+  if(NULL != solver->multigrid) {
+    PASE_MULTIGRID_Destroy(&(solver->multigrid), size);
   }
-  free(solver->sol);     solver->sol    = NULL;
-  free(solver->rhs);     solver->rhs    = NULL;
-  free(solver->cg_p);    solver->cg_p   = NULL;
-  free(solver->cg_w);    solver->cg_w   = NULL;
-  free(solver->cg_res);  solver->cg_res = NULL;
+  free(size); size = NULL;
   free(solver->sol_size);     solver->sol_size    = NULL;
   free(solver->rhs_size);     solver->rhs_size    = NULL;
   free(solver->cg_p_size);    solver->cg_p_size   = NULL;
@@ -431,23 +413,11 @@ PASE_Mg_solver_destroy(PASE_MG_SOLVER solver)
   if(NULL != solver->aux_sol) {
     PASE_MultiVector_destroy_sub(&(solver->aux_sol));
   }
-  //释放double,int型工作空间
-  if(NULL != solver->cg_double_tmp) {
-    free(solver->cg_double_tmp);
-    solver->cg_double_tmp = NULL;
-  }
-  if(NULL != solver->cg_int_tmp) {
-    free(solver->cg_int_tmp);
-    solver->cg_int_tmp = NULL;
-  }
   if(NULL != solver->aux_A) {
     PASE_Matrix_destroy_sub(&(solver->aux_A));
   }
   if(NULL != solver->aux_B) {
     PASE_Matrix_destroy_sub(&(solver->aux_B));
-  }
-  if(NULL != solver->multigrid) {
-    PASE_MULTIGRID_Destroy(&(solver->multigrid));
   }
   free(solver);
   return 0;
@@ -630,18 +600,18 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_lev
   //GCGE_Printf("before presmoothing:, current_level: %d\n", current_level);
   PASE_Mg_smoothing(solver, current_level, max_presmooth_iter);
 
-  GCGE_Printf("after presmoothing:\n");
+  //GCGE_Printf("after presmoothing:\n");
   //PASE_Mg_error_estimate(solver, current_level);
 
   //构造复合矩阵 (solver, coarse_level, current_level)
   PASE_Mg_set_pase_aux_matrix(solver, coarse_level, current_level);
-  GCGE_Printf("after set_aux_matrix:\n");
+  //GCGE_Printf("after set_aux_matrix:\n");
   //构造复合向量 
   PASE_Mg_set_pase_aux_vector(solver, coarse_level, current_level);
-  GCGE_Printf("after set_aux_vector:\n");
+  //GCGE_Printf("after set_aux_vector:\n");
   //直接求解复合矩阵特征值问题
   PASE_Aux_direct_solve(solver, coarse_level);
-  GCGE_Printf("after aux_direct:\n");
+  //GCGE_Printf("after aux_direct:\n");
 
   //把aux向量转换成细空间上的向量
   PASE_Mg_prolong_from_pase_aux_vector(solver, coarse_level, current_level);
@@ -822,7 +792,6 @@ PASE_Aux_matrix_set_by_pase_matrix(PASE_Matrix aux_A, void ***aux_bH,
   mv_s[1] = coarse_nlock_auxmat;
   mv_e[1] = pase_nev;
   PASE_REAL *A_aux_hh = aux_A->aux_hh;
-
   //从aux_A->aux_hh的第coarse_nlock_auxmat_b列开始赋值
   gcge_ops->MultiVecInnerProd(sol, aux_bH[current_level], 
 	A_aux_hh+coarse_nlock_auxmat*num_aux_vec, 
@@ -948,7 +917,6 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->print_conv        = 0;
   gcge_pase_solver->para->print_eval        = 0;
   gcge_pase_solver->para->print_result      = 0;
-  gcge_pase_solver->para->print_final_part_time = 0;
   gcge_pase_solver->para->ev_tol            = solver->aux_rtol;
   gcge_pase_solver->para->ev_max_it         = solver->max_direct_count_each_level[coarse_level];
   gcge_pase_solver->para->num_init_evec     = solver->pase_nev;
@@ -959,11 +927,6 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->x_orth_type = "multi";
   //求解
   GCGE_SOLVER_Solve(gcge_pase_solver);  
-
-  //解完后选择每个细空间向量方向值最大的向量，重新排序
-  if(solver->nconv > 0) {
-    PASE_Aux_sol_sort(solver, coarse_level);
-  } 
   memcpy(solver->eigenvalues+solver->nconv, solver->aux_eigenvalues+solver->nconv, 
         num_unlock*sizeof(PASE_REAL));
   //释放空间
@@ -973,130 +936,6 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   solver->aux_direct_solve_time += ((double)(end-start))/CLK_TCK;
   return 0;
 }
-
-PASE_INT 
-PASE_Aux_sol_sort(PASE_MG_SOLVER solver, PASE_INT coarse_level)
-{
-  PASE_INT  nconv       = solver->nconv;
-  PASE_INT  pase_nev    = solver->pase_nev;
-  PASE_REAL *aux_h      = solver->aux_sol->aux_h;
-  PASE_INT  num_aux_vec = solver->aux_sol->num_aux_vec;
-  void      **vecs_tmp  = solver->cg_res[coarse_level];
-  PASE_INT  i           = 0;
-  PASE_INT  j           = 0;
-  GCGE_OPS  *gcge_ops   = solver->gcge_ops;
-  PASE_INT  position    = nconv;
-  PASE_REAL last_eval_nconv = solver->eigenvalues[nconv-1];
-  while((solver->aux_eigenvalues[position]>last_eval_nconv)&&(position>0)) {  
-    GCGE_Printf("aux_eigenvalues[%d] = %18.15e, last_eval_nconv: %18.15e\n", 
-	  position, solver->aux_eigenvalues[position], last_eval_nconv);
-    position--;
-  }
-  PASE_INT  unlock_start = position;
-  PASE_INT  mv_s[2];
-  PASE_INT  mv_e[2];
-  PASE_MultiVector aux_tmp = (PASE_MultiVector)malloc(sizeof(pase_MultiVector));
-  aux_tmp->num_aux_vec = num_aux_vec;
-  aux_tmp->num_vec     = num_aux_vec;
-  aux_tmp->b_H         = solver->aux_B->aux_Hh;
-  aux_tmp->aux_h       = solver->aux_B->aux_hh;
-  //取aux_sol的unlock_start:pase_nev-1
-  //u_h的unlock_start:pase_nev-1
-  mv_s[0] = unlock_start;
-  mv_e[0] = pase_nev;
-  mv_s[1] = unlock_start;
-  mv_e[1] = num_aux_vec;
-  PASE_REAL *inner_prod = solver->cg_double_tmp;
-  PASE_INT  ldi = mv_e[0] - mv_s[0];
-  solver->pase_ops->MultiVecInnerProd((void**)(solver->aux_sol), (void**)aux_tmp, 
-	inner_prod, "nonsym", mv_s, mv_e, ldi, 0, solver->pase_ops);
-
-#if 1
-  //inner_prod是一个方阵，行列+unlock_start后对应真正的特征对
-  PASE_INT  *max_idx = solver->cg_int_tmp; 
-  for(i=0; i<mv_e[1]-mv_s[1]; i++) {
-    for(j=0; j<i; j++) {
-      inner_prod[i*ldi+max_idx[j]] = 0.0;
-    }
-    PASE_Find_max_in_vector(max_idx+i, inner_prod+i*ldi, 0, ldi);
-  }
-  PASE_Sort_int(max_idx, 0, mv_e[1]-mv_s[1]);
-  position = pase_nev-1;
-  void *from_vec;
-  void *to_vec;
-  PASE_REAL *eigenvalues     = solver->eigenvalues;
-  PASE_REAL *aux_eigenvalues = solver->aux_eigenvalues;
-  PASE_INT   current_idx = 0;
-  GCGE_Printf("num_aux_vec: %d, pase_nev: %d, position: %d\n", 
-	num_aux_vec, pase_nev, position);
-  for(i=num_aux_vec-1; i>=nconv; i--) {
-    current_idx = max_idx[i-unlock_start]+unlock_start;
-    GCGE_Printf("unlock_start: %d, max_idx[%d] = %d, current_idx: %d, position: %d\n", 
-	  unlock_start, i, max_idx[i], current_idx, position);
-    if(current_idx != position) {
-      solver->pase_ops->GetVecFromMultiVec((void**)solver->aux_sol, current_idx, &from_vec, solver->pase_ops);
-      solver->pase_ops->GetVecFromMultiVec((void**)solver->aux_sol, position, &to_vec, solver->pase_ops);
-      solver->pase_ops->VecAxpby(1.0, from_vec, 0.0, to_vec, solver->pase_ops);
-      solver->pase_ops->RestoreVecForMultiVec((void**)solver->aux_sol, current_idx, &from_vec, solver->pase_ops);
-      solver->pase_ops->RestoreVecForMultiVec((void**)solver->aux_sol, position, &to_vec, solver->pase_ops);
-      aux_eigenvalues[position] = aux_eigenvalues[current_idx];
-      GCGE_Printf("sort, nconv: %d, unlock_start: %d, current_idx: %d, eigenvalues[%d] = %18.15lf\n", 
-	    nconv, unlock_start, current_idx, position, eigenvalues[position]);
-    }
-    position--;
-  }
-#endif
-
-  free(aux_tmp); aux_tmp = NULL;
-}
-
-PASE_INT 
-PASE_Sort_int(PASE_INT *a, PASE_INT left, PASE_INT right)
-{
-    PASE_INT i = 0; 
-    PASE_INT j = 0;
-    PASE_INT temp = 0;
-    i = left;
-    j = right;
-    temp = a[left];
-    if(left > right)
-        return 0;
-    while(i != j)
-    {
-        while((a[j] >= temp)&&(j > i))
-            j--;
-        if(j > i)
-            a[i++] = a[j];
-        while((a[i] <= temp)&&(j > i))
-            i++;
-        if(j > i)
-            a[j--] = a[i];
-    }
-    a[i] = temp;
-    PASE_Sort_int(a, left, i-1);
-    PASE_Sort_int(a, i+1, right);
-    return 0;
-}
-
-PASE_INT 
-PASE_Find_max_in_vector(PASE_INT *max_idx, PASE_REAL *vector, PASE_INT start, PASE_INT end)
-{
-  PASE_REAL max_value = fabs(vector[start]);
-  PASE_INT  max_index = start;
-  PASE_REAL tmp_value = 0.0;
-  PASE_INT  i = start;
-  //对每一列进行循环
-  for(i=start+1; i<end; i++) {
-    tmp_value = fabs(vector[i]);
-    //如果该列的第一行比最大值大，重新确定最大值及位置
-    if(tmp_value > max_value) {
-      max_index = i;
-      max_value = tmp_value;
-    }
-  }
-  *max_idx = max_index;
-}
-
 
 PASE_INT
 PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
@@ -1289,8 +1128,15 @@ PASE_Mg_error_estimate(PASE_MG_SOLVER solver, PASE_INT idx_level,
       flag = 1;
     }
   }
-  while(check_multi[solver->nconv-1] < 1e-5 && solver->nconv > nconv) {
-     solver->nconv--;
+  if ( (solver->nconv-1)>=0 && (solver->nconv-1)<(pase_nev-1) )
+  {
+     while(check_multi[solver->nconv-1] < 1e-5 && solver->nconv > nconv) {
+	solver->nconv--;
+	if ( (solver->nconv-1)<0 && (solver->nconv-1)>=(pase_nev-1) )
+	{
+	   break;
+	}
+     }
   }
   //如果需要检查效率, 计算残差和
   if(solver->check_efficiency_flag == 1) {

@@ -61,111 +61,114 @@ main ( int argc, char *argv[] )
     PASE_OPS_Create(&pase_ops, gcge_ops);
 
     //进行multigrid分层
+    int nev = 5;
     int num_levels = 3;
     int mg_coarsest_level = 2;
     PASE_REAL convert_time = 0.0;
     PASE_REAL amg_time = 0.0;
     PASE_MULTIGRID multi_grid;
-    int error = PASE_MULTIGRID_Create(&multi_grid, num_levels, mg_coarsest_level, 
-            (void *)A, (void *)B, gcge_ops, pase_ops, &convert_time, &amg_time);
-
-    //申请工作空间
-    int nev = 5;
-    BV *u, *rhs, *u_tmp, *u_tmp_1, *u_tmp_2;
-    u       = (BV*)malloc(num_levels*sizeof(BV));
-    rhs     = (BV*)malloc(num_levels*sizeof(BV));
-    u_tmp   = (BV*)malloc(num_levels*sizeof(BV));
-    u_tmp_1 = (BV*)malloc(num_levels*sizeof(BV));
-    u_tmp_2 = (BV*)malloc(num_levels*sizeof(BV));
+    int **size = (int**)malloc(5*sizeof(int*));
     int i = 0;
-    for(i=0; i<num_levels; i++)
-    {
-        gcge_ops->MultiVecCreateByMat((void***)(&(u[i])), nev, 
-	      multi_grid->A_array[i], gcge_ops);
-        gcge_ops->MultiVecCreateByMat((void***)(&(rhs[i])), nev, 
-	      multi_grid->A_array[i], gcge_ops);
-        gcge_ops->MultiVecCreateByMat((void***)(&(u_tmp[i])), nev, 
-	      multi_grid->A_array[i], gcge_ops);
-        gcge_ops->MultiVecCreateByMat((void***)(&(u_tmp_1[i])), nev, 
-	      multi_grid->A_array[i], gcge_ops);
-        gcge_ops->MultiVecCreateByMat((void***)(&(u_tmp_2[i])), nev, 
-	      multi_grid->A_array[i], gcge_ops);
+    int j = 0;
+    for (i=0; i<5; i++) {
+        size[i] = (int*)calloc(num_levels, sizeof(int));
+        for (j=0; j<num_levels; j++) {
+            size[i][j] = nev;
+        }
     }
-    double *double_tmp = (double*)calloc(nev*nev, sizeof(double));
-    int    *int_tmp    = (int*)calloc(nev*nev, sizeof(int));
-    multi_grid->sol        = (void***)u;
-    multi_grid->rhs        = (void***)rhs;
-    multi_grid->cg_p       = (void***)u_tmp;
-    multi_grid->cg_w       = (void***)u_tmp_1;
-    multi_grid->cg_res     = (void***)u_tmp_2;
-    multi_grid->cg_double_tmp = double_tmp;
-    multi_grid->cg_int_tmp    = int_tmp;
+    int size_dtmp = nev*nev;
+    int size_itmp = nev*nev;
+    int error = PASE_MULTIGRID_Create(&multi_grid, num_levels, mg_coarsest_level, 
+            size, size_dtmp, size_itmp,
+            (void *)A, (void *)B, gcge_ops, &convert_time, &amg_time);
+
+    BV *u,  *rhs,  *u_tmp,  *u_tmp_1,  *u_tmp_2;
+    double *double_tmp; 
+    int *int_tmp;
+    u          = (BV*)multi_grid->sol;
+    rhs        = (BV*)multi_grid->rhs;
+    u_tmp      = (BV*)multi_grid->cg_p;
+    u_tmp_1    = (BV*)multi_grid->cg_w;
+    u_tmp_2    = (BV*)multi_grid->cg_res;
+    double_tmp = (double*)multi_grid->cg_double_tmp;
+    int_tmp    = (int*)multi_grid->cg_int_tmp;    
 
     gcge_ops->MultiVecSetRandomValue((void**)(u[0]), 0, nev, gcge_ops);
+    printf ( "-----------------------------\n" );
     PETSCPrintBV(u[0], "exact u[0]");
+    printf ( "-----------------------------\n" );
+
 
     int mv_s[2];
     int mv_e[2];
 
-    mv_s[0] = 1;
+    mv_s[0] = 0;
     mv_e[0] = nev;
     mv_s[1] = 0;
-    mv_e[1] = nev-1;
+    mv_e[1] = nev;
+
+    //计算右端项
     gcge_ops->MatDotMultiVec(A, (void**)(u[0]), (void**)(rhs[0]), 
 	  mv_s, mv_e, gcge_ops);
     //-----------------------------------------------
-    //下面这两行注释掉，就可以测试使用精确解做初值的话，会有什么结果
-    mv_s[0] = 1;
-    mv_e[0] = nev;
-    mv_s[1] = 1;
-    mv_e[1] = nev;
-    gcge_ops->MultiVecAxpby(0.0, (void**)(u[0]), 0.0, (void**)(u[0]), 
-    	  mv_s, mv_e, gcge_ops);
 
+    gcge_ops->MultiVecSetRandomValue((void**)(u[0]), 0, nev, gcge_ops);
+    PETSCPrintBV(u[0], "initial u[0]");
+    printf ( "-----------------------------\n" );
     //计算初始残差
-    mv_s[0] = 1;
+    mv_s[0] = 0;
     mv_e[0] = nev;
     mv_s[1] = 0;
-    mv_e[1] = nev-1;
+    mv_e[1] = nev;
+
     gcge_ops->MatDotMultiVec(A, (void**)(u[0]), (void**)(u_tmp[0]), mv_s, mv_e, gcge_ops);
     mv_s[0] = 0;
-    mv_e[0] = nev-1;
+    mv_e[0] = nev;
     mv_s[1] = 0;
-    mv_e[1] = nev-1;
+    mv_e[1] = nev;
     gcge_ops->MultiVecAxpby(1.0, (void**)(rhs[0]), -1.0, (void**)(u_tmp[0]), 
 	  mv_s, mv_e, gcge_ops);
     gcge_ops->MultiVecInnerProd((void**)(u_tmp[0]), (void**)(u_tmp[0]), 
 	  double_tmp, "nonsym", mv_s, mv_e, nev, 0, gcge_ops);
-    for(i=0; i<nev-1; i++) {
+    for(i=0; i<nev; i++) {
         GCGE_Printf("init residual[%d] = %e\n", i, double_tmp[i*nev+i]);
     }
 
+
     double tol = 1e-8;
-    double rate = 1e-8;
+    double rate = 1e-4;
     int nsmooth = 1000;
     int max_coarest_nsmooth = 10000;
     //PASE_BMG_TEST(multi_grid, 0, (void**)(rhs[0]), (void**)(u[0]), mv_s, mv_e, 
-    mv_s[0] = 0;
-    mv_e[0] = nev-1;
-    mv_s[1] = 1;
-    mv_e[1] = nev;
-    PASE_BMG(multi_grid, 0, (void**)(rhs[0]), (void**)(u[0]), mv_s, mv_e, 
-     	  tol, rate, nsmooth, max_coarest_nsmooth);
-    //GCGE_BCG(A, (void**)(rhs[0]), (void**)(u[0]), 0, nev, nsmooth, rate,
-    //      gcge_ops, (void**)(u_tmp[0]), (void**)(u_tmp_1[0]), 
-    //	    (void**)(u_tmp_2[0]), double_tmp, int_tmp);
-    PETSCPrintBV(u[0], "output u[0]");
 
-    mv_s[0] = 1;
+    int start[5];
+    int end[5];
+    start[0] = 0; end[0] = nev;
+    start[1] = 0; end[1] = nev;
+    start[2] = 0; end[2] = nev;
+    start[3] = 0; end[3] = nev;
+    start[4] = 0; end[4] = nev;
+#if 1
+    PASE_BMG(multi_grid, 0, (void**)(rhs[0]), (void**)(u[0]), start, end, 
+     	  tol, rate, nsmooth, max_coarest_nsmooth);
+#else
+    GCGE_BCG(A, 0, 0.0, NULL, (void**)(rhs[0]), (void**)(u[0]), start, end, nsmooth, rate,
+          gcge_ops, (void**)(u_tmp[0]), (void**)(u_tmp_1[0]), 
+    	    (void**)(u_tmp_2[0]), double_tmp, int_tmp);
+#endif
+    PETSCPrintBV(u[0], "output u[0]");
+    printf ( "-----------------------------\n" );
+
+    mv_s[0] = 0;
     mv_e[0] = nev;
     mv_s[1] = 0;
-    mv_e[1] = nev-1;
+    mv_e[1] = nev;
     //计算最后的残差
     gcge_ops->MatDotMultiVec(A, (void**)(u[0]), (void**)(u_tmp[0]), mv_s, mv_e, gcge_ops);
     mv_s[0] = 0;
-    mv_e[0] = nev-1;
+    mv_e[0] = nev;
     mv_s[1] = 0;
-    mv_e[1] = nev-1;
+    mv_e[1] = nev;
     gcge_ops->MultiVecAxpby(1.0, (void**)(rhs[0]), -1.0, (void**)(u_tmp[0]), 
 	  mv_s, mv_e, gcge_ops);
     //PETSCPrintBV(u_tmp[0], "resi after");
@@ -175,27 +178,15 @@ main ( int argc, char *argv[] )
         GCGE_Printf("final residual[%d] = %e\n", i, double_tmp[i*nev+i]);
     }
 
-    //释放空间
-    for(i=0; i<num_levels; i++)
-    {
-        gcge_ops->MultiVecDestroy((void***)(&(u[i])), nev, gcge_ops);
-        gcge_ops->MultiVecDestroy((void***)(&(rhs[i])), nev, gcge_ops);
-        gcge_ops->MultiVecDestroy((void***)(&(u_tmp[i])), nev, gcge_ops);
-        gcge_ops->MultiVecDestroy((void***)(&(u_tmp_1[i])), nev, gcge_ops);
-        gcge_ops->MultiVecDestroy((void***)(&(u_tmp_2[i])), nev, gcge_ops);
-    }
-    free(u); u = NULL;
-    free(rhs); rhs = NULL;
-    free(u_tmp); u_tmp = NULL;
-    free(u_tmp_1); u_tmp_1 = NULL;
-    free(u_tmp_2); u_tmp_2 = NULL;
-
-    free(double_tmp); double_tmp = NULL;
-    free(int_tmp);    int_tmp = NULL;
+    PASE_MULTIGRID_Destroy(&multi_grid, size);
     GCGE_OPS_Free(&gcge_ops);
     PASE_OPS_Free(&pase_ops); 
     ierr = MatDestroy(&A);
     ierr = MatDestroy(&B);
+    for (i=0; i<5; i++){
+        free(size[i]); size[i] = NULL;
+    }
+    free(size); size = NULL;
 
     /* PetscFinalize */
     ierr = SlepcFinalize();

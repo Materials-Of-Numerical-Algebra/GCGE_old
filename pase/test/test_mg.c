@@ -15,7 +15,6 @@
  */
 
 #include <stdio.h>
-#include "pase_mg.h"
 #include "gcge.h"
 #include "pase.h"
 #include "gcge_app_slepc.h"
@@ -35,6 +34,7 @@ main ( int argc, char *argv[] )
     /* PetscInitialize */
     SlepcInitialize(&argc,&argv,(char*)0,help);
     PetscErrorCode ierr;
+
     PetscMPIInt    rank;
     PetscViewer    viewer;
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
@@ -44,7 +44,7 @@ main ( int argc, char *argv[] )
     PetscInt n = 7, m = 3, row_start, row_end, col_start, col_end;
     /* 得到一个PETSC矩阵 */
     GetPetscMat(&petsc_mat_A, &petsc_mat_B, n, m);
-    HYPRE_Int idx, j, num_levels = 3, mg_coarsest_level = 2;
+    HYPRE_Int idx, num_levels = 3, mg_coarsest_level = 2;
 
     //创建gcge_ops
     GCGE_OPS *gcge_ops;
@@ -55,15 +55,27 @@ main ( int argc, char *argv[] )
     PASE_OPS *pase_ops;
     PASE_OPS_Create(&pase_ops, gcge_ops);
 
+    int num_vecs = 3;
     PASE_MULTIGRID multi_grid;
     PASE_REAL convert_time = 0.0;
     PASE_REAL amg_time = 0.0;
+    int **size = (int**)malloc(5*sizeof(int*));
+    int i = 0;
+    int j = 0;
+    for (i=0; i<5; i++) {
+        size[i] = (int*)calloc(num_levels, sizeof(int));
+        for (j=0; j<num_levels; j++) {
+            size[i][j] = num_vecs;
+        }
+    }
+    int size_dtmp = num_vecs*num_vecs;
+    int size_itmp = num_vecs*num_vecs;
     PASE_MULTIGRID_Create(&multi_grid, num_levels, mg_coarsest_level, 
+	  size, size_dtmp, size_itmp,
 	  (void *)petsc_mat_A, (void *)petsc_mat_B, 
 	  gcge_ops, &convert_time, &amg_time);
-    multi_grid->cg_p = (void***)malloc(num_levels*sizeof(void**));
-    gcge_ops->MultiVecCreateByMat(&(multi_grid->cg_p[1]), 3, multi_grid->A_array[1], gcge_ops);
-#if 1
+
+#if 0
     //先测试P与PT乘以单向量是否有问题
     Vec x;
     Vec y;
@@ -75,7 +87,6 @@ main ( int argc, char *argv[] )
     gcge_ops->MatTransposeDotVec(multi_grid->P_array[0], (void*)x, (void*)y, gcge_ops);
     gcge_ops->VecDestroy((void**)&x, gcge_ops);
     gcge_ops->VecDestroy((void**)&y, gcge_ops);
-#endif
 
     PETSCPrintMat((Mat)(multi_grid->P_array[0]), "P0");
     PETSCPrintMat((Mat)(multi_grid->P_array[1]), "P1");
@@ -86,7 +97,7 @@ main ( int argc, char *argv[] )
     //LSSC4上View类的函数都有点问题，包括MatView, BVView, KSPView
     //MatView((Mat)(multi_grid->P_array[0]), viewer);
     //MatView((Mat)(multi_grid->A_array[1]), viewer);
-#if 0
+#else
     /* 打印各层A, B, P矩阵*/
     //连续打会打不出来，不知道为什么？？？？只打一个可以
     PetscPrintf(PETSC_COMM_WORLD, "A_array\n");
@@ -96,7 +107,7 @@ main ( int argc, char *argv[] )
         MatView((Mat)(multi_grid->A_array[idx]), viewer);
     }
     PetscPrintf(PETSC_COMM_WORLD, "B_array\n");
-    for (idx = 0; idx < num_levels-1; ++idx)
+    for (idx = 0; idx < num_levels; ++idx)
     {
         PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
         MatView((Mat)(multi_grid->B_array[idx]), viewer);
@@ -107,12 +118,12 @@ main ( int argc, char *argv[] )
         PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
         MatView((Mat)(multi_grid->P_array[idx]), viewer);
     }
-
 #endif
+
+#if 1
     /* TODO: 测试BV结构的向量进行投影插值 */
     int level_i = 0;
     int level_j = 2;
-    int num_vecs = 3;
     BV vecs_i;
     BV vecs_j;
     gcge_ops->MultiVecCreateByMat((void***)(&vecs_i), num_vecs, multi_grid->A_array[level_i], gcge_ops);
@@ -146,16 +157,21 @@ main ( int argc, char *argv[] )
 
     gcge_ops->MultiVecDestroy((void***)(&vecs_i), num_vecs, gcge_ops);
     gcge_ops->MultiVecDestroy((void***)(&vecs_j), num_vecs, gcge_ops);
-
+#endif
     //注释掉Destroy不报错memory access out of range, 说明是Destroy时用错
-    gcge_ops->MultiVecDestroy(&(multi_grid->cg_p[1]), 3, gcge_ops);
-    error = PASE_MULTIGRID_Destroy(&multi_grid);
+  //  gcge_ops->MultiVecDestroy(&(multi_grid->cg_p[1]), 3, gcge_ops);
+    PASE_MULTIGRID_Destroy(&multi_grid, size);
+    for (i=0; i<5; i++){
+        free(size[i]); size[i] = NULL;
+    }
+    free(size); size = NULL;
+
+    PASE_OPS_Free(&pase_ops); 
+    GCGE_OPS_Free(&gcge_ops);
 
     ierr = MatDestroy(&petsc_mat_A);
     ierr = MatDestroy(&petsc_mat_B);
 
-    PASE_OPS_Free(&pase_ops); 
-    GCGE_OPS_Free(&gcge_ops);
     /* PetscFinalize */
     ierr = SlepcFinalize();
     return 0;

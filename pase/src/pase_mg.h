@@ -2,6 +2,7 @@
 #define _pase_mg_h_
 
 #include "gcge.h"
+#include "gcge_app_slepc.h"
 
 #include "pase_config.h"
 #include "pase_convert.h"
@@ -44,10 +45,11 @@ typedef struct pase_MultiGrid_struct *PASE_MULTIGRID;
 GCGE_INT 
 PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
         GCGE_INT max_levels, GCGE_INT mg_coarsest_level, 
+	PASE_INT **size,  PASE_INT size_dtmp,  PASE_INT size_itmp, 
         void *A, void *B, GCGE_OPS *gcge_ops,
 	GCGE_DOUBLE *convert_time, GCGE_DOUBLE *amg_time);
 
-GCGE_INT PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid);
+GCGE_INT PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid, PASE_INT **size);
 
 
 /**

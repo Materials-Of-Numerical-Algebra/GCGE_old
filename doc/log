@@ -630,3 +630,10 @@ pase_solver中添加了对aux_sol的排序，并将cg_double_tmp大小修改为m
 2. 修改pase_amg.c中，BCG的调用，都改为调用BCG_Continuous
 3. 未修改pase_mg.c中，FromItoJ, 这里用了为做初始化的MULTIGRID的结构成员，而且if else也非常奇怪
 
+2019.12.30 liyu
+1. 修改gcge_app_slepc.c中，SetRandomValue, 使得每次调用这个操作时，会有不同的随机数生成
+   相应的gcge_app_petsc.c中也做相应修改
+2. 修改gcge_app_hypre.c中，hypre 15中，对于hypre_CTAlloc增加第三个形式变量，添加宏 HYPRE_MEMORY_HOST
+3. BCG和BMG的收敛准则比较奇怪，首先，如果BCG的初值就是精确值，则会出错。BMG的rate不要太小
+4. PASE_EigenSolver对于一些边角情况没有任何处理，比如，多层网格情形下，粗矩阵的阶数可能小于特征值数
+5. convert部分还没有完全检测完成

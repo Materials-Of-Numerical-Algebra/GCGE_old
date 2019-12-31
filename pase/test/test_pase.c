@@ -24,7 +24,7 @@
 
 
 static char help[] = "Test MultiGrid.\n";
-void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m);
+void GetPetscMat(Mat *A, Mat *B, PetscInt n);
 void PETSCPrintMat(Mat A, char *name);
 void PETSCPrintVec(Vec x);
 void PETSCPrintBV(BV x, char *name);
@@ -46,17 +46,16 @@ main ( int argc, char *argv[] )
 
     /* 得到细网格矩阵 */
     Mat      A, B;
-    PASE_INT n = 300;
-    PASE_INT nev = 30;
-    PASE_INT num_levels = 5;
-    PASE_INT print_level = 1;
+    PASE_INT n = 10;
+    PASE_INT nev = 4;
+    PASE_INT num_levels = 3;
     PASE_INT aux_coarse_level = -1;
 
     GetCommandLineInfo(argc, argv, &n, &num_levels);
     GCGE_Printf("n: %d\n", n);
     //如果n>0, 那就直接产生差分矩阵, 否则就从文件读入矩阵
     if(n > 0) {
-      GetPetscMat(&A, &B, n, n);
+      GetPetscMat(&A, &B, n);
     } else {
       char file_A[PETSC_MAX_PATH_LEN] = "fileinput";
       ierr = PetscOptionsGetString(NULL, NULL, "-mat_A", file_A, sizeof(file_A), NULL);
@@ -94,9 +93,9 @@ main ( int argc, char *argv[] )
     return 0;
 }
 
-void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m)
+void GetPetscMat(Mat *A, Mat *B, PetscInt n)
 {
-    PetscInt N = n*m;
+    PetscInt N = n*n;
     PetscInt Istart, Iend, II, i, j;
     PetscErrorCode ierr;
     ierr = MatCreate(PETSC_COMM_WORLD,A);
@@ -107,7 +106,7 @@ void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m)
     for (II=Istart;II<Iend;II++) {
       i = II/n; j = II-i*n;
       if (i>0) { ierr = MatSetValue(*A,II,II-n,-1.0,INSERT_VALUES); }
-      if (i<m-1) { ierr = MatSetValue(*A,II,II+n,-1.0,INSERT_VALUES); }
+      if (i<n-1) { ierr = MatSetValue(*A,II,II+n,-1.0,INSERT_VALUES); }
       if (j>0) { ierr = MatSetValue(*A,II,II-1,-1.0,INSERT_VALUES); }
       if (j<n-1) { ierr = MatSetValue(*A,II,II+1,-1.0,INSERT_VALUES); }
       ierr = MatSetValue(*A,II,II,4.0,INSERT_VALUES);
@@ -121,7 +120,7 @@ void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m)
     ierr = MatSetUp(*B);
     ierr = MatGetOwnershipRange(*B,&Istart,&Iend);
     for (II=Istart;II<Iend;II++) {
-      ierr = MatSetValue(*B,II,II,1.0,INSERT_VALUES);
+      ierr = MatSetValue(*B,II,II,1.0/((n+1)*(n+1)),INSERT_VALUES);
     }
     ierr = MatAssemblyBegin(*B,MAT_FINAL_ASSEMBLY);
     ierr = MatAssemblyEnd(*B,MAT_FINAL_ASSEMBLY);

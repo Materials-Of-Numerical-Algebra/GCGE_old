@@ -183,7 +183,7 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, HYPRE_Int *nu
    HYPRE_Int          global_size  = hypre_ParCSRMatrixGlobalNumRows(hypre_parcsr_mat);
    HYPRE_Int         *partitioning = NULL;
 #ifdef HYPRE_NO_GLOBAL_PARTITION
-   partitioning = hypre_CTAlloc(HYPRE_Int,  2);
+   partitioning = hypre_CTAlloc(HYPRE_Int,  2, HYPRE_MEMORY_HOST);
    hypre_ParCSRMatrixGetLocalRange(hypre_parcsr_mat, partitioning, partitioning+1, partitioning, partitioning+1);
    partitioning[1] += 1;
 #else

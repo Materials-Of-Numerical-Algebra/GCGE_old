@@ -43,7 +43,7 @@ void GCGE_HYPRE_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
   GCGE_INT           global_size  = hypre_ParCSRMatrixGlobalNumRows(A_hypre);
   GCGE_INT          *partitioning = NULL;
 #ifdef HYPRE_NO_GLOBAL_PARTITION
-  partitioning = hypre_CTAlloc(HYPRE_Int,  2);
+  partitioning = hypre_CTAlloc(HYPRE_Int, 2, HYPRE_MEMORY_HOST);
   hypre_ParCSRMatrixGetLocalRange(A_hypre, partitioning, partitioning+1, partitioning, partitioning+1);
   partitioning[1] += 1;
 #else
@@ -133,7 +133,7 @@ GCGE_SOLVER* GCGE_HYPRE_Solver_Init(HYPRE_ParCSRMatrix A, HYPRE_ParCSRMatrix B, 
     double *eval = (double *)calloc(nev, sizeof(double)); 
     hypre_solver->eval = eval;
 
-    HYPRE_ParVector *evec = hypre_CTAlloc(HYPRE_ParVector,  nev);
+    HYPRE_ParVector *evec = hypre_CTAlloc(HYPRE_ParVector, nev, HYPRE_MEMORY_HOST);
     int i = 0; 
     //这里为什么不一次性生成 CSR_MultiVecCreateByMat?
     for(i=0; i<nev; i++)

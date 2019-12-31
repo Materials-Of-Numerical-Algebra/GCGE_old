@@ -27,7 +27,7 @@ PASE_PARAMETER_Create(PASE_PARAMETER *param, PASE_INT num_levels, PASE_INT nev)
   (*param)->atol = 1e-8;
   (*param)->initial_rtol = 1e-8;
   (*param)->aux_rtol = 1e-10;
-  (*param)->print_level = 1;
+  (*param)->print_level = 2;
   (*param)->bmg_step_size = -1;
 
   PASE_INT i = 0;

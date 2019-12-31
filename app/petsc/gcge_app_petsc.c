@@ -113,7 +113,11 @@ void GCGE_PETSC_VecSetRandomValue(void *vec, GCGE_OPS *ops)
     PetscRandom    rctx;
     
     PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
-    PetscRandomSetFromOptions(rctx);
+    //PetscRandomSetFromOptions(rctx);
+    PetscMPIInt    rank;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    PetscRandomSetSeed(rctx, 0x12345678 + 76543*rank+rand());
+    PetscRandomSeed(rctx);
     VecSetRandom((Vec)vec, rctx);
     PetscRandomDestroy(&rctx);
 }
@@ -123,7 +127,11 @@ void GCGE_PETSC_MultiVecSetRandomValue(void **multi_vec, GCGE_INT start, GCGE_IN
     
     PetscInt       i;
     PetscRandomCreate(PETSC_COMM_WORLD,&rctx);
-    PetscRandomSetFromOptions(rctx);
+    ///PetscRandomSetFromOptions(rctx);
+    PetscMPIInt    rank;
+    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    PetscRandomSetSeed(rctx, 0x12345678 + 76543*rank+rand());
+    PetscRandomSeed(rctx);
     for(i=0; i<n_vec; i++)
     {
         VecSetRandom(((Vec*)multi_vec)[i], rctx);

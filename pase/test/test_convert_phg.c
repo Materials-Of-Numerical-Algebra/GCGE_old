@@ -22,13 +22,14 @@
 #include <math.h>
 #include <time.h>
 
+/* ERROR can not include pase_convert.h
+ * PHG functions can not be complied with PHG functions
 #include "pase_convert.h"
-/*
+*/
 #include "HYPRE.h"
 #include "HYPRE_IJ_mv.h"
 #include "_hypre_parcsr_mv.h"
 #include "phg.h"
-*/
 
 #if (PHG_VERSION_MAJOR <= 0 && PHG_VERSION_MINOR < 9)
 # undef ELEMENT
@@ -44,7 +45,7 @@ build_matrices(MAT *matA, MAT *matB, DOF *u_h)
     ELEMENT *e;
     FLOAT A[N][N], B[N][N], vol;
     static FLOAT *B0 = NULL;
-    INT I[N];
+    int I[N];
 
     if (B0 == NULL && g->nroot > 0) {
 	/* (\int \phi_j\cdot\phi_i)/vol is independent of element */
@@ -93,10 +94,10 @@ int
 main(int argc, char *argv[])
 {
     static char *fn = "./data/cube4.dat";
-    static INT mem_max = 3000;
+    static int mem_max = 3000;
     size_t mem, mem_peak;
     int i, j, k, n, nit;
-    INT pre_refines = 1;
+    int pre_refines = 1;
     GRID *g;
     DOF *u_h;
     MAP *map;
@@ -161,6 +162,7 @@ main(int argc, char *argv[])
     PetscViewer viewer;
     MatrixConvertPHG2PETSC(petsc_mat, A);
     MatView(*petsc_mat, viewer);
+    MatDestroy(petsc_mat);
 #else
     HYPRE_IJMatrix hypre_ij_mat;
 
@@ -171,7 +173,21 @@ main(int argc, char *argv[])
     HYPRE_IJMatrixGetLocalRange(hypre_ij_mat,  &row_start,  &row_end,  &col_start,  &col_end);
     printf ( "hypre,  %d: row_start = %d,  row_end = %d\n",  rank,  row_start,  row_end );
     printf ( "hypre,  %d: col_start = %d,  col_end = %d\n",  rank,  col_start,  col_end );
+
+    HYPRE_ParCSRMatrix hypre_parcsr_mat;
+    HYPRE_IJMatrixGetObject(hypre_ij_mat, (void**) &hypre_parcsr_mat);
+
+//    Mat petsc_mat_A;
+//    MatrixConvertHYPRE2PETSC(&petsc_mat_A, hypre_parcsr_mat);
+//    MatDestroy(&petsc_mat_A);
+
+    HYPRE_IJMatrixDestroy(hypre_ij_mat);
 #endif
+
+
+
+
+
 
     phgMatDestroy(&B);
     phgMatDestroy(&A);

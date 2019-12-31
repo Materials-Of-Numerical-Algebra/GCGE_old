@@ -76,7 +76,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
     if( current_level == coarsest_level )
     {
         A = mg->A_array[coarsest_level];
-        GCGE_BCG_Continuous(A, rhs, sol, start, end,  
+        GCGE_BCG(A, 0, 0.0, NULL, rhs, sol, start, end,  
                 max_coarsest_nsmooth, coarest_rate, mg->gcge_ops, 
                 mg->cg_p[coarsest_level], mg->cg_w[coarsest_level], 
                 mg->cg_res[coarsest_level], 
@@ -87,7 +87,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
     else
     {   
         A = mg->A_array[current_level];
-        GCGE_BCG_Continuous(A, rhs, sol, start, end, 
+        GCGE_BCG(A, 0, 0.0, NULL, rhs, sol, start, end, 
                 nsmooth, rate, mg->gcge_ops, 
                 mg->cg_p[current_level], mg->cg_w[current_level], 
 		mg->cg_res[current_level], 
@@ -148,7 +148,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
         mg->gcge_ops->MultiVecAxpby(1.0, residual, 1.0, sol, mv_s, mv_e, mg->gcge_ops);
         
 	//后光滑
-        GCGE_BCG_Continuous(A, rhs, sol, start, end, 
+        GCGE_BCG(A, 0, 0.0, NULL, rhs, sol, start, end, 
                 nsmooth, rate, mg->gcge_ops, 
                 mg->cg_p[current_level], mg->cg_w[current_level], 
 		mg->cg_res[current_level], 

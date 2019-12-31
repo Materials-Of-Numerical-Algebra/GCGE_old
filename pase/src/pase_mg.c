@@ -3,7 +3,7 @@
 
 void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, 
       HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat, 
-      GCGE_DOUBLE *convert_time, GCGE_DOUBLE *amg_time);
+      PASE_REAL *convert_time, PASE_REAL *amg_time);
 /**
  * @brief 创建 PASE_MULTIGRID
  *
@@ -14,11 +14,12 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array,
  *
  * @return PASE_MULTIGRID
  */
-GCGE_INT 
+PASE_INT 
 PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid, 
-        GCGE_INT max_levels, GCGE_INT mg_coarsest_level, 
+        PASE_INT max_levels, PASE_INT mg_coarsest_level, 
+        PASE_INT **size, PASE_INT size_dtmp, PASE_INT size_itmp,
         void *A, void *B, GCGE_OPS *gcge_ops,
-	GCGE_DOUBLE *convert_time, GCGE_DOUBLE *amg_time)
+	PASE_REAL *convert_time, PASE_REAL *amg_time)
 {
     /* P 是行多列少, P*v是从粗到细 */
     *multi_grid = (PASE_MULTIGRID)PASE_Malloc(sizeof(pase_MultiGrid));
@@ -64,11 +65,47 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     (*multi_grid)->A_array = (void**)A_array;
     (*multi_grid)->B_array = (void**)B_array;
     (*multi_grid)->P_array = (void**)P_array;
+
+    BV *u, *rhs, *u_tmp, *u_tmp_1, *u_tmp_2;
+    u       = (BV*)malloc((*multi_grid)->num_levels*sizeof(BV));
+    rhs     = (BV*)malloc((*multi_grid)->num_levels*sizeof(BV));
+    u_tmp   = (BV*)malloc((*multi_grid)->num_levels*sizeof(BV));
+    u_tmp_1 = (BV*)malloc((*multi_grid)->num_levels*sizeof(BV));
+    u_tmp_2 = (BV*)malloc((*multi_grid)->num_levels*sizeof(BV));
+    int i = 0;
+    for(i=0; i<(*multi_grid)->num_levels; i++)
+    {
+       if (size[0][i]) 
+	  gcge_ops->MultiVecCreateByMat((void***)(&(u[i])), size[0][i], 
+		(*multi_grid)->A_array[i], gcge_ops);
+       if (size[1][i]) 
+	  gcge_ops->MultiVecCreateByMat((void***)(&(rhs[i])), size[1][i], 
+		(*multi_grid)->A_array[i], gcge_ops);
+       if (size[2][i]) 
+	  gcge_ops->MultiVecCreateByMat((void***)(&(u_tmp[i])), size[2][i], 
+		(*multi_grid)->A_array[i], gcge_ops);
+       if (size[3][i]) 
+	  gcge_ops->MultiVecCreateByMat((void***)(&(u_tmp_1[i])), size[3][i], 
+		(*multi_grid)->A_array[i], gcge_ops);
+       if (size[4][i]) 
+	  gcge_ops->MultiVecCreateByMat((void***)(&(u_tmp_2[i])), size[4][i], 
+		(*multi_grid)->A_array[i], gcge_ops);
+    }
+    double *double_tmp = (double*)calloc(size_dtmp, sizeof(double));
+    int    *int_tmp    = (int*)calloc(size_itmp, sizeof(int));
+    (*multi_grid)->sol        = (void***)u;
+    (*multi_grid)->rhs        = (void***)rhs;
+    (*multi_grid)->cg_p       = (void***)u_tmp;
+    (*multi_grid)->cg_w       = (void***)u_tmp_1;
+    (*multi_grid)->cg_res     = (void***)u_tmp_2;
+    (*multi_grid)->cg_double_tmp = double_tmp;
+    (*multi_grid)->cg_int_tmp    = int_tmp;
+
     return 0;
 }
 
-GCGE_INT 
-PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
+PASE_INT 
+PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid, PASE_INT **size)
 {
     PetscErrorCode ierr;
     /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
@@ -87,6 +124,40 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
         ierr = MatDestroy((Mat*)(&((*multi_grid)->P_array[level])));
     }
     /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
+    int i = 0;
+    //释放空间
+    void ***u, ***rhs, ***u_tmp, ***u_tmp_1, ***u_tmp_2;
+    double *double_tmp;
+    int *int_tmp;
+    u          = (*multi_grid)->sol;
+    rhs        = (*multi_grid)->rhs;
+    u_tmp      = (*multi_grid)->cg_p;
+    u_tmp_1    = (*multi_grid)->cg_w;
+    u_tmp_2    = (*multi_grid)->cg_res;
+    double_tmp = (*multi_grid)->cg_double_tmp;
+    int_tmp    = (*multi_grid)->cg_int_tmp;    
+    for(i=0; i<(*multi_grid)->num_levels; i++)
+    {
+        if (size[0][i])
+            (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(u[i])), size[0][i], (*multi_grid)->gcge_ops);
+        if (size[1][i]) 
+            (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(rhs[i])), size[1][i], (*multi_grid)->gcge_ops);
+        if (size[2][i])
+            (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(u_tmp[i])), size[2][i], (*multi_grid)->gcge_ops);
+        if (size[3][i])
+            (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(u_tmp_1[i])), size[3][i], (*multi_grid)->gcge_ops);
+        if (size[4][i])
+            (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(u_tmp_2[i])), size[4][i], (*multi_grid)->gcge_ops);
+    }
+    free(u); u = NULL;
+    free(rhs); rhs = NULL;
+    free(u_tmp); u_tmp = NULL;
+    free(u_tmp_1); u_tmp_1 = NULL;
+    free(u_tmp_2); u_tmp_2 = NULL;
+
+    free(double_tmp); double_tmp = NULL;
+    free(int_tmp);    int_tmp = NULL;
+
     free((*multi_grid)->A_array);
     free((*multi_grid)->B_array);
     free((*multi_grid)->P_array);
@@ -111,10 +182,10 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid)
  *
  * @return 
  */
-GCGE_INT 
+PASE_INT 
 PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid, 
-        GCGE_INT level_i, GCGE_INT level_j, 
-        GCGE_INT *mv_s, GCGE_INT *mv_e, 
+        PASE_INT level_i, PASE_INT level_j, 
+        PASE_INT *mv_s, PASE_INT *mv_e, 
         void **pvx_i, void** pvx_j)
 {
 #if 0
@@ -131,9 +202,9 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
 #endif
     void **from_vecs;
     void **to_vecs;
-    GCGE_INT k = 0;
-    GCGE_INT start[2];
-    GCGE_INT end[2];
+    PASE_INT k = 0;
+    PASE_INT start[2];
+    PASE_INT end[2];
     if(level_i > level_j)
     {
         //从粗层到细层，延拓，用P矩阵直接乘
@@ -205,7 +276,7 @@ PASE_MULTIGRID_FromItoJ(PASE_MULTIGRID multi_grid,
 //不产生A0最细层petsc矩阵
 void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, 
       HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat, 
-      GCGE_DOUBLE *convert_time, GCGE_DOUBLE *amg_time)
+      PASE_REAL *convert_time, PASE_REAL *amg_time)
 {
     clock_t start, end;
     start = clock();
@@ -223,7 +294,7 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array,
     HYPRE_Int          global_size  = hypre_ParCSRMatrixGlobalNumRows(hypre_parcsr_mat);
     HYPRE_Int         *partitioning = NULL;
 #ifdef HYPRE_NO_GLOBAL_PARTITION
-    partitioning = hypre_CTAlloc(HYPRE_Int,  2);
+    partitioning = hypre_CTAlloc(HYPRE_Int,  2, HYPRE_MEMORY_HOST);
     hypre_ParCSRMatrixGetLocalRange(hypre_parcsr_mat, partitioning, partitioning+1, partitioning, partitioning+1);
     partitioning[1] += 1;
 #else
