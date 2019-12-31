@@ -59,11 +59,11 @@ test_mg:
 	$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
 
 test_pase:
-	$(CC)  $(CFLAGS) -c test_mg.c -o test_mg.o $(INC) 
+	$(CC)  $(CFLAGS) -c test_pase.c -o test_pase.o $(INC) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_pase.exe ./test_pase.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
 
 test_amg:
-	$(CC)  $(CFLAGS) -c test_mg.c -o test_mg.o $(INC) 
+	$(CC)  $(CFLAGS) -c test_amg.c -o test_amg.o $(INC) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_amg.exe ./test_amg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
 
 ########################################################################
