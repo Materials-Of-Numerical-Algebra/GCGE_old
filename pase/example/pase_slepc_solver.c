@@ -25,8 +25,6 @@
 //#include "memwatch.h"
 
 #include "gcge.h"
-#include "gcge_app_slepc.h"
-#include "gcge_app_pase.h"
 #include "pase.h"
 
 static char help[] = "Use GCGE-SLEPc-PASE to solve an eigensystem Ax=kBx with the matrixes loaded from files.\n";
@@ -112,7 +110,6 @@ int main(int argc, char* argv[])
     slepc_pase_solver->eval = NULL;
     gcge_ops->MultiVecDestroy(&(slepc_pase_solver->evec), nev, gcge_ops);
     GCGE_SOLVER_Free_Some(&slepc_pase_solver);
-
 
     PASE_MatrixDestroy(&pase_mat_A, pase_ops);
 

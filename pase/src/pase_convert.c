@@ -149,19 +149,24 @@ void MatrixConvertPHG2HYPRE(HYPRE_IJMatrix *hypre_ij_mat, MAT *phg_mat)
 }
 
 /* 进行测试时, 总有问题, MPI的函数被PHG重新定义 */
-void MatrixConvertPHG2PETSC(Mat *petsc_mat, MAT *phg_mat)
+void MatrixConvertPHG2PETSC(void **petsc_matrix, void **phg_matrix)
 {
+   Mat petsc_mat;
+   MAT *phg_mat   = (MAT *)(*phg_matrix);
    const MAT_ROW *row;
    MAP *map = phg_mat->rmap;
    int idx, j;
 
-   MatCreate(map->comm, petsc_mat);
-   MatSetSizes(*petsc_mat, 
-	 map->partition[map->rank+1] - map->partition[map->rank+1], 
-	 map->partition[map->rank+1] - map->partition[map->rank+1], 
+   MatCreate(PETSC_COMM_WORLD, &petsc_mat);
+   printf ( "map->rank = %d\n", map->rank );
+   printf ( "map->partition = %d, %d\n", map->partition[map->rank], map->partition[map->rank+1] );
+   printf ( "map->nglobal = %d\n", map->nglobal );
+   MatSetSizes(petsc_mat, 
+	 map->partition[map->rank+1] - map->partition[map->rank], 
+	 map->partition[map->rank+1] - map->partition[map->rank], 
 	 map->nglobal, map->nglobal);
-   MatSetType(*petsc_mat, MATAIJ);
-   MatSetUp(*petsc_mat);
+   MatSetType(petsc_mat, MATAIJ);
+   MatSetUp(petsc_mat);
 
    /* Put row j of phg mat into Mat of petsc */
    j = map->partition[map->rank];
@@ -171,7 +176,8 @@ void MatrixConvertPHG2PETSC(Mat *petsc_mat, MAT *phg_mat)
       if (row->ncols <= 0)
 	 phgError(1,  "%s: matrix row %d is empty!\n",  __func__,  idx);
 
-      MatSetValues(*petsc_mat, 1, &j, row->ncols, row->cols, row->data, INSERT_VALUES); 
+      //printf ( "j = %d, row->ncols = %d\n", j, row->ncols );
+      MatSetValues(petsc_mat, 1, &j, row->ncols, row->cols, row->data, INSERT_VALUES); 
 
       if (phg_mat->refcount == 0 && phg_mat->rows != NULL) 
       {
@@ -183,9 +189,14 @@ void MatrixConvertPHG2PETSC(Mat *petsc_mat, MAT *phg_mat)
 	 phg_mat->rows[idx].ncols = phg_mat->rows[idx].alloc = 0;
       }
    }
-   MatAssemblyBegin(*petsc_mat, MAT_FINAL_ASSEMBLY);
-   MatAssemblyEnd(*petsc_mat, MAT_FINAL_ASSEMBLY);
+   MatAssemblyBegin(petsc_mat, MAT_FINAL_ASSEMBLY);
+   MatAssemblyEnd(petsc_mat, MAT_FINAL_ASSEMBLY);
 
-   if (phg_mat->refcount == 0)
-      phgMatFreeMatrix(phg_mat);
+
+//   if (phg_mat->refcount == 0)
+//      phgMatFreeMatrix(phg_mat);
+
+   *petsc_matrix = (void *)(petsc_mat);
+   //MatView((Mat)(*petsc_matrix), PETSC_VIEWER_STDOUT_WORLD);
+   printf ( "MatrixConvertPHG2PETSC\n" );
 }

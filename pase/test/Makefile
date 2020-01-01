@@ -38,6 +38,9 @@ run-convert_phg:
 run-mg:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg.exe
 
+run-mg_phg:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_phg.exe
+
 run-pase:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase.exe
 
@@ -57,6 +60,11 @@ test_convert_phg:
 test_mg:
 	$(CC)  $(CFLAGS) -c test_mg.c -o test_mg.o $(INC) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
+
+test_mg_phg:
+	$(CC)  $(CFLAGS) -c test_mg_phg.c -o test_mg_phg.o $(INC) 
+	$(CC)  $(CFLAGS) -c get_mat_phg.c -o get_mat_phg.o $(INC) 
+	$(CLINKER)  $(LDFLAGS)  -o ./test_mg_phg.exe ./test_mg_phg.o ./get_mat_phg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
 
 test_pase:
 	$(CC)  $(CFLAGS) -c test_pase.c -o test_pase.o $(INC) 

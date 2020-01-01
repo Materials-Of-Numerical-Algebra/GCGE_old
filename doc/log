@@ -637,3 +637,15 @@ pase_solver中添加了对aux_sol的排序，并将cg_double_tmp大小修改为m
 3. BCG和BMG的收敛准则比较奇怪，首先，如果BCG的初值就是精确值，则会出错。BMG的rate不要太小
 4. PASE_EigenSolver对于一些边角情况没有任何处理，比如，多层网格情形下，粗矩阵的阶数可能小于特征值数
 5. convert部分还没有完全检测完成
+
+2020.01.01 liyu
+1. 在pase/test中的get_mat_phg.c可以直接调用phg得到刚度矩阵A和质量矩阵B
+2. 在pase/test中的test_mg_phg.c测试利用CreateMatrixPHG生成phg的矩阵，并将之转化为PETSC矩阵，这里利用void型进行操作，不会让petsc和phg同框出现
+3. 在pase/example中pase_slepc_solver.c没有写好，有问题
+4. 在pase/src中pase_solver.c，关于aux sol sort部分有问题，主要是做内积时multigrid的成员double_tmp不够长
+5. 多个软件包混用的时候，会有一个内存错误，查不出原因，不过不影响结果
+6. phg关于处理边界条件和map的函数有内存错误
+
+
+
+
