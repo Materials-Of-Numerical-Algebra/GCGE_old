@@ -927,6 +927,13 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->x_orth_type = "multi";
   //求解
   GCGE_SOLVER_Solve(gcge_pase_solver);  
+  //解完后选择每个细空间向量方向值最大的向量，重新排序
+  //出现内存错误，主要是multigrid->double_tmp的大小不够
+#if 0 
+  if(solver->nconv > 0) {
+    PASE_Aux_sol_sort(solver, coarse_level);
+  } 
+#endif
   memcpy(solver->eigenvalues+solver->nconv, solver->aux_eigenvalues+solver->nconv, 
         num_unlock*sizeof(PASE_REAL));
   //释放空间
@@ -935,6 +942,129 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   end = clock();
   solver->aux_direct_solve_time += ((double)(end-start))/CLK_TCK;
   return 0;
+}
+
+PASE_INT 
+PASE_Aux_sol_sort(PASE_MG_SOLVER solver, PASE_INT coarse_level)
+{
+  PASE_INT  nconv       = solver->nconv;
+  PASE_INT  pase_nev    = solver->pase_nev;
+  PASE_REAL *aux_h      = solver->aux_sol->aux_h;
+  PASE_INT  num_aux_vec = solver->aux_sol->num_aux_vec;
+  void      **vecs_tmp  = solver->cg_res[coarse_level];
+  PASE_INT  i           = 0;
+  PASE_INT  j           = 0;
+  GCGE_OPS  *gcge_ops   = solver->gcge_ops;
+  PASE_INT  position    = nconv;
+  PASE_REAL last_eval_nconv = solver->eigenvalues[nconv-1];
+  while((solver->aux_eigenvalues[position]>last_eval_nconv)&&(position>0)) {  
+    GCGE_Printf("aux_eigenvalues[%d] = %18.15e, last_eval_nconv: %18.15e\n", 
+	  position, solver->aux_eigenvalues[position], last_eval_nconv);
+    position--;
+  }
+  PASE_INT  unlock_start = position;
+  PASE_INT  mv_s[2];
+  PASE_INT  mv_e[2];
+  PASE_MultiVector aux_tmp = (PASE_MultiVector)malloc(sizeof(pase_MultiVector));
+  aux_tmp->num_aux_vec = num_aux_vec;
+  aux_tmp->num_vec     = num_aux_vec;
+  aux_tmp->b_H         = solver->aux_B->aux_Hh;
+  aux_tmp->aux_h       = solver->aux_B->aux_hh;
+  //取aux_sol的unlock_start:pase_nev-1
+  //u_h的unlock_start:pase_nev-1
+  mv_s[0] = unlock_start;
+  mv_e[0] = pase_nev;
+  mv_s[1] = unlock_start;
+  mv_e[1] = num_aux_vec;
+  PASE_REAL *inner_prod = solver->cg_double_tmp;
+  PASE_INT  ldi = mv_e[0] - mv_s[0];
+  solver->pase_ops->MultiVecInnerProd((void**)(solver->aux_sol), (void**)aux_tmp, 
+	inner_prod, "nonsym", mv_s, mv_e, ldi, 0, solver->pase_ops);
+
+#if 1
+  //inner_prod是一个方阵，行列+unlock_start后对应真正的特征对
+  PASE_INT  *max_idx = solver->cg_int_tmp; 
+  for(i=0; i<mv_e[1]-mv_s[1]; i++) {
+    for(j=0; j<i; j++) {
+      inner_prod[i*ldi+max_idx[j]] = 0.0;
+    }
+    PASE_Find_max_in_vector(max_idx+i, inner_prod+i*ldi, 0, ldi);
+  }
+  PASE_Sort_int(max_idx, 0, mv_e[1]-mv_s[1]);
+  position = pase_nev-1;
+  void *from_vec;
+  void *to_vec;
+  PASE_REAL *eigenvalues     = solver->eigenvalues;
+  PASE_REAL *aux_eigenvalues = solver->aux_eigenvalues;
+  PASE_INT   current_idx = 0;
+  GCGE_Printf("num_aux_vec: %d, pase_nev: %d, position: %d\n", 
+	num_aux_vec, pase_nev, position);
+  for(i=num_aux_vec-1; i>=nconv; i--) {
+    current_idx = max_idx[i-unlock_start]+unlock_start;
+    GCGE_Printf("unlock_start: %d, max_idx[%d] = %d, current_idx: %d, position: %d\n", 
+	  unlock_start, i, max_idx[i], current_idx, position);
+    if(current_idx != position) {
+      solver->pase_ops->GetVecFromMultiVec((void**)solver->aux_sol, current_idx, &from_vec, solver->pase_ops);
+      solver->pase_ops->GetVecFromMultiVec((void**)solver->aux_sol, position, &to_vec, solver->pase_ops);
+      solver->pase_ops->VecAxpby(1.0, from_vec, 0.0, to_vec, solver->pase_ops);
+      solver->pase_ops->RestoreVecForMultiVec((void**)solver->aux_sol, current_idx, &from_vec, solver->pase_ops);
+      solver->pase_ops->RestoreVecForMultiVec((void**)solver->aux_sol, position, &to_vec, solver->pase_ops);
+      aux_eigenvalues[position] = aux_eigenvalues[current_idx];
+      GCGE_Printf("sort, nconv: %d, unlock_start: %d, current_idx: %d, eigenvalues[%d] = %18.15lf\n", 
+	    nconv, unlock_start, current_idx, position, eigenvalues[position]);
+    }
+    position--;
+  }
+#endif
+
+  free(aux_tmp); aux_tmp = NULL;
+}
+
+PASE_INT 
+PASE_Sort_int(PASE_INT *a, PASE_INT left, PASE_INT right)
+{
+    PASE_INT i = 0; 
+    PASE_INT j = 0;
+    PASE_INT temp = 0;
+    i = left;
+    j = right;
+    temp = a[left];
+    if(left > right)
+        return 0;
+    while(i != j)
+    {
+        while((a[j] >= temp)&&(j > i))
+            j--;
+        if(j > i)
+            a[i++] = a[j];
+        while((a[i] <= temp)&&(j > i))
+            i++;
+        if(j > i)
+            a[j--] = a[i];
+    }
+    a[i] = temp;
+    PASE_Sort_int(a, left, i-1);
+    PASE_Sort_int(a, i+1, right);
+    return 0;
+}
+
+PASE_INT 
+PASE_Find_max_in_vector(PASE_INT *max_idx, PASE_REAL *vector, PASE_INT start, PASE_INT end)
+{
+  PASE_REAL max_value = fabs(vector[start]);
+  PASE_INT  max_index = start;
+  PASE_REAL tmp_value = 0.0;
+  PASE_INT  i = start;
+  //对每一列进行循环
+  for(i=start+1; i<end; i++) {
+    tmp_value = fabs(vector[i]);
+    //如果该列的第一行比最大值大，重新确定最大值及位置
+    if(tmp_value > max_value) {
+      max_index = i;
+      max_value = tmp_value;
+    }
+  }
+  *max_idx = max_index;
 }
 
 PASE_INT
