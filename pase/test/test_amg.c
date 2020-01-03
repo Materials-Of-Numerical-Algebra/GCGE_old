@@ -62,7 +62,7 @@ main ( int argc, char *argv[] )
 
     //进行multigrid分层
     int nev = 5;
-    int num_levels = 3;
+    int max_num_levels = 5;
     int mg_coarsest_level = 2;
     PASE_REAL convert_time = 0.0;
     PASE_REAL amg_time = 0.0;
@@ -71,14 +71,14 @@ main ( int argc, char *argv[] )
     int i = 0;
     int j = 0;
     for (i=0; i<5; i++) {
-        size[i] = (int*)calloc(num_levels, sizeof(int));
-        for (j=0; j<num_levels; j++) {
+        size[i] = (int*)calloc(max_num_levels, sizeof(int));
+        for (j=0; j<max_num_levels; j++) {
             size[i][j] = nev;
         }
     }
     int size_dtmp = nev*nev;
     int size_itmp = nev*nev;
-    int error = PASE_MULTIGRID_Create(&multi_grid, num_levels, mg_coarsest_level, 
+    int error = PASE_MULTIGRID_Create(&multi_grid, max_num_levels, mg_coarsest_level, 
             size, size_dtmp, size_itmp,
             (void *)A, (void *)B, gcge_ops, &convert_time, &amg_time);
 

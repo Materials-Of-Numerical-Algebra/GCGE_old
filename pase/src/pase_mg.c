@@ -30,6 +30,67 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     (*multi_grid)->B_array = NULL;
     (*multi_grid)->P_array = NULL;
 
+#if 1
+    /* --------------------------------------- JUST for PETSC using its amg --------------------------------------- */
+    PetscErrorCode ierr;
+    PetscInt m, n, level;
+    Mat petsc_A, petsc_B;
+    Mat *A_array = NULL, *B_array = NULL, *P_array = NULL;
+    petsc_A = (Mat)A; petsc_B = (Mat)B;
+
+    *convert_time += 0;
+
+    PC    pc;
+    Mat   *Aarr=NULL, *Parr=NULL;
+
+    ierr = PCCreate(PETSC_COMM_WORLD,&pc);CHKERRQ(ierr);
+    ierr = PCSetOperators(pc,petsc_A,petsc_A);CHKERRQ(ierr);
+    ierr = PCSetType(pc,PCGAMG);CHKERRQ(ierr);
+    ierr = PCMGSetLevels(pc, (*multi_grid)->num_levels, NULL);CHKERRQ(ierr);
+    ierr = PCSetUp(pc);CHKERRQ(ierr);
+    /* the size of Aarr is num_levels-1, Aarr is the coarsest matrix */
+    ierr = PCGetCoarseOperators(pc, &((*multi_grid)->num_levels), &Aarr);
+    /* the size of Parr is num_levels-1 */
+    ierr = PCGetInterpolations(pc, &((*multi_grid)->num_levels), &Parr);
+    PetscPrintf(PETSC_COMM_WORLD, "num_levels = %d\n", (*multi_grid)->num_levels);
+
+    /* we should make that zero is the refinest level */
+    /* when num_levels == 5, 1 2 3 4 of A_array == 3 2 1 0 of Aarr */
+
+    A_array = malloc(sizeof(Mat)*((*multi_grid)->num_levels));
+    P_array = malloc(sizeof(Mat)*((*multi_grid)->num_levels-1));
+
+    for (level = 1; level < (*multi_grid)->num_levels; ++level)
+    {
+       A_array[level] = Aarr[(*multi_grid)->num_levels-level-1];
+       MatGetSize(A_array[level], &m, &n);
+       PetscPrintf(PETSC_COMM_WORLD, "A_array[%d], m = %d, n = %d\n", level, m, n );
+
+       P_array[level-1] = Parr[(*multi_grid)->num_levels-level-1];
+       MatGetSize(P_array[level-1], &m, &n);
+       PetscPrintf(PETSC_COMM_WORLD, "P_array[%d], m = %d, n = %d\n", level-1, m, n );
+    }
+    ierr = PetscFree(Aarr);CHKERRQ(ierr);
+    ierr = PetscFree(Parr);CHKERRQ(ierr);
+    ierr = PCDestroy(&pc);CHKERRQ(ierr);
+
+    //将原来的最细层A矩阵指针给A_array
+    A_array[0] = petsc_A;
+    B_array = malloc((*multi_grid)->num_levels*sizeof(Mat));
+    B_array[0] = petsc_B;
+    MatGetSize(B_array[0], &m, &n);
+    PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", 0, m, n );
+    /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
+    printf ( "82----------------------------------------\n" );
+    for ( level = 1; level < (*multi_grid)->num_levels; ++level )
+    {
+       MatPtAP(B_array[level-1], P_array[level-1], 
+	     MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(B_array[level]));
+       MatGetSize(B_array[level], &m, &n);
+       PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", level, m, n );
+    }
+    /* --------------------------------------- JUST for PETSC using its amg --------------------------------------- */
+#else
     /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
     Mat petsc_A, petsc_B;
     Mat *A_array, *B_array, *P_array;
@@ -61,6 +122,7 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
                 MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(B_array[level]));
     }
     /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
+#endif
 
     (*multi_grid)->A_array = (void**)A_array;
     (*multi_grid)->B_array = (void**)B_array;

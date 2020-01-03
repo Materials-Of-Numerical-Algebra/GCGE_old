@@ -44,7 +44,7 @@ main ( int argc, char *argv[] )
     PetscInt n = 7, m = 3, row_start, row_end, col_start, col_end;
     /* 得到一个PETSC矩阵 */
     GetPetscMat(&petsc_mat_A, &petsc_mat_B, n, m);
-    HYPRE_Int idx, num_levels = 3, mg_coarsest_level = 2;
+    HYPRE_Int idx, max_num_levels = 3, mg_coarsest_level = 2;
 
     //创建gcge_ops
     GCGE_OPS *gcge_ops;
@@ -63,14 +63,14 @@ main ( int argc, char *argv[] )
     int i = 0;
     int j = 0;
     for (i=0; i<5; i++) {
-        size[i] = (int*)calloc(num_levels, sizeof(int));
-        for (j=0; j<num_levels; j++) {
+        size[i] = (int*)calloc(max_num_levels, sizeof(int));
+        for (j=0; j<max_num_levels; j++) {
             size[i][j] = num_vecs;
         }
     }
     int size_dtmp = num_vecs*num_vecs;
     int size_itmp = num_vecs*num_vecs;
-    PASE_MULTIGRID_Create(&multi_grid, num_levels, mg_coarsest_level, 
+    PASE_MULTIGRID_Create(&multi_grid, max_num_levels, mg_coarsest_level, 
 	  size, size_dtmp, size_itmp,
 	  (void *)petsc_mat_A, (void *)petsc_mat_B, 
 	  gcge_ops, &convert_time, &amg_time);
@@ -101,19 +101,19 @@ main ( int argc, char *argv[] )
     /* 打印各层A, B, P矩阵*/
     //连续打会打不出来，不知道为什么？？？？只打一个可以
     PetscPrintf(PETSC_COMM_WORLD, "A_array\n");
-    for (idx = 0; idx < num_levels; ++idx)
+    for (idx = 0; idx < multi_grid->num_levels; ++idx)
     {
         PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
         MatView((Mat)(multi_grid->A_array[idx]), viewer);
     }
     PetscPrintf(PETSC_COMM_WORLD, "B_array\n");
-    for (idx = 0; idx < num_levels; ++idx)
+    for (idx = 0; idx < multi_grid->num_levels; ++idx)
     {
         PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
         MatView((Mat)(multi_grid->B_array[idx]), viewer);
     }
     PetscPrintf(PETSC_COMM_WORLD, "P_array\n");
-    for (idx = 0; idx < num_levels-1; ++idx)
+    for (idx = 0; idx < multi_grid->num_levels-1; ++idx)
     {
         PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
         MatView((Mat)(multi_grid->P_array[idx]), viewer);
@@ -123,7 +123,7 @@ main ( int argc, char *argv[] )
 #if 1
     /* TODO: 测试BV结构的向量进行投影插值 */
     int level_i = 0;
-    int level_j = 2;
+    int level_j = multi_grid->num_levels-1;
     BV vecs_i;
     BV vecs_j;
     gcge_ops->MultiVecCreateByMat((void***)(&vecs_i), num_vecs, multi_grid->A_array[level_i], gcge_ops);
