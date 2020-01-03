@@ -41,6 +41,9 @@ run-mg:
 run-mg_phg:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_phg.exe
 
+run-mg_petsc:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_petsc.exe
+
 run-pase:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase.exe
 
@@ -60,6 +63,10 @@ test_convert_phg:
 test_mg:
 	$(CC)  $(CFLAGS) -c test_mg.c -o test_mg.o $(INC) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
+
+test_mg_petsc:
+	$(CC)  $(CFLAGS) $(PETSCFLAGS) -c test_mg_petsc.c -o test_mg_petsc.o $(PETSCINC) 
+	$(CLINKER)  $(LDFLAGS)  -o ./test_mg_petsc.exe ./test_mg_petsc.o $(LIBPETSC) 
 
 test_mg_phg:
 	$(CC)  $(CFLAGS) -c test_mg_phg.c -o test_mg_phg.o $(INC) 
