@@ -175,78 +175,95 @@ void GCGE_ComputeW(void *A, void *B, void **V, GCGE_DOUBLE *eval,
     //下面统一进行线性方程的求解           
     //用户提供了解法器，就用用户的
     //W存储在 V(:,w_start:w_start+w_length), RHS存储在V_tmp(:,0:w_length)
-    if(ops->LinearSolver)
+    if(ops->MultiLinearSolver)
     {
-        //这里是直接调用用户的解法器，期望未来用户也能提供块形式的解法器（统一进行数据广播的形式）
-        for(idx=0; idx<w_length; idx++)
-        {
-            ops->GetVecFromMultiVec(V_tmp, idx, &rhs, ops);
-            w_current_idx = w_start + idx;	
-            ops->GetVecFromMultiVec(V, w_current_idx, &w_current, ops);
-            ops->LinearSolver(A, rhs, w_current, ops);
-            ops->RestoreVecForMultiVec(V, w_current_idx, &w_current, ops);
-            ops->RestoreVecForMultiVec(V_tmp, idx, &rhs, ops);
-        }//end for idx_p      
-	//如果有外部求解器, 解完后继续用BCG求解. 如果不要用BCG, 可以将cg_max_it设为0
-        //GCGE_BCG(A, V_tmp, V, w_start,w_length, ops, para,workspace);
+        mv_s[0] = 0;
+        mv_e[0] = w_length;
+        mv_s[1] = w_start;
+        mv_e[1] = w_start+w_length;
+        mv_s[2] = 0;
+        mv_e[2] = w_length;
+        mv_s[3] = 0;
+        mv_e[3] = w_length;
+        mv_s[4] = 0;
+        mv_e[4] = w_length;
+	ops->MultiLinearSolver(A, V_tmp, V, mv_s, mv_e, ops);
     }
     else
     {
-        //统一进行块形式的CG迭代
-        //CG迭代求解 A * W =  RHS 
-        //W存储在 V(:,w_start:w_start+w_length), RHS存储在V_tmp(:,0:w_length)
-        if(para->if_use_bcg == 1)
+        if(ops->LinearSolver)
         {
-	    mv_s[0] = 0;
-	    mv_e[0] = w_length;
-	    mv_s[1] = w_start;
-	    mv_e[1] = w_start+w_length;
-	    mv_s[2] = 0;
-	    mv_e[2] = w_length;
-	    mv_s[3] = 0;
-	    mv_e[3] = w_length;
-	    mv_s[4] = 0;
-	    mv_e[4] = w_length;
-	    if(para->if_shift == 1)
-	    {
-	        //如果要做位移，那就不使用GCGE_BCG_Continuous
-	        para->use_bcg_continuous = 0;
-	    }
-	    if(para->use_bcg_continuous)
-	    {
-                GCGE_BCG_Continuous(A, V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
-		    ops, workspace->CG_p, workspace->evec, NULL, 
-                    workspace->subspace_dtmp, workspace->subspace_itmp);
-	    }
-	    else
-	    {
-                GCGE_BCG(A, para->if_shift, para->shift, B, 
-		    V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
-		    ops, workspace->CG_p, workspace->evec, NULL, 
-                    workspace->subspace_dtmp, workspace->subspace_itmp);
-	    }
-        }
-        else
-        {
-            //如果不使用BCG, 因为在GCGE_CG中还要取出三个向量使用, 所以使用slepc时不能使用这种普通CG
+            //这里是直接调用用户的解法器，期望未来用户也能提供块形式的解法器（统一进行数据广播的形式）
             for(idx=0; idx<w_length; idx++)
             {
                 ops->GetVecFromMultiVec(V_tmp, idx, &rhs, ops);
                 w_current_idx = w_start + idx;	
                 ops->GetVecFromMultiVec(V, w_current_idx, &w_current, ops);
-                GCGE_CG(A, rhs, w_current, ops, para, workspace->V_tmp, workspace->evec);
+                ops->LinearSolver(A, rhs, w_current, ops);
                 ops->RestoreVecForMultiVec(V, w_current_idx, &w_current, ops);
                 ops->RestoreVecForMultiVec(V_tmp, idx, &rhs, ops);
             }//end for idx_p      
+            //如果有外部求解器, 解完后继续用BCG求解. 如果不要用BCG, 可以将cg_max_it设为0
+            //GCGE_BCG(A, V_tmp, V, w_start,w_length, ops, para,workspace);
         }
-    }//end for LinearSolver    
+        else
+        {
+            //统一进行块形式的CG迭代
+            //CG迭代求解 A * W =  RHS 
+            //W存储在 V(:,w_start:w_start+w_length), RHS存储在V_tmp(:,0:w_length)
+            if(para->if_use_bcg == 1)
+            {
+                mv_s[0] = 0;
+                mv_e[0] = w_length;
+                mv_s[1] = w_start;
+                mv_e[1] = w_start+w_length;
+                mv_s[2] = 0;
+                mv_e[2] = w_length;
+                mv_s[3] = 0;
+                mv_e[3] = w_length;
+                mv_s[4] = 0;
+                mv_e[4] = w_length;
+                if(para->if_shift == 1)
+                {
+                    //如果要做位移，那就不使用GCGE_BCG_Continuous
+                    para->use_bcg_continuous = 0;
+                }
+                if(para->use_bcg_continuous)
+                {
+                    GCGE_BCG_Continuous(A, V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
+            	    ops, workspace->CG_p, workspace->evec, NULL, 
+                        workspace->subspace_dtmp, workspace->subspace_itmp);
+                }
+                else
+                {
+                    GCGE_BCG(A, para->if_shift, para->shift, B, 
+            	    V_tmp, V, mv_s, mv_e, para->cg_max_it, para->cg_rate, 
+            	    ops, workspace->CG_p, workspace->evec, NULL, 
+                        workspace->subspace_dtmp, workspace->subspace_itmp);
+                }
+            }
+            else
+            {
+                //如果不使用BCG, 因为在GCGE_CG中还要取出三个向量使用, 所以使用slepc时不能使用这种普通CG
+                for(idx=0; idx<w_length; idx++)
+                {
+                    ops->GetVecFromMultiVec(V_tmp, idx, &rhs, ops);
+                    w_current_idx = w_start + idx;	
+                    ops->GetVecFromMultiVec(V, w_current_idx, &w_current, ops);
+                    GCGE_CG(A, rhs, w_current, ops, para, workspace->V_tmp, workspace->evec);
+                    ops->RestoreVecForMultiVec(V, w_current_idx, &w_current, ops);
+                    ops->RestoreVecForMultiVec(V_tmp, idx, &rhs, ops);
+                }//end for idx_p      
+            }
+        }//end for LinearSolver    
+    }
 }//end for this subprogram
 
 
 /**
  * @brief 计算P的子空间系数，并进行小规模正交化
  * 符号解释: XX: 表示新的X向量对现有的基向量组中X的依赖关系，
- *           PX： 表示新的P向量对现有的基向量组中X的依赖关系
+ *           PX：表示新的P向量对现有的基向量组中X的依赖关系
  *			其他命名类同
  *        再线性组合得到P
  *        XX  O  拷贝  XX  O   正交化  XX  PX  线性组合         PX

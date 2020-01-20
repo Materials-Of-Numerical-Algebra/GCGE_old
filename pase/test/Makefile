@@ -73,6 +73,16 @@ test_mg_phg:
 	$(CC)  $(CFLAGS) -c get_mat_phg.c -o get_mat_phg.o $(INC) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_mg_phg.exe ./test_mg_phg.o ./get_mat_phg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
 
+test_mg_phg_petsc:
+	$(CC)  $(CFLAGS) -c test_mg_phg_petsc.c -o test_mg_phg_petsc.o $(INC) 
+	$(CC)  $(CFLAGS) -c get_mat_phg.c -o get_mat_phg.o $(INC) 
+	$(CLINKER)  $(LDFLAGS)  -o ./test_mg_phg_petsc.exe ./test_mg_phg_petsc.o ./get_mat_phg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
+
+test_mg_phg_petsc_ksp:
+	$(CC)  $(CFLAGS) -c test_mg_phg_petsc_ksp.c -o test_mg_phg_petsc_ksp.o $(INC) 
+	$(CC)  $(CFLAGS) -c get_mat_phg.c -o get_mat_phg.o $(INC) 
+	$(CLINKER)  $(LDFLAGS)  -o ./test_mg_phg_petsc_ksp.exe ./test_mg_phg_petsc_ksp.o ./get_mat_phg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
+
 test_pase:
 	$(CC)  $(CFLAGS) -c test_pase.c -o test_pase.o $(INC) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_pase.exe ./test_pase.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 

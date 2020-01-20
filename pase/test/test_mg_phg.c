@@ -51,6 +51,8 @@ main ( int argc, char *argv[] )
     MatrixConvertPHG2PETSC((void **)(&petsc_mat_B), &phg_mat_B);
     DestroyMatrixPHG(&phg_mat_A, &phg_mat_B, &phg_dof_U, &phg_map_M, &phg_grid_G, argc, argv);
 
+    PETSCPrintMat(petsc_mat_A, "mat A");
+    PETSCPrintMat(petsc_mat_B, "mat B");
     //MatView(petsc_mat_A, viewer);
     //MatView(petsc_mat_B, viewer);
     HYPRE_Int idx, num_levels = 3, mg_coarsest_level = 2;

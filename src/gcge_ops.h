@@ -49,6 +49,7 @@ typedef struct GCGE_OPS_ {
     /* TODO */
     void (*LinearSolver)            (void *Matrix, void *b, void *x, struct GCGE_OPS_ *ops);
     void *linear_solver_workspace;
+    void (*MultiLinearSolver)       (void *Matrix, void **b, void **x, int *start, int *end, struct GCGE_OPS_ *ops); 
 
     /* DenseMatCreate, DenseMatDestroy should in function Orthonormalization 
      * Add struct member name void *orth_workspace to save tmp variables */

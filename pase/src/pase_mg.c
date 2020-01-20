@@ -53,6 +53,10 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     /* the size of Parr is num_levels-1 */
     ierr = PCGetInterpolations(pc, &((*multi_grid)->num_levels), &Parr);
     PetscPrintf(PETSC_COMM_WORLD, "num_levels = %d\n", (*multi_grid)->num_levels);
+    //如果coarsest_level不能超过实际最粗层
+    if((*multi_grid)->coarsest_level > (*multi_grid)->num_levels-1) {
+       (*multi_grid)->coarsest_level = (*multi_grid)->num_levels-1;
+    }
 
     /* we should make that zero is the refinest level */
     /* when num_levels == 5, 1 2 3 4 of A_array == 3 2 1 0 of Aarr */

@@ -663,6 +663,14 @@ d. Set number of equations to aim for per process on the coarse grids via proces
 e. Repartition the degrees of freedom across the processors on the coarser grids
    PetscErrorCode PCGAMGSetRepartition(PC pc,  PetscBool n)
 
+2020.01.14 zhangning
+1. 在pase/test中添加了test_mg_phg_petsc.c与test_mg_phg_petsc_ksp.c，分别用BMG和KSP求解，同时在Makefile添加相应的编译路径
+2. pase/test/get_mat_phg.c与test_mg_phg.c没有修改，但git status时显示modified
+3. pase/src/pase_solver.c第300行改为size_dtmp = max_nev * step_size;
+4. 在src/gcge_ops.h中添加MultiLinearSolver
+5. 在src/gcge_ops.c初始化时添加(*ops)->MultiLinearSolver = NULL;
+6. 在src/gcge_xpw.c中GetW时添加if(ops->MultiLinearSolver)多向量LinearSolver调用方式
+7. 在pase/src/pase_mg.c PASE_MULTIGRID_Create中添加对最粗层层号的判断，避免coarsest_level超过最粗层
 
 
 

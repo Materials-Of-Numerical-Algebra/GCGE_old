@@ -168,13 +168,12 @@ DestroyMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **grid
 
     phgMatDestroy((MAT**) matA);
     phgMatDestroy((MAT**) matB);
-    printf ( "dofU\n" );
 
     phgDofFree   ((DOF**) dofU);
     phgMapDestroy((MAP**) mapM);
     phgFreeGrid  ((GRID**)gridG);
 
     printf ( "DestroyMatrixPHG\n" );
-    phgFinalize();
+    //phgFinalize();
     return 0;
 }
