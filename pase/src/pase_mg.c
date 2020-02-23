@@ -46,13 +46,17 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     ierr = PCCreate(PETSC_COMM_WORLD,&pc);CHKERRQ(ierr);
     ierr = PCSetOperators(pc,petsc_A,petsc_A);CHKERRQ(ierr);
     ierr = PCSetType(pc,PCGAMG);CHKERRQ(ierr);
-    ierr = PCMGSetLevels(pc, (*multi_grid)->num_levels, NULL);CHKERRQ(ierr);
+    //ierr = PCMGSetLevels(pc, (*multi_grid)->num_levels, NULL);CHKERRQ(ierr);
+    ierr = PCGAMGSetNlevels(pc, (*multi_grid)->num_levels);CHKERRQ(ierr);
+    ierr = PCGAMGSetType(pc, PCGAMGCLASSICAL);CHKERRQ(ierr);
+    //PetscReal th[2] = {0.0, 0.9};
+    //ierr = PCGAMGSetThreshold(pc, th, 2);
+    //PCGAMGAGG, PACAMGGEO, PCGAMGCLASSICAL
     ierr = PCSetUp(pc);CHKERRQ(ierr);
     /* the size of Aarr is num_levels-1, Aarr is the coarsest matrix */
     ierr = PCGetCoarseOperators(pc, &((*multi_grid)->num_levels), &Aarr);
     /* the size of Parr is num_levels-1 */
     ierr = PCGetInterpolations(pc, &((*multi_grid)->num_levels), &Parr);
-    PetscPrintf(PETSC_COMM_WORLD, "num_levels = %d\n", (*multi_grid)->num_levels);
     //如果coarsest_level不能超过实际最粗层
     if((*multi_grid)->coarsest_level > (*multi_grid)->num_levels-1) {
        (*multi_grid)->coarsest_level = (*multi_grid)->num_levels-1;
@@ -85,7 +89,6 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     MatGetSize(B_array[0], &m, &n);
     PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", 0, m, n );
     /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
-    printf ( "82----------------------------------------\n" );
     for ( level = 1; level < (*multi_grid)->num_levels; ++level )
     {
        MatPtAP(B_array[level-1], P_array[level-1], 

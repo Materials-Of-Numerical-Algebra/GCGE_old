@@ -448,7 +448,7 @@ void GCGE_PARA_Setup(GCGE_PARA *para)
     para->orth_para->scbgs_reorth_tol += DBL_EPSILON;
     para->res = (GCGE_DOUBLE*)calloc(nev, sizeof(GCGE_DOUBLE));
     GCGE_INT i = 0;
-    printf ( "nev = %d\n", nev );
+    //printf ( "nev = %d\n", nev );
     //每个特征值相应的残差大小     
     for(i=0; i<nev; i++)
     {

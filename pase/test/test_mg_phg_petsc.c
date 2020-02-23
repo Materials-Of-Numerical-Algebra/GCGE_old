@@ -85,7 +85,7 @@ main ( int argc, char *argv[] )
     PASE_MULTIGRID multi_grid;
     Multigrid_LinearSolverCreate(&multi_grid, slepc_solver->ops, 5*nev, 
 	  (void*)petsc_mat_A, (void*)petsc_mat_B);
-    GCGE_SOLVER_SetMultigridLinearSolver(slepc_solver, multi_grid);
+    //GCGE_SOLVER_SetMultigridLinearSolver(slepc_solver, multi_grid);
 
     //对slepc_solver进行setup，检查参数，分配工作空间等
     GCGE_SOLVER_Setup(slepc_solver);
@@ -98,8 +98,8 @@ main ( int argc, char *argv[] )
 
     //KSPDestroy(&ksp);
     //释放petsc_solver中非用户创建的空间
-    GCGE_SOLVER_Free(&slepc_solver);
     Multigrid_LinearSolverDestroy(&multi_grid, nev);
+    GCGE_SOLVER_Free(&slepc_solver);
 
     ierr = MatDestroy(&petsc_mat_A);
     ierr = MatDestroy(&petsc_mat_B);
@@ -161,7 +161,7 @@ void Multigrid_LinearSolverCreate(PASE_MULTIGRID *multi_grid, GCGE_OPS *gcge_ops
       int num_vecs, void *A, void *B)
 {
     //这里最粗层不能比实际最粗层还大，会出问题
-    HYPRE_Int mg_coarsest_level = 2;
+    HYPRE_Int mg_coarsest_level = num_levels-1;
     //int num_vecs = 3;
     PASE_REAL convert_time = 0.0;
     PASE_REAL amg_time = 0.0;
@@ -212,9 +212,9 @@ void GCGE_SOLVER_SetMultigridLinearSolver(GCGE_SOLVER *solver, PASE_MULTIGRID mu
 void GCGE_MultiGrid_LinearSolver(void *Matrix, void **b, void **x, int *start, int *end, struct GCGE_OPS_ *ops)
 {
     double tol = 1e-8;
-    double rate = 1e-4;
-    int nsmooth = 1000;
-    int max_coarest_nsmooth = 10000;
+    double rate = 1e-6;
+    int nsmooth = 30;
+    int max_coarest_nsmooth = 50;
     //PASE_MULTIGRID *multigrid = (PASE_MULTIGRID*)(ops->linear_solver_workspace);
     //BV *sol = (BV*)multigrid->sol;
     //sol[0] = (BV)x;

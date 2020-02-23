@@ -672,6 +672,11 @@ e. Repartition the degrees of freedom across the processors on the coarser grids
 6. 在src/gcge_xpw.c中GetW时添加if(ops->MultiLinearSolver)多向量LinearSolver调用方式
 7. 在pase/src/pase_mg.c PASE_MULTIGRID_Create中添加对最粗层层号的判断，避免coarsest_level超过最粗层
 
-
+2020.02.23 zhangning liyu
+1. src/gcge_cg.c中，GCGE_BCG函数中:
+   1) 在while循环前加入是否收敛的判定
+   2) while循环的最后，判定是否收敛时，相对误差由除变乘，另外增加绝对误差的判定
+   3) BCG对应的rate还是有一点问题, 现在修改了收敛准则，减小最大迭代次数，可以运行，但迭代次数大时仍有问题，需进一步测试
+2. 利用petsc的GAMG进行各种设定时, 一定用 PCGAMGSet...的函数进行.
 
 

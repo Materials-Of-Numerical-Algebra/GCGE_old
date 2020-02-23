@@ -89,7 +89,7 @@ CreateMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **gridG
     static int mem_max = 3000;
     size_t mem, mem_peak;
     int i, j, k, n, nit;
-    int pre_refines = 1;
+    int pre_refines = 2;
     GRID *g;
     DOF *u_h;
     MAP *map;
@@ -103,7 +103,7 @@ CreateMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **gridG
     phgOptionsRegisterInt("-mem_max", "Maximum memory (MB)", &mem_max);
 
     phgInit(&argc, &argv);
-    printf ( "CreateMatrixPHG\n" );
+    phgPrintf( "CreateMatrixPHG\n" );
 
     if (DOF_DEFAULT->mass_lumping == NULL)
 	phgPrintf("Order of FE bases: %d\n", DOF_DEFAULT->order);
@@ -155,7 +155,7 @@ CreateMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **gridG
     *mapM  = (void *)map;
     *gridG = (void *)g;
 
-    printf ( "CreateMatrixPHG\n" );
+    phgPrintf( "CreateMatrixPHG\n" );
     //phgFinalize();
     return 0;
 }
@@ -163,7 +163,7 @@ CreateMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **gridG
 int
 DestroyMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **gridG, int argc, char *argv[])
 {
-    printf ( "DestroyMatrixPHG\n" );
+    phgPrintf( "DestroyMatrixPHG\n" );
     //phgInit(&argc, &argv);
 
     phgMatDestroy((MAT**) matA);
@@ -173,7 +173,7 @@ DestroyMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **grid
     phgMapDestroy((MAP**) mapM);
     phgFreeGrid  ((GRID**)gridG);
 
-    printf ( "DestroyMatrixPHG\n" );
+    phgPrintf( "DestroyMatrixPHG\n" );
     //phgFinalize();
     return 0;
 }

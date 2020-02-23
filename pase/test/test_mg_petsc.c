@@ -93,8 +93,8 @@ int main(int argc,char **args)
 
   ierr = PetscOptionsGetBool(NULL,NULL,"-view_mat_vec",&flg,NULL);CHKERRQ(ierr);
   if (flg) {
-     ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-     ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+     //ierr = VecView(u,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+     //ierr = MatView(A,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   }
 
   ierr = KSPCreate(PETSC_COMM_WORLD,&ksp);CHKERRQ(ierr);
@@ -123,8 +123,8 @@ int main(int argc,char **args)
      MatGetSize(Aarr[level], &m, &n);
      PetscPrintf(PETSC_COMM_WORLD, "Aarr[%d], m = %d, n = %d\n", level, m, n );
   }
-  ierr = MatView(Parr[0],PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
-  ierr = MatView(Aarr[0],PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //ierr = MatView(Parr[0],PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //ierr = MatView(Aarr[0],PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
 
   Mat            C;
   /* Aarr[0] is the coarsest matrix 
@@ -133,7 +133,7 @@ int main(int argc,char **args)
   MatGetSize(C, &m, &n);
   PetscPrintf(PETSC_COMM_WORLD, "C, m = %d, n = %d\n", m, n );
   ierr = MatAXPY(C, -1.0, Aarr[num_levels-2], DIFFERENT_NONZERO_PATTERN);CHKERRQ(ierr);
-  ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
+  //ierr = MatView(C,PETSC_VIEWER_STDOUT_WORLD);CHKERRQ(ierr);
   ierr = MatDestroy(&C);
 
 

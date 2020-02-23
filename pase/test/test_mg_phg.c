@@ -51,8 +51,8 @@ main ( int argc, char *argv[] )
     MatrixConvertPHG2PETSC((void **)(&petsc_mat_B), &phg_mat_B);
     DestroyMatrixPHG(&phg_mat_A, &phg_mat_B, &phg_dof_U, &phg_map_M, &phg_grid_G, argc, argv);
 
-    PETSCPrintMat(petsc_mat_A, "mat A");
-    PETSCPrintMat(petsc_mat_B, "mat B");
+    //PETSCPrintMat(petsc_mat_A, "mat A");
+    //PETSCPrintMat(petsc_mat_B, "mat B");
     //MatView(petsc_mat_A, viewer);
     //MatView(petsc_mat_B, viewer);
     HYPRE_Int idx, num_levels = 3, mg_coarsest_level = 2;
@@ -115,26 +115,26 @@ main ( int argc, char *argv[] )
     for (idx = 0; idx < num_levels; ++idx)
     {
         PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
-        MatView((Mat)(multi_grid->A_array[idx]), viewer);
+        //MatView((Mat)(multi_grid->A_array[idx]), viewer);
     }
     PetscPrintf(PETSC_COMM_WORLD, "B_array\n");
     for (idx = 0; idx < num_levels; ++idx)
     {
         PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
-        MatView((Mat)(multi_grid->B_array[idx]), viewer);
+        //MatView((Mat)(multi_grid->B_array[idx]), viewer);
     }
     PetscPrintf(PETSC_COMM_WORLD, "P_array\n");
     for (idx = 0; idx < num_levels-1; ++idx)
     {
         PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
-        MatView((Mat)(multi_grid->P_array[idx]), viewer);
+        //MatView((Mat)(multi_grid->P_array[idx]), viewer);
     }
 #endif
 
 #if 1
     /* TODO: 测试BV结构的向量进行投影插值 */
     int level_i = 0;
-    int level_j = 2;
+    int level_j = 1;
     BV vecs_i;
     BV vecs_j;
     gcge_ops->MultiVecCreateByMat((void***)(&vecs_i), num_vecs, multi_grid->A_array[level_i], gcge_ops);
@@ -154,12 +154,12 @@ main ( int argc, char *argv[] )
     //	  (void**)vecs_j, mv_s, mv_e, gcge_ops);
     PASE_MULTIGRID_FromItoJ(multi_grid, level_j, level_i, mv_s, mv_e, 
             (void**)vecs_j, (void**)vecs_i);
-    PETSCPrintBV(vecs_i, "Pto");
-    PETSCPrintBV(vecs_j, "Pfrom");
+    //PETSCPrintBV(vecs_i, "Pto");
+    //PETSCPrintBV(vecs_j, "Pfrom");
     PASE_MULTIGRID_FromItoJ(multi_grid, level_i, level_j, mv_s, mv_e, 
             (void**)vecs_i, (void**)vecs_j);
-    PETSCPrintBV(vecs_i, "Rfrom");
-    PETSCPrintBV(vecs_j, "Rto");
+    //PETSCPrintBV(vecs_i, "Rfrom");
+    //PETSCPrintBV(vecs_j, "Rto");
 
     //GCGE_Printf("vecs_i\n");
     //BVView(vecs_i, viewer);

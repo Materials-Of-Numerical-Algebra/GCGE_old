@@ -198,5 +198,5 @@ void MatrixConvertPHG2PETSC(void **petsc_matrix, void **phg_matrix)
 
    *petsc_matrix = (void *)(petsc_mat);
    //MatView((Mat)(*petsc_matrix), PETSC_VIEWER_STDOUT_WORLD);
-   printf ( "MatrixConvertPHG2PETSC\n" );
+   phgPrintf ( "MatrixConvertPHG2PETSC\n" );
 }

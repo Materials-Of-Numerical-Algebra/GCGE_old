@@ -368,8 +368,8 @@ void GCGE_BCG(void *Matrix, GCGE_INT if_shift, GCGE_DOUBLE shift, void *B,
       ops->RestoreVecForMultiVec(CG_R, start[0]+idx, &b, ops); //把b相应的位置设为残差
       ops->RestoreVecForMultiVec(CG_W, start[3]+idx, &r, ops); //把r返回
 
-      unlock[idx] = idx;
-      num_unlock ++;
+      //unlock[idx] = idx;
+      //num_unlock ++;
    }//算完初始的残差向量和残差
    //统一进行数据传输  
 #if GCGE_USE_MPI
@@ -377,13 +377,22 @@ void GCGE_BCG(void *Matrix, GCGE_INT if_shift, GCGE_DOUBLE shift, void *B,
 #endif 
    //最后计算每个向量的残差(初始残差，用来进行收敛性)
    for(idx=0;idx<x_length;idx++)
+   {
       error[idx] = sqrt(rho2[idx]);
+      last_error[idx] = error[idx];
+      //printf("the initial residual: %e\n",error[idx]);
+      if(error[idx] >= 1e-15)
+      {
+         unlock[num_unlock] = idx;
+         num_unlock ++;
+      }//end if(last_error[idx]/error[idx] >= rate)       
+   }
    /* TODO */
    //这里应该判断以下如果error充分小就直接返回!!!
-   //printf("the initial residual: %e\n",error);
    niter = 1;
    while((num_unlock > 0)&&(niter < max_it))
    {
+      //printf("num_unlock: %d, niter: %d, max_it: %d, rate: %e, error: %e, %e\n", num_unlock, niter, max_it, rate, last_error[0], last_error[1]);
      //对每一个为收敛的向量进行处理
      for(id = 0; id < num_unlock; id++)
      {
@@ -476,7 +485,7 @@ void GCGE_BCG(void *Matrix, GCGE_INT if_shift, GCGE_DOUBLE shift, void *B,
      for(id=0;id< old_num_unlock;id ++)
      {   
        idx = unlock[id];
-       if(last_error[idx]/error[idx] >= rate)
+       if((last_error[idx] >= rate*error[idx]) && (last_error[idx] >= 1e-15))
        {
           unlock[num_unlock] = idx;
           num_unlock ++;

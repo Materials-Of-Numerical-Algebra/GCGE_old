@@ -56,6 +56,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
                PASE_REAL tol, PASE_REAL rate, 
                PASE_INT nsmooth, PASE_INT max_coarsest_nsmooth)
 {
+   //printf("current_level: %d, coarsest_level: %d, rate: %e\n", current_level, mg->coarsest_level, rate);
     PASE_INT nlevel = mg->num_levels;
     //默认0层为最细层
     PASE_INT indicator = 1;
@@ -66,7 +67,7 @@ void PASE_BMG( PASE_MULTIGRID mg,
     //else
     //    coarsest_level = 0;
     //设置最粗层上精确求解的精度
-    PASE_REAL coarest_rate = rate * 1e-10;
+    PASE_REAL coarest_rate = rate * 1e-6;
     void *A;
     PASE_INT mv_s[2];
     PASE_INT mv_e[2];
