@@ -334,6 +334,9 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
 #endif
     GCGE_PrintIterationInfo(workspace->eval, para);
     //printf("after: sum_res=%e\n",para->sum_res);
+
+    if(para->num_conv_continuous < nev)
+    {
     //Ritz向量放到V中作为下次迭代中基向量的一部分,即为[X,P,W]中的X
     mv_s[0] = workspace->num_soft_locked_in_last_iter;
     mv_s[1] = workspace->num_soft_locked_in_last_iter;
@@ -446,6 +449,7 @@ void GCGE_Solve(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
 #endif
     //做完第一步[X,W]之后得到的特征值
     GCGE_PrintIterationInfo(workspace->eval, para);
+    }
     //--------------------开始循环--------------------------------------------
     while((para->num_conv_continuous < nev)&&(para->num_iter < ev_max_it))
     {
@@ -681,6 +685,7 @@ void GCGE_CheckConvergence(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
     ops->GetVecFromMultiVec(workspace->V_tmp, 0, &tmp1, ops);
     ops->GetVecFromMultiVec(workspace->V_tmp, 1, &tmp2, ops);
     unlock[0] = -1;//unlock[0]初始化为-1备用
+    GCGE_DOUBLE abs_residual_tmp = 0.0;
     for(idx=start; idx<para->nev; idx++ )
     {
         ops->GetVecFromMultiVec(evec, idx, &ev, ops);
@@ -703,6 +708,7 @@ void GCGE_CheckConvergence(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
         ops->RestoreVecForMultiVec(evec, idx, &ev, ops);
         //绝对残差
         residual = res_norm/evec_norm;
+	abs_residual_tmp = residual;
         if(strcmp(conv_type, "R") == 0)
         {
             //相对残差
@@ -715,7 +721,7 @@ void GCGE_CheckConvergence(void *A, void *B, GCGE_DOUBLE *eval, void **evec,
         }
         res[idx] = residual;
 
-        if(residual < ev_tol)
+        if((residual < ev_tol)&&(abs_residual_tmp < 1e-2))
         {
             //该特征对收敛
             if(idx>0)

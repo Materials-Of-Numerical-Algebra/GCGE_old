@@ -170,6 +170,7 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     (*multi_grid)->cg_double_tmp = double_tmp;
     (*multi_grid)->cg_int_tmp    = int_tmp;
 
+    PetscPrintf(PETSC_COMM_WORLD, "End PASE_MULTIGRID_Create\n", 0, m, n );
     return 0;
 }
 

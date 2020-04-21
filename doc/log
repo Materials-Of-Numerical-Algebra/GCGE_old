@@ -679,4 +679,105 @@ e. Repartition the degrees of freedom across the processors on the coarser grids
    3) BCG对应的rate还是有一点问题, 现在修改了收敛准则，减小最大迭代次数，可以运行，但迭代次数大时仍有问题，需进一步测试
 2. 利用petsc的GAMG进行各种设定时, 一定用 PCGAMGSet...的函数进行.
 
+2020.03.10 zhangning liyu
+下述讨论可能出现的问题
+1. 多算的特征值个数,  workspace->max_dim_x = nev+20
+2. 收敛准则需要同时判断绝对残差的大小 现在设为1e-1
+3. 新生成的向量, 如果长度接近于0, 则去掉这个向量, 这里存在一个参数, 不能太小
+4. 当利用phg模块时, 传递命令行参数 需要 ./a.out -oem_options "-your_option 3"
 
+2020.03.14 liyu
+1. 利用phg并且需要输入命令行参数时, 对于需要输入gcge的命令行参数时, 需要利用
+-oem_options "-gcge_nev 10 -gcge_tol 1e-5"
+并且在main.c中需要加入一段代码, 将"..."看空格分开, 并生成一个argc_new argv_new
+{
+    char *str, c;
+    int i, k, flag;
+    int argc_new = 0;
+    char **argv_new = malloc(16*sizeof(char*));
+    for (i=0; i < 16; ++i)
+    {
+       argv_new[i] = malloc(64*sizeof(char));
+    }
+    i = 0;
+    while (i < argc)
+    {
+       if(0 == strcmp(argv[i], "-oem_options"))
+       {
+	  ++i;
+	  str = argv[i];
+	  argc_new = -1;
+	  flag = 0;
+	  for(i=0;(c=str[i])!='\0';i++)
+	  {
+	     /* get the start of word */
+	     if(c==' ')
+	     {
+		flag = 0;
+	     }
+	     else
+	     {
+		if (flag==0)
+		{
+		   flag = 1;
+		   ++argc_new;
+		   k = 0;
+		}
+		argv_new[argc_new][k++] = c;
+		argv_new[argc_new][k] = '\0';
+	     }
+	  }
+	  break;
+       }
+       else 
+       {
+	  ++i;
+       }
+    }
+    argc_new += 1;
+    printf("argc_new = %d\n", argc_new);
+    for (i = 0; i < argc_new; ++i)
+    {
+       printf("%s ", argv_new[i]);
+    }
+    printf("\n");
+    GCGE_INT error = GCGE_PARA_SetFromCommandLine(slepc_solver->para, argc_new, argv_new);
+    for (i=0; i < 16; ++i)
+    {
+       free(argv_new[i]);
+    }
+    free(argv_new);
+}
+
+2. 利用phg并且需要输入命令行参数时, 对于需要输入slepc的命令行参数时, 需要利用
+-oem_options -eps_nev 10 -oem_options -eps_tol 1e-5
+需要一个个输入
+
+3. 上述两点操作, 可参见 pase/test中的test_mg_phg_petsc.c test_phg_slepc.c 以及相应的提交脚本
+
+2020.3.15 liyu
+1. 关于查看petsc矩阵的信息
+typedef struct {
+   PetscLogDouble block_size;                         /* block size */
+   PetscLogDouble nz_allocated, nz_used, nz_unneeded; /* number of nonzeros */
+   PetscLogDouble memory;                             /* memory allocated */
+   PetscLogDouble assemblies;                         /* number of matrix assemblies called */
+   PetscLogDouble mallocs;                            /* number of mallocs during MatSetValues() */
+   PetscLogDouble fill_ratio_given, fill_ratio_needed;/* fill ratio for LU/ILU */
+   PetscLogDouble factor_mallocs;                     /* number of mallocs during factorization */
+} MatInfo;
+#include "petscmat.h" 
+PetscErrorCode MatGetInfo(Mat mat, MatInfoType flag, MatInfo *info)
+
+
+2020.3.20 liyu
+typedef const char* BVType;
+#define BVMAT        "mat"
+#define BVSVEC       "svec"
+#define BVVECS       "vecs"
+#define BVCONTIGUOUS "contiguous"
+#define BVTENSOR     "tensor"
+
+利用-bv_type 修改BV的结构
+eps默认的bv结构是SVEC, 不知道这些有什么区别
+这个结构在创建时会计算global nrows of matrix * nev

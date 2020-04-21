@@ -96,7 +96,7 @@ CreateMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **gridG
     MAT *A, *B;
     double wtime;
 
-    phgOptionsPreset("-dof_type P1");
+    phgOptionsPreset("-dof_type P3");
 
     phgOptionsRegisterFilename("-mesh_file", "Mesh filename", &fn);
     phgOptionsRegisterInt("-pre_refines", "Pre-refines", &pre_refines);
@@ -116,18 +116,23 @@ CreateMatrixPHG(void **matA, void **matB, void **dofU, void **mapM, void **gridG
     if (!phgImport(g, fn, FALSE))
 	phgError(1, "can't read file \"%s\".\n", fn);
     /* pre-refinement */
+    phgPrintf("Now begin phgRefineAllElements...\n");
     phgRefineAllElements(g, pre_refines);
+    phgPrintf("phgRefineAllElements finished\n");
 
     u_h = phgDofNew(g, DOF_DEFAULT, 1, "u_h", DofInterpolation);
+    phgPrintf("after phgDofNew\n");
 #if 0
     /* All-Neumann BC */
     phgDofSetDirichletBoundaryMask(u_h, 0);
 #else
     /* All-Dirichlet BC */
     phgDofSetDirichletBoundaryMask(u_h, BDRY_MASK);
+    phgPrintf("after phgDofSetDirichletBoundaryMask\n");
 #endif
     /* set random initial values for the eigenvectors */
     phgDofRandomize(u_h, i == 0 ? 123 : 0);
+    phgPrintf("after phgDofRandomize\n");
 
     phgPrintf("\n");
     if (phgBalanceGrid(g, 1.2, -1, NULL, 0.))

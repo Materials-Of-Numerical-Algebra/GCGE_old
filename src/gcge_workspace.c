@@ -64,6 +64,7 @@ void GCGE_WORKSPACE_Setup(GCGE_WORKSPACE *workspace, GCGE_PARA *para, GCGE_OPS *
                block_size = para->block_size,
                max_dim_x_tmp = (nev*1.25 < nev+8) ? (nev*1.25) : (nev+8),
                max_dim_x = (max_dim_x_tmp > nev + 3)? max_dim_x_tmp : (nev+3);
+    max_dim_x = nev+20;
 
     GCGE_INT   V_size = max_dim_x + 2 * block_size;
     GCGE_INT   V_tmp_size = max_dim_x - nev + block_size;

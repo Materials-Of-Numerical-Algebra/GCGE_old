@@ -59,14 +59,77 @@ main ( int argc, char *argv[] )
     GCGE_SOLVER *slepc_solver;
     GCGE_SOLVER_Create(&slepc_solver);
 
-    //从命令行读入GCGE_PARA中的一些参数
-    GCGE_INT error = GCGE_PARA_SetFromCommandLine(slepc_solver->para, argc, argv);
     //设置SLEPC结构的矩阵向量操作
     GCGE_SOLVER_SetSLEPCOps(slepc_solver);
     //设置一些参数-示例
-    int nev = 6;
+    int nev = 100;
     GCGE_SOLVER_SetNumEigen(slepc_solver, nev);//设置特征值个数
+    slepc_solver->para->ev_max_it = 500;
+    //slepc_solver->para->ev_tol = 1e-12;
+    //slepc_solver->para->orth_para->orth_zero_tol = 1.1e-16;
+    //slepc_solver->para->multi_tol_for_lock = 1e-4;
     slepc_solver->para->print_eval = 0;//设置是否打印每次迭代的特征值
+    //从命令行读入GCGE_PARA中的一些参数
+{
+    char *str, c;
+    int i, k, flag;
+    int argc_new = 0;
+    char **argv_new = malloc(16*sizeof(char*));
+    for (i=0; i < 16; ++i)
+    {
+       argv_new[i] = malloc(64*sizeof(char));
+    }
+    i = 0;
+    while (i < argc)
+    {
+       if(0 == strcmp(argv[i], "-oem_options"))
+       {
+	  ++i;
+	  str = argv[i];
+	  argc_new = -1;
+	  flag = 0;
+	  for(i=0;(c=str[i])!='\0';i++)
+	  {
+	     /* get the start of word */
+	     if(c==' ')
+	     {
+		flag = 0;
+	     }
+	     else
+	     {
+		if (flag==0)
+		{
+		   flag = 1;
+		   ++argc_new;
+		   k = 0;
+		}
+		argv_new[argc_new][k++] = c;
+		argv_new[argc_new][k] = '\0';
+	     }
+	  }
+	  break;
+       }
+       else 
+       {
+	  ++i;
+       }
+    }
+    argc_new += 1;
+    printf("argc_new = %d\n", argc_new);
+    for (i = 0; i < argc_new; ++i)
+    {
+       printf("%s ", argv_new[i]);
+    }
+    printf("\n");
+    GCGE_INT error = GCGE_PARA_SetFromCommandLine(slepc_solver->para, argc_new, argv_new);
+    for (i=0; i < 16; ++i)
+    {
+       free(argv_new[i]);
+    }
+    free(argv_new);
+}
+
+    nev = slepc_solver->para->nev;
     double *eval = (double *)calloc(nev, sizeof(double)); 
     BV evec;
     slepc_solver->ops->MultiVecCreateByMat((void***)(&evec), nev, (void*)petsc_mat_A, slepc_solver->ops);
@@ -83,7 +146,7 @@ main ( int argc, char *argv[] )
     ////给slepc_solver设置KSP为线性求解器
     //GCGE_SOLVER_SetSLEPCOpsLinearSolver(slepc_solver, ksp);
     PASE_MULTIGRID multi_grid;
-    Multigrid_LinearSolverCreate(&multi_grid, slepc_solver->ops, 5*nev, 
+    Multigrid_LinearSolverCreate(&multi_grid, slepc_solver->ops, nev/4, 
 	  (void*)petsc_mat_A, (void*)petsc_mat_B);
     //GCGE_SOLVER_SetMultigridLinearSolver(slepc_solver, multi_grid);
 
