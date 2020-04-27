@@ -51,7 +51,7 @@
  *
  *     mv_s = {0, 0}
  *     mv_e = {current+1, 1}
- *     MultiVecInnerProd(V, &V_tmp, d_tmp, "ns", d_tmp, mv_s, mv_e, current+1, ops )
+ *     MultiVecInnerProd(V, &V_tmp, d_tmp, "ns", d_tmp, mv_s, mv_e, current+1, 0, ops )
  *
  *    // V[current] = V[current] - sum_{i=0}^{current-1} d_tmp[i] V[i]
  *    // d_tmp[current] = d_tmp[current] - sum_{i=0}^{current-1} d_tmp[i]^2
@@ -139,20 +139,20 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         if((sum_res > 0.0)&&(sum_res < criterion_tol))
         {
             //printf("do the column version!\n");
-            ops->GetVecFromMultiVec(V, current, &vec_current); //vec_current = V[current]
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops); //vec_current = V[current]
             if(B == NULL)
             {
-                ops->VecInnerProd(vec_current, vec_current, &norm_value);      
+                ops->VecInnerProd(vec_current, vec_current, &norm_value, ops);      
                 vout = sqrt(norm_value);          
             }
             else
             {
                 //vec_tmp2 = B*vec_current
-                ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2); //vec_tmp2 = V_tmp[1]
-                ops->MatDotVec(B, vec_current, vec_tmp2); 
-                ops->VecInnerProd(vec_current, vec_tmp2, &norm_value);
+                ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2, ops); //vec_tmp2 = V_tmp[1]
+                ops->MatDotVec(B, vec_current, vec_tmp2, ops); 
+                ops->VecInnerProd(vec_current, vec_tmp2, &norm_value, ops);
                 vout = sqrt(norm_value);
-                ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);      
+                ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2, ops);      
             }
 
             do{
@@ -162,39 +162,39 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
                 //ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2); //vec_tmp2 = V_tmp[1]
                 for (j=0; j<current; j++)
                 {
-                    ops->GetVecFromMultiVec(V, j, &vec_tmp); //vectmp = V(:,j)
+                    ops->GetVecFromMultiVec(V, j, &vec_tmp, ops); //vectmp = V(:,j)
                     //下面做内积
                     if(B == NULL)
                     {
-                        ops->VecInnerProd(vec_current, vec_tmp, &ipv);
+                        ops->VecInnerProd(vec_current, vec_tmp, &ipv, ops);
                     }
                     else
                     {
                         //vec_tmp2 = B*vec_current
-                        ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2); //vec_tmp2 = V_tmp[1]
-                        ops->MatDotVec(B, vec_current, vec_tmp2); 
-                        ops->VecInnerProd(vec_tmp, vec_tmp2, &ipv);        
-                        ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);        
+                        ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2, ops); //vec_tmp2 = V_tmp[1]
+                        ops->MatDotVec(B, vec_current, vec_tmp2, ops); 
+                        ops->VecInnerProd(vec_tmp, vec_tmp2, &ipv, ops);        
+                        ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2, ops);        
                     }//end for if
                     //接下来做： V(:,current) = V(:,current) - ipv*V(:,j)
-                    ops->VecAxpby(-ipv, vec_tmp, 1.0, vec_current);
+                    ops->VecAxpby(-ipv, vec_tmp, 1.0, vec_current, ops);
                     //ops->GetVecFromMultiVec(V, j, &vec_tmp); //vectmp = V(:,j)
-                    ops->RestoreVecForMultiVec(V, j, &vec_tmp);          
+                    ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);          
                 }//end for j
                 vin = vout;       
                 if(B == NULL)
                 {
-                    ops->VecInnerProd(vec_current, vec_current, &norm_value);
+                    ops->VecInnerProd(vec_current, vec_current, &norm_value, ops);
                     //vout = sqrt(norm_value);              
                 }
                 else
                 {
                     //vec_tmp2 = B*vec_current
-                    ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2); //vec_tmp2 = V_tmp[1]
-                    ops->MatDotVec(B, vec_current, vec_tmp2); 
-                    ops->VecInnerProd(vec_current, vec_tmp2, &norm_value);
+                    ops->GetVecFromMultiVec(V_tmp, 1, &vec_tmp2, ops); //vec_tmp2 = V_tmp[1]
+                    ops->MatDotVec(B, vec_current, vec_tmp2, ops); 
+                    ops->VecInnerProd(vec_current, vec_tmp2, &norm_value, ops);
                     //vout = sqrt(norm_value);
-                    ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);          
+                    ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2, ops);          
                 }//end if(B == NULL)
                 //ops->VecInnerProd(vec_current, vec_current, &norm_value);
                 vout = sqrt(norm_value);
@@ -204,7 +204,7 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
                     && (vout > orth_para->orth_zero_tol) );
             //ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
             //ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);       
-            ops->RestoreVecForMultiVec(V, current, &vec_current); //vec_current = V[current]
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops); //vec_current = V[current]
         }//结束了单个向量的正交化方式
         else
         {
@@ -212,25 +212,25 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             do{
                 // B != NULL, 计算 vec_tmp = B * vec_current
                 // B == NULL, 计算 vec_tmp = vec_current
-                ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp);
-                ops->GetVecFromMultiVec(V, current, &vec_current);
+                ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp, ops);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
                 if(B == NULL)
                 {
-                    ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);      
+                    ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);      
                 }
                 else
                 {
-                    ops->MatDotVec(B, vec_current, vec_tmp);      
+                    ops->MatDotVec(B, vec_current, vec_tmp, ops);      
                 }
-                ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 // 计算 d_tmp = V^T * vec_tmp
                 // 即为 d_tmp[j] = (v_j, vec_current)_B
                 mv_s[0] = 0;
                 mv_e[0] = current+1;
                 mv_s[1] = 0;
                 mv_e[1] = 1;
-                ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, current+1, ops);
+                ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, current+1, 0, ops);
 
                 // 如果当前计算的不是向量组中的第一个向量，那么需要减去前面的分量
                 if(current != 0)
@@ -241,14 +241,14 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
                     mv_e[0] = current;
                     mv_s[1] = 0;
                     mv_e[1] = 1;
-                    ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, current, NULL, -1, ops);
+                    ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, current, 0, 1.0, 0.0, ops);
 
                     // 计算 vec_current = vec_current - V_tmp[0]
-                    ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp);
-                    ops->GetVecFromMultiVec(V, current, &vec_current);
-                    ops->VecAxpby(-1.0, vec_tmp, 1.0, vec_current);
-                    ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
-                    ops->RestoreVecForMultiVec(V, current, &vec_current);      
+                    ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp, ops);
+                    ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                    ops->VecAxpby(-1.0, vec_tmp, 1.0, vec_current, ops);
+                    ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, current, &vec_current, ops);      
                 }//end if(current != 0)        
 
                 // d_tmp[current] 即为 (v_current_in, vec_current_in)_B
@@ -277,9 +277,9 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         if(vout > orth_para->orth_zero_tol)
         {
             //如果vec_current不为0，就做归一化
-            ops->GetVecFromMultiVec(V, current, &vec_current);
-            ops->VecAxpby(0.0, vec_current, 1/vout, vec_current);     
-            ops->RestoreVecForMultiVec(V, current, &vec_current);
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+            ops->VecAxpby(0.0, vec_current, 1/vout, vec_current, ops);     
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             //ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
             //ops->RestoreVecForMultiVec(V_tmp, 1, &vec_tmp2);      
         }
@@ -292,7 +292,10 @@ void GCGE_Orthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             mv_s[1] = *end-1;
             mv_e[0] = current+1;
             mv_e[1] = *end;
-            ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+	    if(current < *end-1)
+	    {
+                ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+	    }
             (*end)--;
             current--;
             if(orth_para->print_orth_zero == 1)
@@ -374,34 +377,34 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
     //先计算 evec = B*V（：，1：nev），可以在正交化的过程中一直存着
     for(j=0;j<nev;j++)
     {
-        ops->GetVecFromMultiVec(V, j, &vec_current);
-        ops->GetVecFromMultiVec(evec,j, &vec_tmp);
+        ops->GetVecFromMultiVec(V, j, &vec_current, ops);
+        ops->GetVecFromMultiVec(evec,j, &vec_tmp, ops);
         if(B == NULL)
         {
-            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);          
+            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);          
         }
         else
         {
-            ops->MatDotVec(B, vec_current, vec_tmp);          
+            ops->MatDotVec(B, vec_current, vec_tmp, ops);          
         }
-        ops->RestoreVecForMultiVec(evec, j, &vec_tmp);
-        ops->RestoreVecForMultiVec(V, j, &vec_current);
+        ops->RestoreVecForMultiVec(evec, j, &vec_tmp, ops);
+        ops->RestoreVecForMultiVec(V, j, &vec_current, ops);
     }//end for(j=0;j<nev;j++)
     //用V_tmp存储s剩下来的 B*V(:,nev+1:dim_xp)
     for(j=nev;j<dim_xp;j++)
     {
-        ops->GetVecFromMultiVec(V, j, &vec_current);
-        ops->GetVecFromMultiVec(V_tmp,j-nev, &vec_tmp);
+        ops->GetVecFromMultiVec(V, j, &vec_current, ops);
+        ops->GetVecFromMultiVec(V_tmp,j-nev, &vec_tmp, ops);
         if(B == NULL)
         {
-            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);          
+            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);          
         }
         else
         {
-            ops->MatDotVec(B, vec_current, vec_tmp);	  	
+            ops->MatDotVec(B, vec_current, vec_tmp, ops);	  	
         }
-        ops->RestoreVecForMultiVec(V_tmp, j-nev, &vec_tmp);
-        ops->RestoreVecForMultiVec(V, j, &vec_current);
+        ops->RestoreVecForMultiVec(V_tmp, j-nev, &vec_tmp, ops);
+        ops->RestoreVecForMultiVec(V, j, &vec_current, ops);
     }//end for(j=nev;j<dim_xp;j++)
 
     //开始进行正交化
@@ -420,17 +423,17 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //d_tmp = vec_tmp*V(:,start:end)
             //统一做内积
             //lda = w_length, 表示矩阵的行数，第一个向量组的列数
-            ops->MultiVecInnerProd(V,evec, d_tmp, "ns", mv_s, mv_e, w_length, ops);      
+            ops->MultiVecInnerProd(V,evec, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);      
             //减去相应的分量
             for(j=start;j<*(end);j++)
             {
-                ops->GetVecFromMultiVec(V, current, &vec_current);
-                ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                 //vec_tmp = vec_tmp - d_tmp[j-start]*vec_current
                 //printf("j=%d, xty = %e\n",j, d_tmp[j-start]);
-                ops->VecAxpby(-d_tmp[j-start], vec_current, 1.0, vec_tmp);
-                ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(-d_tmp[j-start], vec_current, 1.0, vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             }
         }//end for(current = 0; current < nev; ++current)
 
@@ -445,16 +448,16 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //d_tmp = vec_tmp*V(:,start:end)
             //w_length = mv_e[1] - mv_s[1];
             //统一做内积
-            ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, w_length, ops);      
+            ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);      
             //减去相应的分量
             for(j=start;j<*(end);j++)
             {
-                ops->GetVecFromMultiVec(V, current, &vec_current);
-                ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                 //vec_tmp = vec_tmp - d_tmp[j-start] *vec_current 
-                ops->VecAxpby(-d_tmp[j-start], vec_current, 1.0, vec_tmp);
-                ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(-d_tmp[j-start], vec_current, 1.0, vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             }
         }//end for for(current = nev; current < dim_xp; ++current)
 
@@ -462,18 +465,18 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         for(current=start;current<*(end);current++)
         {
             //vec_current = W(:,current)
-            ops->GetVecFromMultiVec(V, current, &vec_current);
-            ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp);
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+            ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp, ops);
             if(B == NULL)
             {
-                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);	    
+                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);	    
             }
             else
             {
-                ops->MatDotVec(B, vec_current, vec_tmp);	  		    
+                ops->MatDotVec(B, vec_current, vec_tmp, ops);	  		    
             }
-            ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp);
-            ops->RestoreVecForMultiVec(V, current, &vec_current);
+            ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp, ops);
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             // 计算 d_tmp = V^T * vec_tmp
             // 即为 d_tmp[j] = (v_j, vec_current)_B
             mv_s[0] = current;
@@ -483,25 +486,25 @@ void GCGE_BOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //d_tmp = vec_tmp*V(:,start:end)
             w_length = mv_e[0] - mv_s[0];
             //统一做内积
-            ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, ops);    
+            ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);    
             //V[current]的向量范数
             norm_value = sqrt(d_tmp[0]);	  
             //下面看看目前处理的向量是否是一个零向量    	  
             if(norm_value > (orth_para->orth_zero_tol))
             {
                 //如果vec_current不为0，就做归一化
-                ops->GetVecFromMultiVec(V, current, &vec_current);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
                 //vec_current = 1/norm_value * vec_current
-                ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current);	
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current, ops);	
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 for(j=current+1;j<*(end);j++)
                 {
-                    ops->GetVecFromMultiVec(V, current, &vec_current);
-                    ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                    ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                    ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                     //vec_tmp = vec_tmp - d_tmp[j-current]/norm_value *vec_current
-                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp);
-                    ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                    ops->RestoreVecForMultiVec(V, current, &vec_current);
+                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 }//end for(j=current+1;j<*(end);j++)
             }
             else
@@ -752,6 +755,74 @@ void GCGE_OrthonormalizationInSubspace(double *V, GCGE_INT ldV, GCGE_INT start, 
  *
  */
 //Classical Block Orthonormalizationization
+#if 0
+void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
+                      void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
+{
+    GCGE_INT V_tmp_size = workspace->V_tmp_size;
+    //要正交化的向量个数的和
+    GCGE_INT total_length = *end - start;
+    //如果V_tmp的空间不够
+    if(V_tmp_size < total_length)
+    {
+        //当前次正交化的向量的起止位置与个数
+        GCGE_INT current_start  = start;
+        GCGE_INT current_end    = start+V_tmp_size;
+        GCGE_INT old_end = 0;
+        GCGE_INT n_zero  = 0;
+        GCGE_INT copy_start = 0;
+	GCGE_INT mv_s[2];
+	GCGE_INT mv_e[2];
+	while(current_end <= *end)
+	{
+	    //GCGE_Printf("V_tmp_size: %d, current_start: %d, current_end: %d\n", V_tmp_size, current_start, current_end);
+	    old_end = current_end;
+            GCGE_CBOrthonormalizationPartly(V, current_start, 
+		  &current_end, B, ops, para, workspace);
+	    if(old_end < *end)
+	    {
+	        if(current_end < old_end)
+		{
+		    //0向量的个数
+		    n_zero = old_end - current_end;
+		    copy_start = *end - n_zero;
+		    if(old_end <= copy_start)
+		    {
+                        mv_s[0] = current_end;
+                        mv_e[0] = old_end;
+                        mv_s[1] = copy_start;
+                        mv_e[1] = *end;
+                        ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+		    }
+		    else
+		    {
+                        mv_s[0] = current_end;
+                        mv_e[0] = copy_start;
+                        mv_s[1] = old_end;
+                        mv_e[1] = *end;
+                        ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+		    }
+		    //更新*end
+		    *end = copy_start;
+		}
+		//更新下次正交化的起止位置
+	        current_start = current_end;
+		current_end   = (*end < current_start+V_tmp_size)?(*end):(current_start+V_tmp_size);
+	    }
+	    else
+	    {
+	        current_end = *end +1;
+	    }
+	}
+    }
+    else
+    {
+        GCGE_CBOrthonormalizationPartly(V, start, end, 
+	      B, ops, para, workspace);
+    }
+}
+#endif
+
 void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
                       void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
 {
@@ -824,14 +895,14 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, ops);    
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, 0, ops);    
 
         //计算 V_tmp = [V1,V2] * subspace_dtmp
         mv_s[0] = 0;
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, NULL, -1, ops);
+        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, 0, 1.0, 0.0, ops);
 
         //计算 V3 = V3 - V_tmp
         mv_s[0] = 0;
@@ -850,18 +921,18 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         //计算 V_tmp = B * V3 
         for(j=0;j<w_length;j++)
         {
-            ops->GetVecFromMultiVec(V, j+start, &vec_current);
-            ops->GetVecFromMultiVec(V_tmp, j, &vec_tmp);
+            ops->GetVecFromMultiVec(V, j+start, &vec_current, ops);
+            ops->GetVecFromMultiVec(V_tmp, j, &vec_tmp, ops);
             if(B == NULL)
             {
-                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);	  	
+                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);	  	
             }
             else
             {
-                ops->MatDotVec(B, vec_current, vec_tmp);	  	
+                ops->MatDotVec(B, vec_current, vec_tmp, ops);	  	
             }
-            ops->RestoreVecForMultiVec(V_tmp, j, &vec_tmp);
-            ops->RestoreVecForMultiVec(V, j+start, &vec_current);
+            ops->RestoreVecForMultiVec(V_tmp, j, &vec_tmp, ops);
+            ops->RestoreVecForMultiVec(V, j+start, &vec_current, ops);
         }//end for(j=0;j<w_length;j++)
 
         //计算 subspace_dtmp = V3^T * V_tmp
@@ -869,7 +940,7 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = *end;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, w_length, ops);    
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);    
 
         nonzero_flag = 0;
         for(j=0; j<w_length*w_length; j++)
@@ -899,11 +970,16 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //那么, 如果 rank==0, 就计算特征值问题, 否则不用计算, 等待广播
             if(rank == 0)
             {
+#if 0
                 ops->DenseMatEigenSolver("V", "I", "U", &w_length, d_tmp, 
                         &w_length, &vl, &vu, &il, &iu, &abstol, 
                         &m, tmp_eval, tmp_evec, &w_length, 
                         isuppz, dwork_space, &lwork,
                         subspace_itmp, &liwork, ifail, &info);
+#endif
+                ops->DenseMatEigenSolver(d_tmp, w_length, w_length, 
+                        tmp_eval, tmp_evec, w_length, 
+                        il, iu, subspace_itmp, dwork_space);
             }
             if(para->use_mpi_bcast)
             {
@@ -945,7 +1021,7 @@ void GCGE_CBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             mv_s[1] = 0;
             mv_e[1] = w_length;
             ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, 
-                    tmp_evec+tmp_eval_nonzero_start*w_length, w_length, NULL, -1, ops);
+                    tmp_evec+tmp_eval_nonzero_start*w_length, w_length, 0, 1.0, 0.0, ops);
             *end = start + w_length;
             //计算 V3 = V_tmp
             mv_s[0] = start;
@@ -984,7 +1060,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
     void           *vec_tmp;
     void          **CG_p = workspace->CG_p;
     //void          **evec = workspace->evec;
-    void           **V_tmp = workspace->V_tmp;
+    void          **V_tmp = workspace->V_tmp;
     GCGE_INT        i = 0, j = 0;
 
     //求解特征值问题所用参数
@@ -1040,7 +1116,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, ops);  
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, 0, ops);  
         value_inner = 0.0;
         for(i=0;i<length;i++)
         { 
@@ -1048,7 +1124,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             value_inner += tmp*tmp;
          }
          value_inner = sqrt(value_inner);
-         GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
+         //GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
          
 
         //计算 V_tmp = [V1,V2] * subspace_dtmp
@@ -1056,7 +1132,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, NULL, -1, ops);
+        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, 0, 1.0, 0.0, ops);
 
         //计算 V3 = V3 - V_tmp
         mv_s[0] = 0;
@@ -1160,7 +1236,7 @@ void GCGE_SCBOrth_Minus(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, ops);  
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, 0, ops);  
         value_inner = 0.0;
         for(i=0;i<length;i++)
         { 
@@ -1168,7 +1244,7 @@ void GCGE_SCBOrth_Minus(void **V, GCGE_INT start, GCGE_INT *end,
             value_inner += tmp*tmp;
          }
          value_inner = sqrt(value_inner);
-         GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
+         //GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
          
 
         //计算 V_tmp = W1 * subspace_dtmp
@@ -1176,7 +1252,7 @@ void GCGE_SCBOrth_Minus(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, NULL, -1, ops);
+        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, 0, 1.0, 0.0, ops);
 
         //计算 W2 = W2 - V_tmp
         mv_s[0] = 0;
@@ -1213,18 +1289,18 @@ void GCGE_SCBOrth_Self(void **V, GCGE_INT start, GCGE_INT *end,
       for(current=start;current<*(end);current++)
       {
            //vec_current = W(:,current)
-           ops->GetVecFromMultiVec(V, current, &vec_current);
-           ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp);
+           ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+           ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp, ops);
            if(B == NULL)
            {
-               ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);	    
+               ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);	    
            }
            else
            {
-               ops->MatDotVec(B, vec_current, vec_tmp);	  		    
+               ops->MatDotVec(B, vec_current, vec_tmp, ops);	  		    
            }
-           ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp);
-           ops->RestoreVecForMultiVec(V, current, &vec_current);
+           ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp, ops);
+           ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
            // 计算 d_tmp = V^T * vec_tmp
            // 即为 d_tmp[j] = (v_j, vec_current)_B
            mv_s[0] = current;
@@ -1234,25 +1310,25 @@ void GCGE_SCBOrth_Self(void **V, GCGE_INT start, GCGE_INT *end,
            //d_tmp = vec_tmp*V(:,start:end)
            w_length = mv_e[0] - mv_s[0];
            //统一做内积
-           ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, ops);    
+           ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);    
            //V[current]的向量范数
            norm_value = sqrt(d_tmp[0]);	  
            //下面看看目前处理的向量是否是一个零向量    	  
            if(norm_value > (orth_para->orth_zero_tol))
            {
                //如果vec_current不为0，就做归一化
-               ops->GetVecFromMultiVec(V, current, &vec_current);
+               ops->GetVecFromMultiVec(V, current, &vec_current, ops);
                //vec_current = 1/norm_value * vec_current
-               ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current);	
-               ops->RestoreVecForMultiVec(V, current, &vec_current);
+               ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current, ops);	
+               ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                for(j=current+1;j<*(end);j++)
                {
-                    ops->GetVecFromMultiVec(V, current, &vec_current);
-                    ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                    ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                    ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                     //vec_tmp = vec_tmp - d_tmp[j-current]/norm_value *vec_current
-                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp);
-                    ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                    ops->RestoreVecForMultiVec(V, current, &vec_current);
+                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 }//end for(j=current+1;j<*(end);j++)
             }
             else
@@ -1359,7 +1435,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, ops);  
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, start, 0, ops);  
         value_inner = 0.0;
         for(i=0;i<length;i++)
         { 
@@ -1375,7 +1451,7 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         mv_e[0] = start;
         mv_s[1] = 0;
         mv_e[1] = w_length;
-        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, NULL, -1, ops);
+        ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, d_tmp, start, 0, 1.0, 0.0, ops);
 
         //计算 V3 = V3 - V_tmp
         mv_s[0] = 0;
@@ -1394,18 +1470,18 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
         for(current=start;current<*(end);current++)
         {
             //vec_current = W(:,current)
-            ops->GetVecFromMultiVec(V, current, &vec_current);
-            ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp);
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+            ops->GetVecFromMultiVec(CG_p, 0, &vec_tmp, ops);
             if(B == NULL)
             {
-                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);	    
+                ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);	    
             }
             else
             {
-                ops->MatDotVec(B, vec_current, vec_tmp);	  		    
+                ops->MatDotVec(B, vec_current, vec_tmp, ops);	  		    
             }
-            ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp);
-            ops->RestoreVecForMultiVec(V, current, &vec_current);
+            ops->RestoreVecForMultiVec(CG_p, 0, &vec_tmp, ops);
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             // 计算 d_tmp = V^T * vec_tmp
             // 即为 d_tmp[j] = (v_j, vec_current)_B
             mv_s[0] = current;
@@ -1415,25 +1491,25 @@ void GCGE_SCBOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end,
             //d_tmp = vec_tmp*V(:,start:end)
             w_length = mv_e[0] - mv_s[0];
             //统一做内积
-            ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, ops);    
+            ops->MultiVecInnerProd(V, CG_p, d_tmp, "ns", mv_s, mv_e, w_length, 0, ops);    
             //V[current]的向量范数
             norm_value = sqrt(d_tmp[0]);	  
             //下面看看目前处理的向量是否是一个零向量    	  
             if(norm_value > (orth_para->orth_zero_tol))
             {
                 //如果vec_current不为0，就做归一化
-                ops->GetVecFromMultiVec(V, current, &vec_current);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
                 //vec_current = 1/norm_value * vec_current
-                ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current);	
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current, ops);	
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 for(j=current+1;j<*(end);j++)
                 {
-                    ops->GetVecFromMultiVec(V, current, &vec_current);
-                    ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                    ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                    ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                     //vec_tmp = vec_tmp - d_tmp[j-current]/norm_value *vec_current
-                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp);
-                    ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                    ops->RestoreVecForMultiVec(V, current, &vec_current);
+                    ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                    ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
                 }//end for(j=current+1;j<*(end);j++)
             }
             else
@@ -1502,7 +1578,7 @@ void GCGE_BOrthonormalizationInSubspace(double *V, GCGE_INT ldV, GCGE_INT nrows,
         GCGE_INT *end, void *B, GCGE_INT ldB, GCGE_ORTH_PARA *orth_para, 
         GCGE_DOUBLE *d_tmp, GCGE_OPS *ops)
 {
-    GCGE_Printf("Use GCGE_BOrthonormalizationInSubspace.\n");
+    //GCGE_Printf("Use GCGE_BOrthonormalizationInSubspace.\n");
     GCGE_INT    current = 0;        //当前进行正交化操作的向量编号
     GCGE_INT    current_V2 = 0;     //当前进行正交化操作的向量编号
     GCGE_INT    reorth_count = 0;
@@ -1620,7 +1696,7 @@ void GCGE_SCBOrthonormalizationInSubspace(double *V, GCGE_INT ldV, GCGE_INT nrow
         GCGE_INT *end, void *B, GCGE_INT ldB, GCGE_ORTH_PARA *orth_para, 
         GCGE_WORKSPACE *workspace, GCGE_OPS *ops)
 {
-    GCGE_Printf("Use GCGE_SCBOrthonormalizationInSubspace.\n");
+    //GCGE_Printf("Use GCGE_SCBOrthonormalizationInSubspace.\n");
     GCGE_INT    current = 0; //当前进行正交化操作的向量编号
     GCGE_INT    current_V2 = 0; //当前进行正交化操作的向量编号
     GCGE_INT    reorth_count = 0;
@@ -1833,43 +1909,109 @@ void GCGE_BlockOrthonormalizationInSubspace(GCGE_DOUBLE *V, GCGE_INT ldV,
 void GCGE_StableMultiOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, 
          void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
 {
-    GCGE_INT mv_s[2];
-    GCGE_INT mv_e[2];
-    //GCGE_Printf("in GCGE_StableMultiOrthonormalization\n");
+    GCGE_INT V_tmp_size = workspace->V_tmp_size;
+    //要正交化的向量个数的和
+    GCGE_INT total_length = *end - start;
+    //如果V_tmp的空间不够
+    if(V_tmp_size < total_length)
+    {
+        //当前次正交化的向量的起止位置与个数
+        GCGE_INT current_start  = start;
+        GCGE_INT current_end    = start+V_tmp_size;
+        GCGE_INT old_end = 0;
+        GCGE_INT n_zero  = 0;
+        GCGE_INT copy_start = 0;
+	GCGE_INT mv_s[2];
+	GCGE_INT mv_e[2];
+	while(current_end <= *end)
+	{
+	    //GCGE_Printf("V_tmp_size: %d, current_start: %d, current_end: %d\n", V_tmp_size, current_start, current_end);
+	    old_end = current_end;
+            GCGE_StableMultiOrthonormalizationPartly(V, current_start, 
+		  &current_end, B, ops, para, workspace);
+	    if(old_end < *end)
+	    {
+	        if(current_end < old_end)
+		{
+		    //0向量的个数
+		    n_zero = old_end - current_end;
+		    copy_start = *end - n_zero;
+		    if(old_end <= copy_start)
+		    {
+                        mv_s[0] = current_end;
+                        mv_e[0] = old_end;
+                        mv_s[1] = copy_start;
+                        mv_e[1] = *end;
+                        ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+		    }
+		    else
+		    {
+                        mv_s[0] = current_end;
+                        mv_e[0] = copy_start;
+                        mv_s[1] = old_end;
+                        mv_e[1] = *end;
+                        ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+		    }
+		    //更新*end
+		    *end = copy_start;
+		}
+		//更新下次正交化的起止位置
+	        current_start = current_end;
+		current_end   = (*end < current_start+V_tmp_size)?(*end):(current_start+V_tmp_size);
+	    }
+	    else
+	    {
+	        current_end = *end +1;
+	    }
+	}
+    }
+    else
+    {
+        GCGE_StableMultiOrthonormalizationPartly(V, start, end, 
+	      B, ops, para, workspace);
+    }
+}
+void GCGE_StableMultiOrthonormalizationPartly(void **V, GCGE_INT start, GCGE_INT *end, 
+         void *B, GCGE_OPS *ops, GCGE_PARA *para, GCGE_WORKSPACE *workspace)
+{
+    if(start > 0)
+    {
+        GCGE_INT mv_s[2];
+        GCGE_INT mv_e[2];
+        
+        GCGE_DOUBLE value_inner = 1.0;
+        GCGE_DOUBLE norm_tmp = 0.0;
+        GCGE_DOUBLE *subspace_dtmp = workspace->subspace_dtmp;
+        void **V_tmp = workspace->V_tmp;
+        GCGE_INT iter = 0;
+        GCGE_INT i = 0;
+        GCGE_DOUBLE Orth_Tol = para->orth_para->scbgs_reorth_tol;
+        GCGE_INT max_reorth_time = para->orth_para->max_reorth_time;
+        mv_s[0] = 0;
+        mv_e[0] = start;
+        mv_s[1] = start;
+        mv_e[1] = *end;
 
-    GCGE_DOUBLE value_inner = 1.0;
-    GCGE_DOUBLE norm_tmp = 0.0;
-    GCGE_DOUBLE *subspace_dtmp = workspace->subspace_dtmp;
-    void **V_tmp = workspace->V_tmp;
-    GCGE_INT iter = 0;
-    GCGE_INT i = 0;
-    GCGE_DOUBLE Orth_Tol = para->orth_para->scbgs_reorth_tol;
-    GCGE_INT max_reorth_time = para->orth_para->max_reorth_time;
-    mv_s[0] = 0;
-    mv_e[0] = start;
-    mv_s[1] = start;
-    mv_e[1] = *end;
+        //先减去start之前的分量
+        while(value_inner > Orth_Tol)
+        {   
+            iter ++;      
+        
+            GCGE_SubOrthonormalization(V, mv_s, mv_e, B, V_tmp, subspace_dtmp, ops);
+        
+            value_inner = 0.0;
+            for(i=0;i<start*(*end - start);i++)
+            { 
+                norm_tmp = subspace_dtmp[i];
+                value_inner += norm_tmp*norm_tmp;
+            }
+            value_inner = sqrt(value_inner);
+            //GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
+            if(iter >= max_reorth_time)
+                break;
+        }//end while for value_inner
+    }
 
-    //先减去start之前的分量
-    while(value_inner > Orth_Tol)
-    {   
-        iter ++;      
-
-        GCGE_SubOrthonormalization(V, mv_s, mv_e, B, V_tmp, subspace_dtmp, ops);
-
-        value_inner = 0.0;
-        for(i=0;i<start*(*end - start);i++)
-        { 
-            norm_tmp = subspace_dtmp[i];
-            value_inner += norm_tmp*norm_tmp;
-        }
-        value_inner = sqrt(value_inner);
-        //GCGE_Printf("the %d-th orth, inner value=%e\n",iter, value_inner);    
-        if(iter >= max_reorth_time)
-            break;
-    }//end while for value_inner
-
-    //GCGE_Printf("in GCGE_StableMultiOrthonormalization, after GCGE_SubOrthonormalization\n");
     //然后start到end自身做正交化
     GCGE_MultiOrthonormalization(V, start, end, B, ops, para, workspace);
 
@@ -1909,7 +2051,7 @@ void *GCGE_SubOrthonormalization(void **V, GCGE_INT *start, GCGE_INT *end,
     mv_e[0] = end[0];
     mv_s[1] = 0;
     mv_e[1] = length_2;
-    ops->MultiVecInnerProd(V, V_tmp, subspace_dtmp, "ns", mv_s, mv_e, length_1, ops);  
+    ops->MultiVecInnerProd(V, V_tmp, subspace_dtmp, "ns", mv_s, mv_e, length_1, 0, ops);  
 
     //即计算 VV2 = V1 * (V1'*B*V2)
     //计算 V_tmp = V1 * subspace_dtmp
@@ -1917,7 +2059,7 @@ void *GCGE_SubOrthonormalization(void **V, GCGE_INT *start, GCGE_INT *end,
     mv_e[0] = end[0];
     mv_s[1] = 0;
     mv_e[1] = length_2;
-    ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, subspace_dtmp, length_1, NULL, -1, ops);
+    ops->MultiVecLinearComb(V, V_tmp, mv_s, mv_e, subspace_dtmp, length_1, 0, 1.0, 0.0, ops);
     
     //计算 V2 = V2 - V_tmp
     mv_s[0] = 0;
@@ -2023,8 +2165,11 @@ void GCGE_MultiOrthonormalization(void **V, GCGE_INT start, GCGE_INT *end, void 
             }//end while for value_inner
 	    if(value_inner > Orth_Tol)
 	    {
-	       GCGE_Printf("in GCGE_SubOrthonormalization, V1: %d-%d, V2: %d-%d, reorth_count: %d, value_inner: %e\n", 
-		     start, mid-1, mid, *end, orth_para->max_reorth_time, value_inner);
+	        if(para->orth_para->print_orth_zero == 1)
+	        {
+	           GCGE_Printf("in GCGE_SubOrthonormalization, V1: %d-%d, V2: %d-%d, reorth_count: %d, value_inner: %e\n", 
+	                 start, mid-1, mid, *end, orth_para->max_reorth_time, value_inner);
+	        }
 	    }
 	}
         
@@ -2050,18 +2195,18 @@ void GCGE_SubOrthonormalizationSelfBGS(void **V, GCGE_INT start, GCGE_INT *end,
     for(current=start;current<*(end);current++)
     {
         //vec_current = W(:,current)
-        ops->GetVecFromMultiVec(V, current, &vec_current);
-        ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp);
+        ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+        ops->GetVecFromMultiVec(V_tmp, 0, &vec_tmp, ops);
         if(B == NULL)
         {
-            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp);        
+            ops->VecAxpby(1.0, vec_current, 0.0, vec_tmp, ops);        
         }
         else
         {
-            ops->MatDotVec(B, vec_current, vec_tmp);                  
+            ops->MatDotVec(B, vec_current, vec_tmp, ops);                  
         }
-        ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp);
-        ops->RestoreVecForMultiVec(V, current, &vec_current);
+        ops->RestoreVecForMultiVec(V_tmp, 0, &vec_tmp, ops);
+        ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
         // 计算 d_tmp = V^T * vec_tmp
         // 即为 d_tmp[j] = (v_j, vec_current)_B
         mv_s[0] = current;
@@ -2071,25 +2216,25 @@ void GCGE_SubOrthonormalizationSelfBGS(void **V, GCGE_INT start, GCGE_INT *end,
         //d_tmp = vec_tmp*V(:,start:end)
         length = mv_e[0] - mv_s[0];
         //统一做内积
-        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, length, ops);    
+        ops->MultiVecInnerProd(V, V_tmp, d_tmp, "ns", mv_s, mv_e, length, 0, ops);    
         //V[current]的向量范数
         norm_value = sqrt(d_tmp[0]);      
         //下面看看目前处理的向量是否是一个零向量          
         if(norm_value > orth_zero_tol)
         {
             //如果vec_current不为0，就做归一化
-            ops->GetVecFromMultiVec(V, current, &vec_current);
+            ops->GetVecFromMultiVec(V, current, &vec_current, ops);
             //vec_current = 1/norm_value * vec_current
-            ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current);    
-            ops->RestoreVecForMultiVec(V, current, &vec_current);
+            ops->VecAxpby(0.0, vec_current, 1.0/norm_value, vec_current, ops);    
+            ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             for(j=current+1;j<*end;j++)
             {
-                ops->GetVecFromMultiVec(V, current, &vec_current);
-                ops->GetVecFromMultiVec(V, j, &vec_tmp);
+                ops->GetVecFromMultiVec(V, current, &vec_current, ops);
+                ops->GetVecFromMultiVec(V, j, &vec_tmp, ops);
                 //vec_tmp = vec_tmp - d_tmp[j-current]/norm_value *vec_current
-                ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp);
-                ops->RestoreVecForMultiVec(V, j, &vec_tmp);
-                ops->RestoreVecForMultiVec(V, current, &vec_current);
+                ops->VecAxpby(-d_tmp[j-current]/norm_value, vec_current, 1.0, vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, j, &vec_tmp, ops);
+                ops->RestoreVecForMultiVec(V, current, &vec_current, ops);
             }//end for(j=current+1;j<*(end);j++)
         }
         else
@@ -2102,7 +2247,10 @@ void GCGE_SubOrthonormalizationSelfBGS(void **V, GCGE_INT start, GCGE_INT *end,
             mv_e[0] = current + 1; //表示swap中第一个向量组的终止位置
             mv_e[1] = *end; //表示swap中第二个向量组的终止位置
             //向量移动（由用户提供），目的: V(:,current:end-1) = V(:, )
-            ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+            if(current < (*end)-1)
+            {
+                ops->MultiVecSwap(V, V, mv_s, mv_e, ops);
+            }
             (*end)--;
             current--;
             if(para->orth_para->print_orth_zero == 1)

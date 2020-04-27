@@ -29,7 +29,7 @@ GCGE_DOUBLE GCGE_GetTime();
 GCGE_INT    GCGE_GetIntFromCommandLine   (const char *para, GCGE_INT argc, char* argv[]);
 GCGE_DOUBLE GCGE_GetDoubleFromCommandLine(const char *para, GCGE_INT argc, char* argv[]);
 char *GCGE_GetCharFromCommandLine  (const char *para, GCGE_INT argc, char* argv[]);
-void GCGE_Printf(char *fmt, ...);
+void GCGE_Printf(const char *fmt, ...);
 /**
  * @brief 
  *

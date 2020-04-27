@@ -45,14 +45,17 @@ typedef struct GCGE_PARA_ {
 
      //基本参数
     GCGE_INT    if_lobgcg;         //使用gcg或lobgcg,0:gcg,1:lobgcg
-    GCGE_INT    given_init_evec;   //用户是否给定初始特征向量,0:用户不给定,1:用户给定
+    GCGE_INT    num_init_evec;     //用户给定多少个初始特征向量
 
      //检查收敛性用到的参数
     GCGE_DOUBLE ev_tol;            //判定特征值已收敛的阈值
     char*       conv_type;         //判定收敛的方式,A:绝对残差, R:相对残差, O:使用Omega范数
     GCGE_DOUBLE conv_omega_norm;   //判定收敛时, 如果使用Omega范数, 那么Omega范数取多少
-    GCGE_INT    num_unlock;        //nunlock表示未锁定的特征对个数(0<=nunlock<=nev)
+    GCGE_INT    num_unlock;        //num_unlock表示未锁定的特征对个数
+    GCGE_INT    num_conv;          //num_conv表示前nev中已收敛的特征对个数
+    GCGE_INT    num_conv_continuous;//num_conv_continuous表示连续收敛的特征对个数
     //GCGE_INT    unconv_bs;       //本次迭代中需要计算 P W 的个数
+    char*       eval_type;         //要求解特征值的类型, "sa"表示代数最小，"sm"表示按模最小, 默认是"sa"
 
      //正交化用到的参数
     char*       orth_type;          //确定是用Ａ正交还是Ｂ正交,A : A_ORTH, B : B_ORTH
@@ -68,8 +71,9 @@ typedef struct GCGE_PARA_ {
     GCGE_INT    if_use_cg;          //是否使用内置CG
     GCGE_INT    cg_max_it;          //CG最大迭代次数
     GCGE_DOUBLE cg_rate;            //终止CG迭代残差下降比例
-    GCGE_INT    cg_type;			//CG迭代的类型: 1: 普通的形式, 2: 并行计算的形式(向量内积计算放在一起计算)
-    GCGE_INT    if_use_bcg;			//是否使用BCG: 1: BCG, 2: CG
+    GCGE_INT    cg_type;            //CG迭代的类型: 1: 普通的形式, 2: 并行计算的形式(向量内积计算放在一起计算)
+    GCGE_INT    if_use_bcg;         //是否使用BCG: 1: BCG, 2: CG
+    GCGE_INT    use_bcg_continuous; //是否使用要求连续收敛的BCG
 
     //GCGE迭代次数,因为统计的是[X,P,W]都参与计算的迭代次数，所以从-1开始
     GCGE_INT    num_iter;           //初始化为-2
@@ -82,6 +86,11 @@ typedef struct GCGE_PARA_ {
     GCGE_INT    dirichlet_boundary; //是否需要进行Dirichlet边界条件的处理
 
     GCGE_INT    use_mpi_bcast;      //Rayleigh-Ritz中是否需要广播子空间特征向量
+    
+    GCGE_INT    use_shift;          //是否要做位移，初值为0
+    GCGE_INT    if_shift;           //是否要做位移，初值为0
+    GCGE_DOUBLE shift;              //位移的值，初值为0.0
+    char        *partition_type;    //特征值分给各个进程计算时的分配类型，默认为average, 也可设置为maxgap
 
      //判定是否打印的参数
     GCGE_INT    print_eval;         //是否每次GCGE迭代后打印特征值
@@ -91,7 +100,10 @@ typedef struct GCGE_PARA_ {
     GCGE_INT    print_result;       //是否打印最终结果以及每次迭代的收敛个数等
     GCGE_INT    print_matlab;       //如果要用matlab画图，那么就不要打印converged这些
     GCGE_INT    print_part_time;    //是否打印各部分的时间
+    GCGE_INT    print_final_part_time;//是否打印整个程序运行中各部分的时间
     GCGE_INT    print_level;        //用打印层级来控制打印多少东西
+    GCGE_INT    print_conv;         //是否打印收敛信息
+    GCGE_INT    print_split;        //是否打印RR过程中各进程特征值的分配信息
 
     GCGE_STATISTIC_PARA *stat_para;
 
@@ -100,6 +112,7 @@ typedef struct GCGE_PARA_ {
     GCGE_INT    opt_bcast; //是否做广播子空间特征对前只让0号进程计算特征值问题的这个优化, 
                            //默认值为1, 即只让0号进程计算，然后再广播
     GCGE_INT    opt_allgatherv; //是否做特征值分到各进程计算，再做全收集的操作
+    GCGE_INT    min_nev_each_proc; //每个进程至少要算多少个特征值
 }GCGE_PARA;
 
 /**

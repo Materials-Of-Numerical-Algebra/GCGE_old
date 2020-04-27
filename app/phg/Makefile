@@ -8,7 +8,7 @@ FILES   = gcge_app_phg.c
 HEADERS = gcge_app_phg.h
 OBJS    = ${FILES:.c=.o}
 
-INC     = -I$(GCGEINC) -I$(PHGINC) $(PHGFLAGS)
+INC     = -I$(GCGEINC) $(PHGINC) $(PHGFLAGS)
 LIB     = $(LIBGCGEPHG)
 
 ########################################################################

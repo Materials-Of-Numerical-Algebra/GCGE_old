@@ -40,7 +40,10 @@ typedef struct GCGE_SOLVER_ {
 
 
 void GCGE_SOLVER_Create(GCGE_SOLVER **solver);
+GCGE_SOLVER *GCGE_SOLVER_CreateByOps(void *A, void *B, GCGE_INT nev, 
+        GCGE_DOUBLE *eval, void **evec, GCGE_OPS *ops);
 void GCGE_SOLVER_Free(GCGE_SOLVER **solver);
+void GCGE_SOLVER_Free_Some(GCGE_SOLVER **solver);
 void GCGE_SOLVER_Free_All(GCGE_SOLVER **solver);
 
 void GCGE_SOLVER_SetMatA(GCGE_SOLVER *solver, void *A);

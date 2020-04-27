@@ -45,6 +45,7 @@ void SLEPC_VecLocalInnerProd(Vec x, Vec y, double *value);
 
 void GCGE_SLEPC_SetOps(GCGE_OPS *ops);
 void GCGE_SOLVER_SetSLEPCOps(GCGE_SOLVER *solver);
+void GCGE_OPS_CreateSLEPC(GCGE_OPS **ops);
 
 GCGE_SOLVER *GCGE_SLEPC_Solver_Init(Mat A, Mat B, int num_eigenvalues, int argc, char* argv[]);
 GCGE_SOLVER* GCGE_SLEPC_Solver_Init_KSPDefault(Mat A, Mat B, Mat P, int num_eigenvalues, int argc, char* argv[]);

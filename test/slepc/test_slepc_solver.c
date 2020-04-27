@@ -70,7 +70,11 @@ int main(int argc, char* argv[])
     if(strcmp(file_P, "fileinput") != 0)
     {
         SLEPC_ReadMatrixBinary(&P, file_P);
+        //ierr = MatShift(P, -1.0);
     }
+    PetscReal shift = 0.0;
+    ierr = PetscOptionsGetReal(NULL, NULL, "-shift", &shift, NULL);
+    ierr = MatShift(A, shift);
 
     //创建petsc_solver
     GCGE_SOLVER *slepc_solver;
@@ -106,13 +110,14 @@ int main(int argc, char* argv[])
     if(strcmp(file_P, "fileinput") != 0)
     {
         //设定线性求解器
-        SLEPC_LinearSolverCreate(&ksp, A, P);
+        SLEPC_LinearSolverCreate(&ksp, A, A);
         //PetscViewer viewer;
         //ierr = KSPView(ksp, viewer);
         //给slepc_solver设置KSP为线性求解器
         GCGE_SOLVER_SetSLEPCOpsLinearSolver(slepc_solver, ksp);
     }
 
+    
     //对slepc_solver进行setup，检查参数，分配工作空间等
     GCGE_SOLVER_Setup(slepc_solver);
     //求解

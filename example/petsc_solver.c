@@ -39,8 +39,6 @@ int main(int argc, char* argv[])
     PetscErrorCode ierr;
 
     PetscInitialize(&argc,&argv,(char*)0,help);
-    double t1 = 0.0;
-    double t2 = 0.0;
 
     const char *file_A = "../test/data/A_5.petsc.bin";
     const char *file_B = "../test/data/M_5.petsc.bin";

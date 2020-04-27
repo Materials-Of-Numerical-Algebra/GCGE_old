@@ -10,7 +10,7 @@
  *       Revision:  none
  *       Compiler:  gcc
  *
- *         Author:  YOUR NAME (), 
+ *         Author:  liyu@tjufe.edu.cn
  *   Organization:  
  *
  * =====================================================================================
@@ -24,7 +24,7 @@
 /* external head file */
 #include "gcge_app_hypre.h"
 
-void GCGE_HYPRE_VecCreateByVec(void **d_vec, void *s_vec)
+void GCGE_HYPRE_VecCreateByVec(void **d_vec, void *s_vec, GCGE_OPS *ops)
 {
   HYPRE_ParVector  x_hypre      = (HYPRE_ParVector)s_vec;
   MPI_Comm         comm         = hypre_ParVectorComm(x_hypre);
@@ -36,14 +36,14 @@ void GCGE_HYPRE_VecCreateByVec(void **d_vec, void *s_vec)
   hypre_ParVectorSetPartitioningOwner(y_hypre, 0);
   *d_vec = (void *)y_hypre;
 }
-void GCGE_HYPRE_VecCreateByMat(void **vec, void *mat)
+void GCGE_HYPRE_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 {
   HYPRE_ParCSRMatrix A_hypre      = (HYPRE_ParCSRMatrix)mat;
   MPI_Comm           comm         = hypre_ParCSRMatrixComm(A_hypre);
   GCGE_INT           global_size  = hypre_ParCSRMatrixGlobalNumRows(A_hypre);
   GCGE_INT          *partitioning = NULL;
 #ifdef HYPRE_NO_GLOBAL_PARTITION
-  partitioning = hypre_CTAlloc(HYPRE_Int,  2);
+  partitioning = hypre_CTAlloc(HYPRE_Int, 2, HYPRE_MEMORY_HOST);
   hypre_ParCSRMatrixGetLocalRange(A_hypre, partitioning, partitioning+1, partitioning, partitioning+1);
   partitioning[1] += 1;
 #else
@@ -53,39 +53,40 @@ void GCGE_HYPRE_VecCreateByMat(void **vec, void *mat)
   HYPRE_ParVector    y_hypre      = hypre_ParVectorCreate(comm, global_size, partitioning);
   hypre_ParVectorInitialize(y_hypre);
   hypre_ParVectorSetPartitioningOwner(y_hypre, 1);
+  hypre_ParVectorSetConstantValues(y_hypre, 0);
   *vec = (void *)y_hypre;
 }
-void GCGE_HYPRE_VecDestroy(void **vec)
+void GCGE_HYPRE_VecDestroy(void **vec, GCGE_OPS *ops)
 {
    hypre_ParVectorDestroy((HYPRE_ParVector)(*vec));
    *vec = NULL;
 }
 
-void GCGE_HYPRE_VecSetRandomValue(void *vec)
+void GCGE_HYPRE_VecSetRandomValue(void *vec, GCGE_OPS *ops)
 {
    hypre_ParVectorSetRandomValues((HYPRE_ParVector)vec, rand());
 }
-void GCGE_HYPRE_MatDotVec(void *mat, void *x, void *r)
+void GCGE_HYPRE_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
    hypre_ParCSRMatrixMatvec(1.0,  (HYPRE_ParCSRMatrix)mat,  (HYPRE_ParVector)x,  0.0,  (HYPRE_ParVector)r);
 }
-void GCGE_HYPRE_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y)
+void GCGE_HYPRE_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
    hypre_ParVectorScale(b, (HYPRE_ParVector)y);
    hypre_ParVectorAxpy(a, (HYPRE_ParVector)x, (HYPRE_ParVector)y);
 }
-void GCGE_HYPRE_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_HYPRE_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
    HYPRE_ParVectorInnerProd((HYPRE_ParVector)x,  (HYPRE_ParVector)y,  value_ip);
 }
 
-void GCGE_HYPRE_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_HYPRE_LocalVecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
    hypre_Vector *x_local = hypre_ParVectorLocalVector((HYPRE_ParVector)x);
    hypre_Vector *y_local = hypre_ParVectorLocalVector((HYPRE_ParVector)y);
    *value_ip = hypre_SeqVectorInnerProd(x_local, y_local);
 }
-void GCGE_HYPRE_MultiVecPrint(void **x, GCGE_INT n)
+void GCGE_HYPRE_MultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
 {
    char file_name[16];
    GCGE_INT i = 0;
@@ -95,12 +96,143 @@ void GCGE_HYPRE_MultiVecPrint(void **x, GCGE_INT n)
       hypre_ParVectorPrint((HYPRE_ParVector)x[i],  file_name);
    }
 }
+
+
+void GCGE_HYPRE_MultiGridCreate(void ***A_array, void ***B_array, void ***P_array, GCGE_INT *num_levels, void *A, void *B, struct GCGE_OPS_ *ops)
+{
+    /* Create solver */
+    HYPRE_Int level;
+    HYPRE_Solver      amg;
+    HYPRE_BoomerAMGCreate(&amg);
+    /* Set some parameters (See Reference Manual for more parameters) */
+    HYPRE_BoomerAMGSetPrintLevel (amg, 0);         /* print solve info + parameters */
+    HYPRE_BoomerAMGSetInterpType (amg, 0);
+    HYPRE_BoomerAMGSetPMaxElmts  (amg, 0);
+    HYPRE_BoomerAMGSetCoarsenType(amg, 6);
+    HYPRE_BoomerAMGSetMaxLevels  (amg, *num_levels);  /* maximum number of levels */
+
+    /* Create a HYPRE_ParVector by HYPRE_ParCSRMatrix */
+    HYPRE_ParVector    hypre_par_vec;
+    ops->VecCreateByMat((void **)&hypre_par_vec, A, ops);
+
+    /* Now setup AMG */
+    HYPRE_BoomerAMGSetup(amg, (HYPRE_ParCSRMatrix)(A), hypre_par_vec, hypre_par_vec);
+    ops->VecDestroy((void **)&hypre_par_vec, ops);
+
+    hypre_ParAMGData* amg_data = (hypre_ParAMGData*) amg;
+
+    /* Get num_levels */
+    *num_levels = hypre_ParAMGDataNumLevels(amg_data);
+    /* Create HYPRE Matrix */
+    HYPRE_ParCSRMatrix *hypre_A_array, *hypre_B_array, *hypre_P_array;
+    hypre_A_array = malloc(sizeof(HYPRE_ParCSRMatrix)*(*num_levels));
+    hypre_B_array = malloc(sizeof(HYPRE_ParCSRMatrix)*(*num_levels));
+    hypre_P_array = malloc(sizeof(HYPRE_ParCSRMatrix)*(*num_levels-1));
+
+    hypre_ParCSRMatrix **hypre_mat;
+    hypre_mat = hypre_ParAMGDataAArray(amg_data);
+    hypre_A_array[0] = hypre_mat[0];
+    for (level = 1; level < *num_levels; ++level)
+    {
+       hypre_A_array[level] = hypre_mat[level];
+       GCGE_Printf("A:  %3d       %10d, %10d\n", level, hypre_mat[level]->global_num_rows, hypre_mat[level]->global_num_cols);
+       /* 这样赋值之后，当amg Destroy的时候，不会将A_array释放 */
+       hypre_mat[level] = NULL;
+    }
+    hypre_mat = hypre_ParAMGDataPArray(amg_data);
+    for (level = 0; level < *num_levels-1; ++level)
+    {
+       hypre_P_array[level] = hypre_mat[level];
+       GCGE_Printf("P:  %3d       %10d, %10d\n", level, hypre_mat[level]->global_num_rows, hypre_mat[level]->global_num_cols);
+       /* 这样赋值之后，当amg Destroy的时候，不会将P_array释放 */
+       hypre_mat[level] = NULL;
+    }
+
+    /* line 2495 in src/parcsr_ls/par_amg_setup.c 
+     * HYPRE在这里有相当多的情况，这里只取了一个对简单的情况 
+     * 
+     * hypre_ParAMGDataBlockMode(amg_data) 需要是 0 即, 不是block
+     * 这个与grid_relax_type有关 */
+    HYPRE_Int       num_procs;
+    HYPRE_Int keepTranspose = hypre_ParAMGDataKeepTranspose(amg_data);
+    hypre_MPI_Comm_size( hypre_ParCSRMatrixComm((HYPRE_ParCSRMatrix)(A)), &num_procs);
+    /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
+    hypre_ParCSRMatrix  *B_H;
+    hypre_B_array[0] = (HYPRE_ParCSRMatrix)(B);
+    for ( level = 1; level < (*num_levels); ++level )
+    {
+       /* Compute standard Galerkin coarse-grid product */
+       if (hypre_ParAMGDataModularizedMatMat(amg_data))
+       {
+	  B_H = hypre_ParCSRMatrixRAPKT(hypre_P_array[level-1], hypre_B_array[level-1],
+		hypre_P_array[level-1], keepTranspose);
+       }
+       else
+       {
+	  hypre_BoomerAMGBuildCoarseOperatorKT(hypre_P_array[level-1], hypre_B_array[level-1] ,
+		hypre_P_array[level-1], keepTranspose, &B_H);
+       }
+       /* dropping in B_H */
+       hypre_ParCSRMatrixDropSmallEntries(B_H, hypre_ParAMGDataADropTol(amg_data),
+	     hypre_ParAMGDataADropType(amg_data));
+       /* if CommPkg for B_H was not built */
+       //MPI_Comm  comm = hypre_ParCSRMatrixComm((HYPRE_ParCSRMatrix)(A));
+       if (num_procs > 1 && hypre_ParCSRMatrixCommPkg(B_H) == NULL)
+       {
+	  hypre_MatvecCommPkgCreate(B_H);
+       }
+       if (hypre_ParAMGDataADropTol(amg_data) <= 0.0)
+       {
+	  hypre_ParCSRMatrixSetNumNonzeros(B_H);
+	  hypre_ParCSRMatrixSetDNumNonzeros(B_H);
+       }
+       hypre_B_array[level] = B_H;
+    }
+    /* HYPRE_BoomerAMGDestroy(amg); 对于释放amg时，对AArray和PArray的操作 */
+    /* if (hypre_ParAMGDataAArray(amg_data)[i])
+       hypre_ParCSRMatrixDestroy(hypre_ParAMGDataAArray(amg_data)[i]);
+
+       if (hypre_ParAMGDataPArray(amg_data)[i-1])
+       hypre_ParCSRMatrixDestroy(hypre_ParAMGDataPArray(amg_data)[i-1]); */    
+    HYPRE_BoomerAMGDestroy(amg);
+    (*A_array) = (void**)hypre_A_array;
+    (*B_array) = (void**)hypre_B_array;
+    (*P_array) = (void**)hypre_P_array;
+}
+
+
+void GCGE_HYPRE_MultiGridDestroy(void ***A_array, void ***B_array, void ***P_array, GCGE_INT *num_levels, struct GCGE_OPS_ *ops)
+{
+    HYPRE_ParCSRMatrix *hypre_A_array, *hypre_B_array, *hypre_P_array;
+    hypre_A_array = (HYPRE_ParCSRMatrix *)(*A_array);
+    hypre_B_array = (HYPRE_ParCSRMatrix *)(*B_array);
+    hypre_P_array = (HYPRE_ParCSRMatrix *)(*P_array);
+
+    int level; 
+    for ( level = 1; level < (*num_levels); ++level )
+    {
+       hypre_ParCSRMatrixDestroy(hypre_A_array[level]);
+       hypre_ParCSRMatrixDestroy(hypre_B_array[level]);
+    }
+    for ( level = 0; level < (*num_levels) - 1; ++level )
+    {
+       hypre_ParCSRMatrixDestroy(hypre_P_array[level]);
+    }
+
+    free(hypre_A_array);
+    free(hypre_B_array);
+    free(hypre_P_array);
+    (*A_array) = NULL;
+    (*B_array) = NULL;
+    (*P_array) = NULL;
+}
+
 void GCGE_HYPRE_SetOps(GCGE_OPS *ops)
 {
     /* either-or */
     ops->VecCreateByVec     = GCGE_HYPRE_VecCreateByVec;
     ops->VecCreateByMat     = GCGE_HYPRE_VecCreateByMat;
-    ops->VecDestroy           = GCGE_HYPRE_VecDestroy;
+    ops->VecDestroy         = GCGE_HYPRE_VecDestroy;
 
     ops->VecSetRandomValue = GCGE_HYPRE_VecSetRandomValue;
     ops->MatDotVec         = GCGE_HYPRE_MatDotVec;
@@ -109,6 +241,9 @@ void GCGE_HYPRE_SetOps(GCGE_OPS *ops)
     ops->VecLocalInnerProd = GCGE_HYPRE_LocalVecInnerProd;
 //    ops->VecLocalInnerProd = GCGE_HYPRE_VecInnerProd;
     ops->MultiVecPrint     = GCGE_HYPRE_MultiVecPrint;
+
+    ops->MultiGridCreate   = GCGE_HYPRE_MultiGridCreate;
+    ops->MultiGridDestroy  = GCGE_HYPRE_MultiGridDestroy;
 }
 
 void GCGE_SOLVER_SetHYPREOps(GCGE_SOLVER *solver)
@@ -132,12 +267,12 @@ GCGE_SOLVER* GCGE_HYPRE_Solver_Init(HYPRE_ParCSRMatrix A, HYPRE_ParCSRMatrix B, 
     double *eval = (double *)calloc(nev, sizeof(double)); 
     hypre_solver->eval = eval;
 
-    HYPRE_ParVector *evec = hypre_CTAlloc(HYPRE_ParVector,  nev);
+    HYPRE_ParVector *evec = hypre_CTAlloc(HYPRE_ParVector, nev, HYPRE_MEMORY_HOST);
     int i = 0; 
     //这里为什么不一次性生成 CSR_MultiVecCreateByMat?
     for(i=0; i<nev; i++)
     {
-        GCGE_HYPRE_VecCreateByMat((void **)evec+i, (void *)A);
+        GCGE_HYPRE_VecCreateByMat((void **)evec+i, (void *)A, hypre_solver->ops);
     }
     hypre_solver->evec = (void**)evec;
 

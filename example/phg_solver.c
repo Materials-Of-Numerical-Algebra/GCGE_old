@@ -219,17 +219,16 @@ bc_map(int bctype)
 int
 main(int argc, char *argv[])
 {
-    static char *fn = "../test/data/cube4.dat";
+    static char *fn = "./cube4.dat";
     static INT mem_max = 3000;
-    size_t mem, mem_peak;
     int i, j, k, n, nit;
-    INT nev = 20;
-    INT pre_refines = 8;
+    INT nev = 10;
+    INT pre_refines = 3;
     GRID *g;
     DOF **u_h, *error;
     MAP *map;
     MAT *A, *B;
-    FLOAT tol = 1e-3, PEoo, thres;
+    FLOAT tol = 1e-6;
     FLOAT *evals;
     double wtime;
 
@@ -338,14 +337,14 @@ while( TRUE ){
        GCGE_SOLVER *phg_solver = GCGE_PHG_Solver_Init(A, B, nev, argc, argv);   
        //   GCGE_SOLVER_SetEigenvectors(phg_solver, (void **)evec);
        //一些参数的设置
-       phg_solver->para->ev_tol = 1e-8;
-       phg_solver->para->ev_max_it = 100;
+       phg_solver->para->ev_tol = 1e-5;
+       phg_solver->para->ev_max_it = 20;
        phg_solver->para->dirichlet_boundary = 0;
        //求解特征值问题
        phg_solver->para->print_eval = 0;
        phg_solver->para->print_part_time = 0;
-       phg_solver->para->cg_max_it = 30;
-       phg_solver->para->given_init_evec = nev;
+       phg_solver->para->cg_max_it = 100;
+       //phg_solver->para->given_init_evec = nev;
        /*
        phg_solver->para->multi_tol_for_lock = 1e-3;
        phg_solver->para->opt_rr_eig_partly = 0;
@@ -377,6 +376,9 @@ while( TRUE ){
     if (flag == 1)
        break;
 #if 0
+
+    size_t mem, mem_peak;
+    FLOAT PEoo, thres;
     for (i = 0; i < nev; i++) {
        FLOAT err_tau;
        nit = modes[i][0] * modes[i][0] +
@@ -414,7 +416,7 @@ while( TRUE ){
     phgMatDestroy(&A);
     phgMapDestroy(&map);
 
-    if( DofGetDataCountGlobal(u_h[0])>1e3 )
+    if( DofGetDataCountGlobal(u_h[0])>1e8 )
        flag = 1;
 }
 #if 0

@@ -92,7 +92,7 @@ char* GCGE_GetCharFromCommandLine(const char *para, GCGE_INT argc, char* argv[])
 }
 
 
-void GCGE_Printf(char *fmt, ...)
+void GCGE_Printf(const char *fmt, ...)
 {
 #if GCGE_USE_MPI
     GCGE_INT myrank = -1;

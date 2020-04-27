@@ -140,7 +140,6 @@ help:
 	@echo "make {libs|clean|cleanlibs|help}" 
 	@echo " "
 	@echo "   libs         - create all libraries"
-	@echo "   libgcge      - create GCGE library"
 	@echo " "
 	@echo "   test-csr     - test library GCGE"
 	@echo "   test-hypre   - test library GCGE HYPRE"

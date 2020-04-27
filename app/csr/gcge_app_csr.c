@@ -29,36 +29,36 @@ void GCGE_CSR_SetDirichletBoundary(void**Vecs, GCGE_INT nev, void* A, void* B)
   CSR_SetDirichletBoundary((CSR_VEC **)Vecs, (int)nev, (CSR_MAT*)A, (CSR_MAT*)B);
 }
 
-void GCGE_CSR_VecCreateByVec(void **d_vec, void *s_vec)
+void GCGE_CSR_VecCreateByVec(void **d_vec, void *s_vec, GCGE_OPS *ops)
 {
    CSR_VecCreateByVec((CSR_VEC**)d_vec, (CSR_VEC*)s_vec);
 }
-void GCGE_CSR_VecCreateByMat(void **vec, void *mat)
+void GCGE_CSR_VecCreateByMat(void **vec, void *mat, GCGE_OPS *ops)
 {
    CSR_VecCreateByMat((CSR_VEC**)vec, (CSR_MAT*)mat);
 }
-void GCGE_CSR_VecDestroy(void **vec)
+void GCGE_CSR_VecDestroy(void **vec, GCGE_OPS *ops)
 {
    CSR_VecDestroy((CSR_VEC**)vec);
 }
 
-void GCGE_CSR_VecSetRandomValue(void *vec)
+void GCGE_CSR_VecSetRandomValue(void *vec, GCGE_OPS *ops)
 {
    CSR_VecSetRandomValue((CSR_VEC*)vec);
 }
-void GCGE_CSR_MatDotVec(void *mat, void *x, void *r)
+void GCGE_CSR_MatDotVec(void *mat, void *x, void *r, GCGE_OPS *ops)
 {
     CSR_MatDotVec((CSR_MAT*)mat, (CSR_VEC*)x, (CSR_VEC*)r);
 }
-void GCGE_CSR_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y)
+void GCGE_CSR_VecAxpby(GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, GCGE_OPS *ops)
 {
    CSR_VecAxpby(a, (CSR_VEC*)x, b, (CSR_VEC*)y);
 }
-void GCGE_CSR_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip)
+void GCGE_CSR_VecInnerProd(void *x, void *y, GCGE_DOUBLE *value_ip, GCGE_OPS *ops)
 {
    CSR_VecInnerProd((CSR_VEC*)x, (CSR_VEC*)y, value_ip);
 }
-void GCGE_CSR_MultiVecPrint(void **x, GCGE_INT n)
+void GCGE_CSR_MultiVecPrint(void **x, GCGE_INT n, GCGE_OPS *ops)
 {
    GCGE_INT i = 0;
    for(i=0; i<n; i++)
@@ -72,7 +72,7 @@ void GCGE_CSR_SetOps(GCGE_OPS *ops)
     /* either-or */
     ops->VecCreateByVec     = GCGE_CSR_VecCreateByVec;
     ops->VecCreateByMat     = GCGE_CSR_VecCreateByMat;
-    ops->VecDestroy           = GCGE_CSR_VecDestroy;
+    ops->VecDestroy         = GCGE_CSR_VecDestroy;
 
     ops->VecSetRandomValue = GCGE_CSR_VecSetRandomValue;
     ops->MatDotVec         = GCGE_CSR_MatDotVec;

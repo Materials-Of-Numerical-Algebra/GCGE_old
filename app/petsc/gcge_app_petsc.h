@@ -47,4 +47,8 @@ GCGE_SOLVER* GCGE_PETSC_Solver_Init_KSPDefault(Mat A, Mat B, Mat P, int num_eige
 GCGE_SOLVER* GCGE_PETSC_Solver_Init_KSPGivenByUser(Mat A, Mat B, KSP ksp, int num_eigenvalues, int argc, char* argv[]);
 //设置ksp为线性解法器
 void GCGE_SOLVER_SetPETSCOpsLinearSolver(GCGE_SOLVER *solver, KSP ksp);
+
+void GCGE_SOLVER_PETSC_Create(GCGE_SOLVER **petsc_solver);
+void GCGE_SOLVER_PETSC_Setup(GCGE_SOLVER *petsc_solver, void *A, void *B, void *P);
+void GCGE_SOLVER_PETSC_Free(GCGE_SOLVER **petsc_solver);
 #endif

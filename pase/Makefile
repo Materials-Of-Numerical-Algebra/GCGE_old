@@ -1,53 +1,54 @@
-########################################################################
+###########################################################
+
 GCGEHOME = ..
+PASEHOME = .
 include $(GCGEHOME)/config/make.inc
-.PHONY: all lib clean help
+.PHONY: all libs clean help test-csr test-hypre test-petsc test-phg test-slepc
 
-########################################################################
-FILES   = pase_matvec.c pase_mg.c pase_ops.c pase_solver.c
-HEADERS = pase_matvec.h pase_mg.h pase_ops.h pase_solver.h
-OBJS    = ${FILES:.c=.o}
+###########################################################
 
-INC     = 
-LIB     = $(LIBPASE)
+all: 	help
 
-########################################################################
-all:    help
+install_libs = libgcge_pase
 
-lib:    $(LIB)
+libs: $(install_libs)
+	@echo "======================================="
+	@echo "Build $(strip $(subst -, , $(install_libs))) complete."
+	@echo "======================================="
+	
+libgcge_pase:
+	@echo "======================================="
+	@echo "        Making library GCGE APP        "
+	@cd $(PASEHOME)/src;      $(MAKE) lib
+
+test-csr: libs
+	@cd $(PASEHOME)/example;  $(MAKE) run-csr-solver
+
+test-slepc: libs
+	@cd $(PASEHOME)/example;  $(MAKE) run-slepc-solver
 
 clean:
-	@$(RM) $(RMFLAGS) *.o
+	@cd $(PASEHOME)/src;      make clean; rm -rf *~
+	@cd $(PASEHOME)/example;  make clean; rm -rf *~
+
+cleanall: clean
+	@cd $(PASEHOME)/lib;      $(RM) $(RMFLAGS) *.a
+	@cd $(PASEHOME)/include;  $(RM) $(RMFLAGS) *.h
 
 help:
-	@echo "make {lib|clean|help}"
 	@echo " "
-	@echo "   lib   - create library $(LIB)"
+	@echo "make {libs|clean|cleanlibs|help}" 
 	@echo " "
-	@echo "   clean - remove temporary files"
-	@echo "   help  - print this message"
+	@echo "   libs         - create all libraries"
 	@echo " "
-
-########################################################################
-.f.o:
-	@echo '$(F77) -c $(FFLAGS) ' $*.f
-	@$(F77) $(FFLAGS) -c $*.f -o $*.o $(INC)
-.c.o:
-	@echo '$(CC)  -c $(CFLAGS) ' $*.c
-	@$(CC)  $(CFLAGS) -c $*.c -o $*.o $(INC)
-.cpp.o:
-	@echo '$(CPP)  -c $(CPPFLAGS) ' $*.cpp
-	@$(CPP)  $(CPPFLAGS) -c $*.cpp -o $*.o $(INC)
-
-########################################################################
-$(LIB): $(OBJS)
-	@echo ''
-	@echo 'Creating library $(LIB)'
-	@echo 'Creating header files $(GCGEINC)/{$(HEADERS)}'
-	@$(ARCH) $(ARCHFLAGS) $(LIB) $(OBJS)
-	@$(RANLIB) $(LIB)
-#	@$(CP) -fR pase_*.h $(GCGEINC)
-#	@$(CP) -fR pase.h   $(GCGEINC)
-
-$(OBJS): $(HEADERS)
-########################################################################
+	@echo "   test-csr     - test library GCGE"
+	@echo "   test-hypre   - test library GCGE HYPRE"
+	@echo "   test-petsc   - test library GCGE PETSC"
+	@echo "   test-phg     - test library GCGE PHG"
+	@echo "   test-slepc   - test library GCGE SLPEC"
+	@echo " "
+	@echo "   clean        - remove temporary files except libraries"
+	@echo "   cleanall     - remove libraries"
+	@echo " "
+	@echo "   help         - print this information"
+	@echo " "

@@ -56,7 +56,7 @@ int main(int argc, char* argv[])
    /*----------------------- Laplace精确特征值 ---------------------*/
    /* Preliminaries: want at least one processor per row */
    int n = 10;
-   int nev = 10;
+   int nev = 18;
    if (n*n < num_procs) n = sqrt(num_procs) + 1;
    int N = n*n; /* global number of rows */
    double h = 1.0/(n+1); /* mesh size*/
@@ -65,7 +65,7 @@ int main(int argc, char* argv[])
    HYPRE_Real *exact_eigenvalues;
    {
       int tmp_nn = (int) sqrt(nev) + 3;
-      exact_eigenvalues = hypre_CTAlloc (HYPRE_Real, tmp_nn*tmp_nn);
+      exact_eigenvalues = hypre_CTAlloc (HYPRE_Real, tmp_nn*tmp_nn, HYPRE_MEMORY_HOST);
       for (i = 0; i < tmp_nn; ++i) 
       {
 	 for (k = 0; k < tmp_nn; ++k) 
@@ -203,7 +203,7 @@ int main(int argc, char* argv[])
    GCGE_SOLVER_Free_All(&hypre_solver);
 
    //释放矩阵空间
-   hypre_TFree(exact_eigenvalues);
+   hypre_TFree(exact_eigenvalues, HYPRE_MEMORY_HOST);
    HYPRE_IJMatrixDestroy(A);
    HYPRE_IJMatrixDestroy(B);
 

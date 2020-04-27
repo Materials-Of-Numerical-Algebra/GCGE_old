@@ -501,3 +501,301 @@ TODO:
 TODO
 1. 子空间矩阵计算特征值时，往前考虑重数，但此时矩阵没有把重数的部分构造出来，而是在判断重数之后多构造的。
    应该在构造矩阵前先重新判断当前的重数，即把rr_eigen里面判断重数的部分挪到构造矩阵之前
+
+2018.12.15 zhangning
+1. 修改了gcge_ops.h中MultiVecLinearComb的参数, 进而修改了相关的 gcge_ops.c gcge_xpw.c gcge_orthogonal.c中的调用格式
+   去掉了 void* dmat, GCGE_INT lddmat, 添加了 GCGE_INT if_Vec, GCGE_DOUBLE alpha, GCGE_DOUBLE beta
+2. 修改了gcge_ops.h中MultiVecInnerProd的参数，进而修改了相关的 gcge_ops.c, gcge_rayleighritz.c gcge_orthogonal.c中的调用格式
+   添加了 GCGE_INT if_Vec
+
+2018.12.16 zhangning
+1. pase文件夹中，修改了pase_ops.c pase_ops.h pase_matvec.c pase_matvec.h
+2. test/pase文件夹中，添加了test_ops.c，测试了CSR格式下的pase_ops，均测试通过
+3. 在make.inc(3个文件)中添加了 GCGEPASEINC与LIBGCGEPASE
+
+2018.12.17 zhangning
+1. 测试时发现GCGE_DefaultMultiVecAxpbyColumn的一个bug，之前因为没有用到这个函数，所以没检查到错误
+   错误原因在于对BV向量组结构使用了x[1]这种操作
+   in gcge_ops.c
+2. test/pase文件夹中，添加了test_slepc_pase_ops.c, 其测试是在example中进行的
+
+2018.12.18 zhangning
+1. GCGE_OPS 结构体的函数中都添加了 GCGE_OPS *ops这个形式参数，用于PASE接口使用
+2. 修改了GCGE/Makefile，添加了pase的内容
+
+2018.12.19 zhangning
+1. pase接口一个特征值时可以使用, 需要对多个的情形再调试
+2. 修改了pase_ops.c中一些错误的内容，修改了test_ops.c,另附matlab测试程序，使测试更方便
+3. 修改了DenseMatEigenSolver的调用方式，简化了参数
+
+2018.12.19 liyu
+1. 这pase文件夹下对pase_convert.c进行测试，临时将测试函数放在pase文件夹下
+2. 测试了从PETSC矩阵到HYPRE矩阵以及AMG生成一系列HYPRE矩阵, 再转化为PETSC矩阵，然后生成对应一系列向量
+   并且做了完备的矩阵向量测试，以待后期使用
+
+2018.12.24 zhangning
+1. 修改了GCGE_BCG的参数，使得不依赖于GCGE_PARA，可以在pase中调用
+2. 目前 test/pase/test_pase_1.c 是一个简单的二网格pase测试例子，可以运行，
+没有内存错误，但是结果有问题，使用的是CSR格式
+   1）复合矩阵构造没问题，对确定的限制矩阵R，近似特征向量x，粗细矩阵Af,Ac,与matlab对比过，构造的矩阵
+      [Ac,        R*Af*x;
+       x'*Af'*R', x'*Af*x]
+      是相同的
+   2）对上述复合矩阵，用GCGE-PASE求解的特征向量是没问题的
+   3）但这样使用GCGE求解后，残差反而比初始的x变大
+
+2018.12.25 liyu
+1. 需要在OPS中填加矩阵转置乘以向量的操作.
+2. MultiGrid结构中[ABP]_array都是重新生成的Mat型数组, 应该与传入的A和B相同
+3. 还未测试MultiGrid
+
+2018.12.25 zhangning
+1. GCGE_OPS中添加了MatTransposeDotVec
+                   MatTransposeDotMultiVec
+   修改了 gcge_app_slepc.c gcge_app_petsc.c gcge_ops.c gcge_ops.h
+
+2018.12.27 zhangning
+1. 修改了test_mg.c pase_mg.c
+   两层的Multigrid测试没有问题
+2. 修改了test_mg.c pase_mg.c pase_mg.h
+   三层的Multigrid测试没有问题
+
+TODO
+怎么确认分层是对的？经测试，A_array[0]与A_array[1]的特征值相差很多
+test_mg.c中有打印矩阵的函数，打印后可以直接粘贴到matlab中读入
+
+2018.12.30 zhangning
+1. pase_amg.c.h 块AMG，在test_amg.c测试通过
+
+2019.01.01 zhangning
+1. gcge_cg.c 修改了 lock 相关的内容
+2. pase_mg.c 修改了 FromItoJ 的内容
+3. pase_solver.c 可以正确运行
+4. 修改了测试文件 test_amg.c test_pase.c
+
+2019.01.03 zhangning
+1. 修改了pase_solver.h, pase_param.h中的结构，重写了pase_solver.c以及pase_param.c,可以运行通过，结果正确
+2. 相应的修改了pase_mg.c pase_mg.h pase_amg.h以及测试文件test_pase.c
+TODO
+3. 用一个进程，set_up时间占比非常高，用8个进程，set_up时间就非常少，目前不清楚原因
+4. 迭代次数比原有的多, 要对比效率
+
+2019.01.08 zhangning
+1. hhxie修改了gcge_cg.c
+2. 修改了pase中的一些参数
+
+2019.01.10 zhangning
+1. 修改了组装aux矩阵，对已经收敛并且lock住的部分不再重复计算
+   并为此修改了BMG和BCG中对于几个临时向量组空间的使用
+
+2019.01.21 liyu
+1. 加入PHG矩阵转化为HYPRE矩阵
+2. 加入PHG矩阵转化为PETSC矩阵, 测试未成功，原因是PHG和PETSC有对相同MPI函数的重新定义，也可能是版本问题
+   但是mg结构是直接用PETSC矩阵的，所以，如果需要用PHG做原始矩阵的话，还需更改MultiGridCreate
+----------------------------------------------
+   不确定PHG和PETSC到底是否可以混合一起用
+----------------------------------------------
+3. 总结
+   1. AMG做粗化得到的粗矩阵,  在每个进程上的存储的行数并不要求,  也就是说,  有些进程可以包含这个并行矩阵的0行.  
+      那么,  并行矩阵乘以向量是如何进行的呢?
+   2. 再查看矩阵乘以向量的源码发现,  它并不直接调用MPI的程序,  
+      它封装了MPI的SendRev,  使得适用于某个进程无需通讯的问题. 这又是如何做到的呢?
+   3. 每个矩阵都有一个成员CommPkg,  其实就是包含通讯域的一个结构体,  以及与SendRev相关的信息.
+   
+   1. src/parcsr_ls/par_amg_setup.c
+   2. src/parcsr_mv/par_csr_matvec.c
+   3. src/parcsr_mv/par_csr_communication.h
+
+2019.01.21 zhangning
+添加了求解模最小特征值的功能
+1. gcge_para.c.h中添加了eval_type参数，如果是sa则求值最小，sm则求模最小
+2. 修改了gcge_rayleighritz.c.h以处理模最小的情况
+3. 修改了gcge_workspace.c中subspace_evec的空间大小以适应模最小的情况
+4. 修改了test_slepc_solver.c，添加了位移的处理方法
+5. 修改了gcge_app_slepc.c添加了minres的配置方法
+
+2019.01.27 zhangning
+pase_solver中添加了对aux_sol的排序，并将cg_double_tmp大小修改为max_nev*max_nev
+1. 修改了pase_solver.c pase_solver.h
+
+2019.12.25 liyu
+1. 将pase与gcge剥离，只放在gcge的主文件下，需要进入之后单独make libs进行编译
+2. pase_ops.c中，修改425行的关于线性组合的小bug
+3. 整理pase中的.h文件
+4. 可以考虑将pase_mg和pase_amg并入gcge中，并且在gcge_ops中加入新的操作，比如ItoJ, CreateMGMatrixes
+5. 去掉PASE_MULTIGRID_Create形式参数中的pase_ops
+
+2019.12.27 liyu
+1. 修改gcge_eigsol.c 760行 判断收敛是当idx==0时，不能访问idx-1
+2. 修改pase_amg.c中，BCG的调用，都改为调用BCG_Continuous
+3. 未修改pase_mg.c中，FromItoJ, 这里用了为做初始化的MULTIGRID的结构成员，而且if else也非常奇怪
+
+2019.12.30 liyu
+1. 修改gcge_app_slepc.c中，SetRandomValue, 使得每次调用这个操作时，会有不同的随机数生成
+   相应的gcge_app_petsc.c中也做相应修改
+2. 修改gcge_app_hypre.c中，hypre 15中，对于hypre_CTAlloc增加第三个形式变量，添加宏 HYPRE_MEMORY_HOST
+3. BCG和BMG的收敛准则比较奇怪，首先，如果BCG的初值就是精确值，则会出错。BMG的rate不要太小
+4. PASE_EigenSolver对于一些边角情况没有任何处理，比如，多层网格情形下，粗矩阵的阶数可能小于特征值数
+5. convert部分还没有完全检测完成
+
+2020.01.01 liyu
+1. 在pase/test中的get_mat_phg.c可以直接调用phg得到刚度矩阵A和质量矩阵B
+2. 在pase/test中的test_mg_phg.c测试利用CreateMatrixPHG生成phg的矩阵，并将之转化为PETSC矩阵，这里利用void型进行操作，不会让petsc和phg同框出现
+3. 在pase/example中pase_slepc_solver.c没有写好，有问题
+4. 在pase/src中pase_solver.c，关于aux sol sort部分有问题，主要是做内积时multigrid的成员double_tmp不够长
+5. 多个软件包混用的时候，会有一个内存错误，查不出原因，不过不影响结果
+6. phg关于处理边界条件和map的函数有内存错误
+
+2020.01.03 liyu
+1. 在pase/src/pase_mg.c中，利用petsc自带的amg去生成分层矩阵 (以做测试 pase/test/test_mg.c)
+   A[0] is the refinest matrix and A[1] == P[0]^T A[0] P[0]; 
+   在petsc的amg中,  nrows of A[0] / nrows of A[1] ，这个比率显著大于hypre's 
+2. 总结关于PCGAMG的设置函数, 具体参看
+https://www.mcs.anl.gov/petsc/petsc-current/docs/manualpages/PC/index.html
+a. Set maximum number of equations on coarsest grid.
+   PetscErrorCode PCGAMGSetCoarseEqLim(PC pc,  PetscInt n)
+b. Relative threshold to use for dropping edges in aggregation graph Synopsis
+   PetscErrorCode PCGAMGSetThreshold(PC pc,  PetscReal v[],  PetscInt n)
+c. allow a parallel coarse grid solver
+   PetscErrorCode PCGAMGSetUseParallelCoarseGridSolve(PC pc,  PetscBool flg)
+d. Set number of equations to aim for per process on the coarse grids via processor reduction.
+   PetscErrorCode  PCGAMGSetProcEqLim(PC pc,  PetscInt n)
+e. Repartition the degrees of freedom across the processors on the coarser grids
+   PetscErrorCode PCGAMGSetRepartition(PC pc,  PetscBool n)
+
+2020.01.14 zhangning
+1. 在pase/test中添加了test_mg_phg_petsc.c与test_mg_phg_petsc_ksp.c，分别用BMG和KSP求解，同时在Makefile添加相应的编译路径
+2. pase/test/get_mat_phg.c与test_mg_phg.c没有修改，但git status时显示modified
+3. pase/src/pase_solver.c第300行改为size_dtmp = max_nev * step_size;
+4. 在src/gcge_ops.h中添加MultiLinearSolver
+5. 在src/gcge_ops.c初始化时添加(*ops)->MultiLinearSolver = NULL;
+6. 在src/gcge_xpw.c中GetW时添加if(ops->MultiLinearSolver)多向量LinearSolver调用方式
+7. 在pase/src/pase_mg.c PASE_MULTIGRID_Create中添加对最粗层层号的判断，避免coarsest_level超过最粗层
+
+2020.02.23 zhangning liyu
+1. src/gcge_cg.c中，GCGE_BCG函数中:
+   1) 在while循环前加入是否收敛的判定
+   2) while循环的最后，判定是否收敛时，相对误差由除变乘，另外增加绝对误差的判定
+   3) BCG对应的rate还是有一点问题, 现在修改了收敛准则，减小最大迭代次数，可以运行，但迭代次数大时仍有问题，需进一步测试
+2. 利用petsc的GAMG进行各种设定时, 一定用 PCGAMGSet...的函数进行.
+
+2020.03.10 zhangning liyu
+下述讨论可能出现的问题
+1. 多算的特征值个数,  workspace->max_dim_x = nev+20
+2. 收敛准则需要同时判断绝对残差的大小 现在设为1e-1
+3. 新生成的向量, 如果长度接近于0, 则去掉这个向量, 这里存在一个参数, 不能太小
+4. 当利用phg模块时, 传递命令行参数 需要 ./a.out -oem_options "-your_option 3"
+
+2020.03.14 liyu
+1. 利用phg并且需要输入命令行参数时, 对于需要输入gcge的命令行参数时, 需要利用
+-oem_options "-gcge_nev 10 -gcge_tol 1e-5"
+并且在main.c中需要加入一段代码, 将"..."看空格分开, 并生成一个argc_new argv_new
+{
+    char *str, c;
+    int i, k, flag;
+    int argc_new = 0;
+    char **argv_new = malloc(16*sizeof(char*));
+    for (i=0; i < 16; ++i)
+    {
+       argv_new[i] = malloc(64*sizeof(char));
+    }
+    i = 0;
+    while (i < argc)
+    {
+       if(0 == strcmp(argv[i], "-oem_options"))
+       {
+	  ++i;
+	  str = argv[i];
+	  argc_new = -1;
+	  flag = 0;
+	  for(i=0;(c=str[i])!='\0';i++)
+	  {
+	     /* get the start of word */
+	     if(c==' ')
+	     {
+		flag = 0;
+	     }
+	     else
+	     {
+		if (flag==0)
+		{
+		   flag = 1;
+		   ++argc_new;
+		   k = 0;
+		}
+		argv_new[argc_new][k++] = c;
+		argv_new[argc_new][k] = '\0';
+	     }
+	  }
+	  break;
+       }
+       else 
+       {
+	  ++i;
+       }
+    }
+    argc_new += 1;
+    printf("argc_new = %d\n", argc_new);
+    for (i = 0; i < argc_new; ++i)
+    {
+       printf("%s ", argv_new[i]);
+    }
+    printf("\n");
+    GCGE_INT error = GCGE_PARA_SetFromCommandLine(slepc_solver->para, argc_new, argv_new);
+    for (i=0; i < 16; ++i)
+    {
+       free(argv_new[i]);
+    }
+    free(argv_new);
+}
+
+2. 利用phg并且需要输入命令行参数时, 对于需要输入slepc的命令行参数时, 需要利用
+-oem_options -eps_nev 10 -oem_options -eps_tol 1e-5
+需要一个个输入
+
+3. 上述两点操作, 可参见 pase/test中的test_mg_phg_petsc.c test_phg_slepc.c 以及相应的提交脚本
+
+2020.3.15 liyu
+1. 关于查看petsc矩阵的信息
+typedef struct {
+   PetscLogDouble block_size;                         /* block size */
+   PetscLogDouble nz_allocated, nz_used, nz_unneeded; /* number of nonzeros */
+   PetscLogDouble memory;                             /* memory allocated */
+   PetscLogDouble assemblies;                         /* number of matrix assemblies called */
+   PetscLogDouble mallocs;                            /* number of mallocs during MatSetValues() */
+   PetscLogDouble fill_ratio_given, fill_ratio_needed;/* fill ratio for LU/ILU */
+   PetscLogDouble factor_mallocs;                     /* number of mallocs during factorization */
+} MatInfo;
+#include "petscmat.h" 
+PetscErrorCode MatGetInfo(Mat mat, MatInfoType flag, MatInfo *info)
+
+
+2020.3.20 liyu
+typedef const char* BVType;
+#define BVMAT        "mat"
+#define BVSVEC       "svec"
+#define BVVECS       "vecs"
+#define BVCONTIGUOUS "contiguous"
+#define BVTENSOR     "tensor"
+
+利用-bv_type 修改BV的结构
+eps默认的bv结构是SVEC, 不知道这些有什么区别
+这个结构在创建时会计算global nrows of matrix * nev
+
+2020.4.25 liyu
+准备将gcge中添加amg, mg结构使得，代数多重网格以及BCG可以被其它程序引用
+先不进行gcge的分离，即 分成两部分，运算与特征值算法
+可以将MG的结构写在ops里，同时将app里，对于不同接口，写出不同的mg
+ops里，关于mg，给出两个函数，一个是创建，一个是销毁
+关于LinearSolver应该也是类似两个函数
+
+2020.4.28 liyu
+1. 在ops中添加
+MultiGridCreate
+MultiGridDestroy
+VecFromItoJ
+MultiVecFromItoJ
+前两个在app中实现，后两个在gcge_ops.c中默认实现
+2. 实现hypre, petsc, slepc的mg接口，可以考虑将以前我们自己的程序，针对csr矩阵也实现mg
+3. hypre已经有multivec的结构，可能会比SLEPC要快
+4. 以后对于gcge的修改原则是，先在其外进行实现，完全成功后再将之放在gcge中
