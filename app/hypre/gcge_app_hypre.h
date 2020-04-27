@@ -23,9 +23,7 @@
 #include "gcge_ops.h"
 #include "gcge_solver.h"
 
-#include "_hypre_parcsr_mv.h"
-#include "_hypre_utilities.h"
-
+#include "_hypre_parcsr_ls.h"
 #include "HYPRE_parcsr_ls.h"
 
 

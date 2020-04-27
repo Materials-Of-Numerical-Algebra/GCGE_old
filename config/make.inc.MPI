@@ -14,19 +14,19 @@ LIBBLAS      = -lblas
 
 PETSCFLAGS   = -Wall -Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -fstack-protector -fvisibility=hidden -g3  -Wall -Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -fstack-protector -fvisibility=hidden -g3  
 PETSCINC     = -I${PETSC_DIR}/include -I${PETSC_DIR}/${PETSC_ARCH}/include
-LIBPETSC     = -L${PETSC_DIR}/${PETSC_ARCH}/lib -L/usr/local/lib -L/usr/lib/gcc/x86_64-linux-gnu/5 -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,-rpath,/usr/local/lib -lpetsc -llapack -lblas -lpthread -lm -lX11 -lstdc++ -ldl -lmpifort -lmpi -lgfortran -lm -lgfortran -lm -lgcc_s -lquadmath -lstdc++ -ldl
+LIBPETSC     = -L${PETSC_DIR}/${PETSC_ARCH}/lib -L/usr/local/lib -L/usr/lib/gcc/x86_64-linux-gnu/7 -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,-rpath,/usr/local/lib -lpetsc -llapack -lblas -lpthread -lm -lX11 -lstdc++ -ldl -lmpifort -lmpi -lgfortran -lm -lgfortran -lm -lgcc_s -lquadmath -lstdc++ -ldl
 
 SLEPCFLAGS   = -Wall -Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -fstack-protector -fvisibility=hidden -g3  -Wall -Wwrite-strings -Wno-strict-aliasing -Wno-unknown-pragmas -fstack-protector -fvisibility=hidden -g3  
 SLEPCINC     = -I${SLEPC_DIR}/include -I${SLEPC_DIR}/${PETSC_ARCH}/include -I${PETSC_DIR}/include -I${PETSC_DIR}/${PETSC_ARCH}/include
-LIBSLEPC     = -Wl,-rpath,${SLEPC_DIR}/${PETSC_ARCH}/lib -L${SLEPC_DIR}/${PETSC_ARCH}/lib -L${PETSC_DIR}/${PETSC_ARCH}/lib -L/usr/local/lib -L/usr/lib/gcc/x86_64-linux-gnu/5 -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,-rpath,/usr/local/lib -lslepc -lpetsc -llapack -lblas -lpthread -lm -lX11 -lstdc++ -ldl -lmpifort -lmpi -lgfortran -lm -lgfortran -lm -lgcc_s -lquadmath -lstdc++ -ldl
+LIBSLEPC     = -Wl,-rpath,${SLEPC_DIR}/${PETSC_ARCH}/lib -L${SLEPC_DIR}/${PETSC_ARCH}/lib -L${PETSC_DIR}/${PETSC_ARCH}/lib -L/usr/local/lib -L/usr/lib/gcc/x86_64-linux-gnu/7 -L/usr/lib/x86_64-linux-gnu -L/lib/x86_64-linux-gnu -Wl,-rpath,/usr/local/lib -lslepc -lpetsc -llapack -lblas -lpthread -lm -lX11 -lstdc++ -ldl -lmpifort -lmpi -lgfortran -lm -lgfortran -lm -lgcc_s -lquadmath -lstdc++ -ldl
 
 HYRPREFLAGS  = -Wall -DHAVE_CONFIG_H -DHYPRE_TIMING
-HYPREINC     = -I${HYPRE_DIR}/src/hypre/include
-LIBHYPRE     = -Wall -L${HYPRE_DIR}/src/hypre/lib -lHYPRE -lm -lstdc++
+HYPREINC     = -I${HYPRE_DIR}/include
+LIBHYPRE     = -Wall -L${HYPRE_DIR}/lib -lHYPRE -lm -lstdc++
 
 PHGFLAGS     = -Wall -Wmissing-field-initializers -fopenmp -D__PHG__ 
 PHGINC       = -I${PHG_DIR}/include
-LIBPHG       = -L${PHG_DIR}/src -fopenmp -Wl,-rpath,${PHG_DIR}/src -lphg  -lmpfr  -lgmp  -lumfpack -lamd  -llapack -lblas  -lm  -L/usr/local/lib -L/usr/lib/gcc/x86_64-linux-gnu/5 -L/usr/lib/gcc/x86_64-linux-gnu/5/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/5/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/5/../../.. -lgfortran -lm -lmpifort -lmpi -lquadmath  -lgfortran -lm -lmpifort -lmpi -lquadmath -Wl,-rpath,/usr/local/lib
+LIBPHG       = -L${PHG_DIR}/lib -fopenmp -Wl,-rpath,${PHG_DIR}/lib -lphg  -lmpfr  -lgmp  -lumfpack -lamd  -llapack -lblas  -lm  -L/usr/local/lib -L/usr/lib/gcc/x86_64-linux-gnu/7 -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../x86_64-linux-gnu -L/usr/lib/gcc/x86_64-linux-gnu/7/../../../../lib -L/lib/x86_64-linux-gnu -L/lib/../lib -L/usr/lib/x86_64-linux-gnu -L/usr/lib/../lib -L/usr/lib/gcc/x86_64-linux-gnu/7/../../.. -lgfortran -lm -lmpifort -lmpi -lquadmath  -lgfortran -lm -lmpifort -lmpi -lquadmath -Wl,-rpath,/usr/local/lib
 
 ############################################################
 VALGRIND      = valgrind

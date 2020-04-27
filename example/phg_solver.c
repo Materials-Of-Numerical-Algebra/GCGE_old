@@ -219,16 +219,16 @@ bc_map(int bctype)
 int
 main(int argc, char *argv[])
 {
-    static char *fn = "../test/data/cube4.dat";
+    static char *fn = "./cube4.dat";
     static INT mem_max = 3000;
     int i, j, k, n, nit;
-    INT nev = 5;
+    INT nev = 10;
     INT pre_refines = 3;
     GRID *g;
     DOF **u_h, *error;
     MAP *map;
     MAT *A, *B;
-    FLOAT tol = 1e-3;
+    FLOAT tol = 1e-6;
     FLOAT *evals;
     double wtime;
 
@@ -338,12 +338,12 @@ while( TRUE ){
        //   GCGE_SOLVER_SetEigenvectors(phg_solver, (void **)evec);
        //一些参数的设置
        phg_solver->para->ev_tol = 1e-5;
-       phg_solver->para->ev_max_it = 100;
+       phg_solver->para->ev_max_it = 20;
        phg_solver->para->dirichlet_boundary = 0;
        //求解特征值问题
        phg_solver->para->print_eval = 0;
        phg_solver->para->print_part_time = 0;
-       phg_solver->para->cg_max_it = 30;
+       phg_solver->para->cg_max_it = 100;
        //phg_solver->para->given_init_evec = nev;
        /*
        phg_solver->para->multi_tol_for_lock = 1e-3;
@@ -416,7 +416,7 @@ while( TRUE ){
     phgMatDestroy(&A);
     phgMapDestroy(&map);
 
-    if( DofGetDataCountGlobal(u_h[0])>1e3 )
+    if( DofGetDataCountGlobal(u_h[0])>1e8 )
        flag = 1;
 }
 #if 0

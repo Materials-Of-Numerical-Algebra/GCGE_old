@@ -645,11 +645,135 @@ void GCGE_Default_ArrayScale(GCGE_DOUBLE a, GCGE_DOUBLE *x, GCGE_INT length)
 #endif
 }
 
+void GCGE_Default_VecFromItoJ(void **P_array, GCGE_INT level_i, GCGE_INT level_j, void *vec_i, void *vec_j, void **vec_tmp, struct GCGE_OPS_ *ops)
+{
+    void **from_vec;
+    void **to_vec;
+    GCGE_INT k = 0;
+    if(level_i > level_j)
+    {
+       /* for level_i = 2 > level_j = 0 
+	* v_tmp = P1 vec_i 
+	* vec_j = P0 v_tmp */
+       //从粗层到细层，延拓，用P矩阵直接乘
+       for(k=level_i; k>level_j; k--) {
+	  if(k == level_i) {
+	     from_vec = vec_i;
+	  } else {
+	     from_vec = vec_tmp[k];
+	  }
+	  if(k == level_j+1) {
+	     to_vec = vec_j;
+	  } else {
+	     to_vec = vec_tmp[k-1];
+	  }
+	  ops->MatDotVec(P_array[k-1], from_vec, to_vec, ops);
+       }
+    }
+    else if(level_i < level_j)
+    {
+       /* for level_i = 0 < level_j = 3 
+	* v_tmp = P0' vec_i 
+	* v_tmp = P1' v_tmp 
+	* vec_j = P2' v_tmp */
+       //从细层到粗层，限制，用P^T矩阵乘
+       for(k=level_i; k<level_j; k++) {
+	  if(k == level_i) {
+	     from_vec = vec_i;
+	  } else {
+	     from_vec = vec_tmp[k];
+	  }
+	  if(k == level_j-1) {
+	     to_vec = vec_j;
+	  } else {
+	     to_vec = vec_tmp[k+1];
+	  }
+	  ops->MatTransposeDotVec(P_array[k], from_vec, to_vec, ops);
+       }
+    }
+    else 
+    {
+       /* level_i == level_j */
+       ops->VecAxpby(1.0, vec_i, 0.0, vec_j, ops);
+    }
+}
+
+void GCGE_Default_MultiVecFromItoJ(void **P_array, GCGE_INT level_i, GCGE_INT level_j, void **multi_vec_i, void **multi_vec_j, void ***multi_vec_tmp, GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops)
+{
+    void **from_vecs;
+    void **to_vecs;
+    GCGE_INT k = 0;
+    GCGE_INT mv_s[2];
+    GCGE_INT mv_e[2];
+    if(level_i > level_j)
+    {
+       /* for level_i = 2 > level_j = 0 
+	* v_tmp = P1 vec_i 
+	* vec_j = P0 v_tmp */
+       //从粗层到细层，延拓，用P矩阵直接乘
+       for(k=level_i; k>level_j; k--) {
+	  if(k == level_i) {
+	     from_vecs = multi_vec_i;
+	     mv_s[0] = start[0];
+	     mv_e[0] = end[0];
+	  } else {
+	     from_vecs = multi_vec_tmp[k];
+	     mv_s[0] = 0;
+	     mv_e[0] = end[0]-start[0];
+	  }
+	  if(k == level_j+1) {
+	     to_vecs = multi_vec_j;
+	     mv_s[1] = start[1];
+	     mv_e[1] = end[1];
+	  } else {
+	     to_vecs = multi_vec_tmp[k-1];
+	     mv_s[1] = 0;
+	     mv_e[1] = end[0]-start[0];
+	  }
+	  ops->MatDotMultiVec(P_array[k-1], from_vecs, to_vecs, mv_s, mv_e, ops);
+       }
+    }
+    else if(level_i < level_j)
+    {
+       /* for level_i = 0 < level_j = 3 
+	* v_tmp = P0' vec_i 
+	* v_tmp = P1' v_tmp 
+	* vec_j = P2' v_tmp */
+       //从细层到粗层，限制，用P^T矩阵乘
+       for(k=level_i; k<level_j; k++) {
+	  if(k == level_i) {
+	     from_vecs = multi_vec_i;
+	     mv_s[0] = start[0];
+	     mv_e[0] = end[0];
+	  } else {
+	     from_vecs = multi_vec_tmp[k];
+	     mv_s[0] = 0;
+	     mv_e[0] = end[0]-start[0];
+	  }
+	  if(k == level_j-1) {
+	     to_vecs = multi_vec_j;
+	     mv_s[1] = start[1];
+	     mv_e[1] = end[1];
+	  } else {
+	     to_vecs = multi_vec_tmp[k+1];
+	     mv_s[1] = 0;
+	     mv_e[1] = end[0]-start[0];
+	  }
+	  ops->MatTransposeDotMultiVec(P_array[k], from_vecs, to_vecs, mv_s, mv_e, ops);
+       }
+    }
+    else 
+    {
+       /* level_i == level_j */
+       ops->MultiVecAxpby(1.0, multi_vec_i, 0.0, multi_vec_j, start, end, ops);
+    }
+}
 
 //创建OPS的一个向量，进行初始的设置
 void GCGE_OPS_Create(GCGE_OPS **ops)
 {
     *ops = (GCGE_OPS*)malloc(sizeof(GCGE_OPS));
+    /* vec */
     (*ops)->VecSetRandomValue = NULL;
     (*ops)->MatDotVec = NULL;
     (*ops)->MatTransposeDotVec = NULL;
@@ -658,6 +782,7 @@ void GCGE_OPS_Create(GCGE_OPS **ops)
     (*ops)->VecLocalInnerProd = NULL;
     (*ops)->VecCreateByVec = NULL;
     (*ops)->VecDestroy = NULL;
+    /* multi_vec */
     (*ops)->MultiVecCreateByVec = NULL;
     (*ops)->MultiVecCreateByMat = NULL;
     (*ops)->MultiVecCreateByMultiVec = NULL;
@@ -673,10 +798,10 @@ void GCGE_OPS_Create(GCGE_OPS **ops)
     (*ops)->MultiVecSwap = NULL;
     (*ops)->GetVecFromMultiVec = NULL;
     (*ops)->RestoreVecForMultiVec = NULL;
+    /* Dense Matrix */
     (*ops)->DenseMatEigenSolver = NULL;
     (*ops)->DenseMatDotDenseMat = NULL;
     (*ops)->DenseSymMatDotDenseMat = NULL;
-    (*ops)->Orthonormalization = NULL;
     (*ops)->DenseMatCreate  = NULL;
     (*ops)->DenseMatDestroy = NULL;
     (*ops)->ArrayDotArray = NULL;
@@ -684,8 +809,16 @@ void GCGE_OPS_Create(GCGE_OPS **ops)
     (*ops)->ArrayAXPBY = NULL;
     (*ops)->ArrayCopy  = NULL;
     (*ops)->ArrayScale = NULL;
+    /* Orth */
+    (*ops)->Orthonormalization = NULL;
+    /* Linear Solver */
     (*ops)->LinearSolver = NULL;
     (*ops)->MultiLinearSolver = NULL;
+    /* Multi Grid */
+    (*ops)->MultiGridCreate  = NULL;
+    (*ops)->MultiGridDestroy = NULL;
+    (*ops)->VecFromItoJ = NULL;
+    (*ops)->MultiVecFromItoJ = NULL;
 }
 //OPS的setup: 主要是进行对OPS的赋值， 同时也判断赋值是否充足和合理了
 GCGE_INT GCGE_OPS_Setup(GCGE_OPS *ops)
@@ -830,6 +963,14 @@ GCGE_INT GCGE_OPS_Setup(GCGE_OPS *ops)
     if(ops->ArrayScale == NULL)
     {
         ops->ArrayScale = GCGE_Default_ArrayScale;
+    }
+    if(ops->VecFromItoJ == NULL)
+    {
+       ops->VecFromItoJ = GCGE_Default_VecFromItoJ;
+    }
+    if(ops->MultiVecFromItoJ == NULL)
+    {
+       ops->MultiVecFromItoJ = GCGE_Default_MultiVecFromItoJ;
     }
 }                                           
 

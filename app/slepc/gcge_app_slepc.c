@@ -391,6 +391,109 @@ void GCGE_SLEPC_MultiVecSwap(void **V_1, void **V_2,
     }
 }
 
+/* 返回 A_array B_array P_array num_levels */
+/* get multigrid operator for num_levels = 4
+ * P0     P1       P2
+ * A0     A1       A2        A3
+ * B0  P0'B0P0  P1'B1P1   P2'B2P2 
+ * A0 is the original matrix */
+/* 这里之所以是***A_array, 是因为，使用这个函数的时候需要将void**的变量取地址放入函数
+ * Mat == void*
+ * 还原到petsc中A_array其实是
+ * Mat *A_array; ops->MultiGridCreate(&A_array, ...); */
+void GCGE_SLEPC_MultiGridCreate(void ***A_array, void ***B_array, void ***P_array, GCGE_INT *num_levels, void *A, void *B, struct GCGE_OPS_ *ops)
+{
+   /* P 是行多列少, P*v是从粗到细 */
+   PetscInt m, n, level;
+   Mat   *petsc_A_array = NULL, *petsc_B_array = NULL, *petsc_P_array = NULL;
+   PC    pc;
+   Mat   *Aarr=NULL, *Parr=NULL;
+
+   PCCreate(PETSC_COMM_WORLD,&pc);
+   PCSetOperators(pc,(Mat)A,(Mat)A);
+   PCSetType(pc,PCGAMG);
+   //PCMGSetLevels(pc, (*multi_grid)->num_levels, NULL);
+   PCGAMGSetNlevels(pc, *num_levels);
+   PCGAMGSetType(pc, PCGAMGCLASSICAL);
+   //	type 	- PCGAMGAGG, PCGAMGGEO, or PCGAMGCLASSICAL
+   //PetscReal th[2] = {0.0, 0.9};
+   //PCGAMGSetThreshold(pc, th, 2);
+   PCSetUp(pc);
+   /* the size of Aarr is num_levels-1, Aarr is the coarsest matrix */
+   PCGetCoarseOperators(pc, num_levels, &Aarr);
+   /* the size of Parr is num_levels-1 */
+   PCGetInterpolations(pc, num_levels, &Parr);
+
+   /* we should make that zero is the refinest level */
+   /* when num_levels == 5, 1 2 3 4 of A_array == 3 2 1 0 of Aarr */
+
+   petsc_A_array = malloc(sizeof(Mat)*(*num_levels));
+   petsc_P_array = malloc(sizeof(Mat)*((*num_levels)-1));
+
+   for (level = 1; level < (*num_levels); ++level)
+   {
+      petsc_A_array[level] = Aarr[(*num_levels)-level-1];
+      MatGetSize(petsc_A_array[level], &m, &n);
+      PetscPrintf(PETSC_COMM_WORLD, "A_array[%d], m = %d, n = %d\n", level, m, n );
+
+      petsc_P_array[level-1] = Parr[(*num_levels)-level-1];
+      MatGetSize(petsc_P_array[level-1], &m, &n);
+      PetscPrintf(PETSC_COMM_WORLD, "P_array[%d], m = %d, n = %d\n", level-1, m, n );
+   }
+
+   PetscFree(Aarr);
+   PetscFree(Parr);
+   PCDestroy(&pc);
+
+   //将原来的最细层A矩阵指针给A_array
+   petsc_A_array[0] = (Mat)A;
+
+   petsc_B_array = malloc(sizeof(Mat)*(*num_levels));
+   petsc_B_array[0] = (Mat)B;
+   MatGetSize(petsc_B_array[0], &m, &n);
+   PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", 0, m, n );
+   /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
+   for ( level = 1; level < (*num_levels); ++level )
+   {
+      MatPtAP(petsc_B_array[level-1], petsc_P_array[level-1], 
+	    MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_B_array[level]));
+      MatGetSize(petsc_B_array[level], &m, &n);
+      PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", level, m, n );
+   }
+
+   (*A_array) = (void**)petsc_A_array;
+   (*B_array) = (void**)petsc_B_array;
+   (*P_array) = (void**)petsc_P_array;
+
+}
+
+/* free A1 A2 A3 B1 B2 B3 P0 P1 P2 
+ * A0 and B0 are just pointers */
+void GCGE_SLEPC_MultiGridDestroy(void ***A_array, void ***B_array, void ***P_array, GCGE_INT *num_levels, struct GCGE_OPS_ *ops)
+{
+    Mat *petsc_A_array, *petsc_B_array, *petsc_P_array;
+    petsc_A_array = (Mat *)(*A_array);
+    petsc_B_array = (Mat *)(*B_array);
+    petsc_P_array = (Mat *)(*P_array);
+    int level; 
+    for ( level = 1; level < (*num_levels); ++level )
+    {
+        MatDestroy(&(petsc_A_array[level]));
+        MatDestroy(&(petsc_B_array[level]));
+    }
+    for ( level = 0; level < (*num_levels) - 1; ++level )
+    {
+        MatDestroy(&(petsc_P_array[level]));
+    }
+
+    free(petsc_A_array);
+    free(petsc_B_array);
+    free(petsc_P_array);
+    (*A_array) = NULL;
+    (*B_array) = NULL;
+    (*P_array) = NULL;
+}
+
 void GCGE_SLEPC_SetOps(GCGE_OPS *ops)
 {
     /* either-or */
@@ -405,20 +508,22 @@ void GCGE_SLEPC_SetOps(GCGE_OPS *ops)
     ops->VecInnerProd       = GCGE_SLEPC_VecInnerProd;
     ops->VecLocalInnerProd  = GCGE_SLEPC_VecLocalInnerProd;
 
-    ops->MultiVecDestroy           = GCGE_SLEPC_MultiVecDestroy;
-    ops->MultiVecCreateByMat     = GCGE_SLEPC_MultiVecCreateByMat;
+    ops->MultiVecDestroy        = GCGE_SLEPC_MultiVecDestroy;
+    ops->MultiVecCreateByMat    = GCGE_SLEPC_MultiVecCreateByMat;
     ops->MultiVecSetRandomValue = GCGE_SLEPC_MultiVecSetRandomValue;
 
-    ops->GetVecFromMultiVec = GCGE_SLEPC_GetVecFromMultiVec;
+    ops->GetVecFromMultiVec    = GCGE_SLEPC_GetVecFromMultiVec;
     ops->RestoreVecForMultiVec = GCGE_SLEPC_RestoreVecForMultiVec;
     //ops->MatDotMultiVec = GCGE_SLEPC_MatDotMultiVec;
 
     ops->MultiVecLinearComb = GCGE_SLEPC_MultiVecLinearComb;
-    ops->MultiVecInnerProd = GCGE_SLEPC_MultiVecInnerProd;
+    ops->MultiVecInnerProd  = GCGE_SLEPC_MultiVecInnerProd;
     ops->MultiVecInnerProdLocal = GCGE_SLEPC_MultiVecInnerProdLocal;
-    ops->MultiVecSwap = GCGE_SLEPC_MultiVecSwap;
+    ops->MultiVecSwap  = GCGE_SLEPC_MultiVecSwap;
     ops->MultiVecAxpby = GCGE_SLEPC_MultiVecAxpby;
 
+    ops->MultiGridCreate  = GCGE_SLEPC_MultiGridCreate;
+    ops->MultiGridDestroy = GCGE_SLEPC_MultiGridDestroy;
 }
 
 void GCGE_SOLVER_SetSLEPCOps(GCGE_SOLVER *solver)

@@ -781,3 +781,21 @@ typedef const char* BVType;
 利用-bv_type 修改BV的结构
 eps默认的bv结构是SVEC, 不知道这些有什么区别
 这个结构在创建时会计算global nrows of matrix * nev
+
+2020.4.25 liyu
+准备将gcge中添加amg, mg结构使得，代数多重网格以及BCG可以被其它程序引用
+先不进行gcge的分离，即 分成两部分，运算与特征值算法
+可以将MG的结构写在ops里，同时将app里，对于不同接口，写出不同的mg
+ops里，关于mg，给出两个函数，一个是创建，一个是销毁
+关于LinearSolver应该也是类似两个函数
+
+2020.4.28 liyu
+1. 在ops中添加
+MultiGridCreate
+MultiGridDestroy
+VecFromItoJ
+MultiVecFromItoJ
+前两个在app中实现，后两个在gcge_ops.c中默认实现
+2. 实现hypre, petsc, slepc的mg接口，可以考虑将以前我们自己的程序，针对csr矩阵也实现mg
+3. hypre已经有multivec的结构，可能会比SLEPC要快
+4. 以后对于gcge的修改原则是，先在其外进行实现，完全成功后再将之放在gcge中

@@ -32,18 +32,43 @@ typedef struct GCGE_OPS_ {
     void *ops;
 
     void (*VecSetRandomValue)       (void *vec, struct GCGE_OPS_ *ops);
-    void (*MatDotVec)               (void *Matrix, void *x, void *r, struct GCGE_OPS_ *ops);
-    void (*MatTransposeDotVec)      (void *Matrix, void *x, void *r, struct GCGE_OPS_ *ops);
-    void (*VecAxpby)                (GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, struct GCGE_OPS_ *ops); /* y = ax+by */
+    /* r = mat  * x */
+    void (*MatDotVec)               (void *mat, void *x, void *r, struct GCGE_OPS_ *ops);
+    /* r = mat' * x */
+    void (*MatTransposeDotVec)      (void *mat, void *x, void *r, struct GCGE_OPS_ *ops);
+    /* y = ax+by */
+    void (*VecAxpby)                (GCGE_DOUBLE a, void *x, GCGE_DOUBLE b, void *y, struct GCGE_OPS_ *ops);
+    /* value_ip = x'y */
     void (*VecInnerProd)            (void *x, void *y, GCGE_DOUBLE *value_ip, struct GCGE_OPS_ *ops);
+    /* value_ip = x'y for each proc */
     void (*VecLocalInnerProd)       (void *x, void *y, GCGE_DOUBLE *value_ip, struct GCGE_OPS_ *ops);
     void (*VecCreateByVec)          (void **des_vec, void *src_vec, struct GCGE_OPS_ *ops);
     void (*VecCreateByMat)          (void **vec, void *mat, struct GCGE_OPS_ *ops);
     void (*VecDestroy)              (void **vec, struct GCGE_OPS_ *ops);
 
-    /* TODO kernal function should use this op to get j-th vector */
+    /* kernal function should use this op to get j-th vector */
+    /* x = V[j] */
     void (*GetVecFromMultiVec)      (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);
     void (*RestoreVecForMultiVec)   (void **V, GCGE_INT j, void **x, struct GCGE_OPS_ *ops);
+
+    /* get multigrid operator for num_levels = 4
+     * P0     P1       P2
+     * A0     A1       A2        A3
+     * B0  P0'B0P0  P1'B1P1   P2'B2P2 
+     * A0 is the original matrix */
+    void (*MultiGridCreate)         (void ***A_array, void ***B_array, void ***P_array, GCGE_INT *num_levels, void *A, void *B, struct GCGE_OPS_ *ops);
+    /* free A1 A2 A3 B1 B2 B3 P0 P1 P2 
+     * A0 and B0 are just pointers */
+    void (*MultiGridDestroy)        (void ***A_array, void ***B_array, void ***P_array, GCGE_INT *num_levels, struct GCGE_OPS_ *ops);
+    /* for level_i = 0 < level_j = 3 
+     * v_tmp = P0' vec_i 
+     * v_tmp = P1' v_tmp 
+     * vec_j = P2' v_tmp */
+    /* for level_i = 2 > level_j = 0 
+     * v_tmp = P1 vec_i 
+     * vec_j = P0 v_tmp */
+    void (*VecFromItoJ)             (void **P_array, GCGE_INT level_i, GCGE_INT level_j, void *vec_i, void *vec_j, void **vec_tmp, struct GCGE_OPS_ *ops);
+    void (*MultiVecFromItoJ)        (void **P_array, GCGE_INT level_i, GCGE_INT level_j, void **multi_vec_i, void **multi_vec_j, void ***multi_vec_tmp, GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops);
 
     /* option */
     /* TODO */
@@ -51,35 +76,29 @@ typedef struct GCGE_OPS_ {
     void *linear_solver_workspace;
     void (*MultiLinearSolver)       (void *Matrix, void **b, void **x, int *start, int *end, struct GCGE_OPS_ *ops); 
 
-    /* DenseMatCreate, DenseMatDestroy should in function Orthonormalization 
+    /* TODO DenseMatCreate, DenseMatDestroy should in function Orthonormalization 
      * Add struct member name void *orth_workspace to save tmp variables */
     void (*Orthonormalization)      (void **V, GCGE_INT start, GCGE_INT *end, 
                                      void *B, GCGE_DOUBLE orth_zero_tol, 
-                                     void **work); /* TODO */
+                                     void **work);
     void (*DenseMatCreate)          (void **densemat, GCGE_INT nrows, GCGE_INT ncols);
     void (*DenseMatDestroy)         (void **mat);
  
 
     /* DEEP */
 
-    void (*MultiVecCreateByVec)      (void ***multi_vec, GCGE_INT n_vec, void *vec, 
-                                      struct GCGE_OPS_ *ops);
-    void (*MultiVecCreateByMat)      (void ***multi_vec, GCGE_INT n_vec, void *mat,
-                                      struct GCGE_OPS_ *ops);
-    void (*MultiVecCreateByMultiVec) (void ***multi_vec, GCGE_INT n_vec, void **init_vec, 
-                                      struct GCGE_OPS_ *ops);
-    void (*MultiVecDestroy)          (void ***MultiVec, GCGE_INT n_vec, struct GCGE_OPS_ *ops);
+    void (*MultiVecCreateByVec)      (void ***multi_vec, GCGE_INT n_vec, void *vec, struct GCGE_OPS_ *ops);
+    void (*MultiVecCreateByMat)      (void ***multi_vec, GCGE_INT n_vec, void *mat, struct GCGE_OPS_ *ops);
+    void (*MultiVecCreateByMultiVec) (void ***multi_vec, GCGE_INT n_vec, void **init_vec, struct GCGE_OPS_ *ops);
+    void (*MultiVecDestroy)          (void ***multi_vec, GCGE_INT n_vec, struct GCGE_OPS_ *ops);
 
-    /* TODO */
+    /* TODO 这里start n_vec需要修改成 start end */
     void (*MultiVecSetRandomValue)  (void **multi_vec, GCGE_INT start, GCGE_INT n_vec, struct GCGE_OPS_ *ops);
-    void (*MatDotMultiVec)          (void *mat, void **x, void **y, GCGE_INT *start, GCGE_INT *end, 
-                                     struct GCGE_OPS_ *ops);
-    void (*MatTransposeDotMultiVec) (void *mat, void **x, void **y, GCGE_INT *start, GCGE_INT *end, 
-                                     struct GCGE_OPS_ *ops);
-    void (*MultiVecAxpby)           (GCGE_DOUBLE a, void **x, GCGE_DOUBLE b, void **y, 
-                                     GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops);
-    void (*MultiVecAxpbyColumn)     (GCGE_DOUBLE a, void **x, GCGE_INT col_x, GCGE_DOUBLE b, 
-                                     void **y, GCGE_INT col_y, struct GCGE_OPS_ *ops);
+    void (*MatDotMultiVec)          (void *mat, void **x, void **y, GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops);
+    void (*MatTransposeDotMultiVec) (void *mat, void **x, void **y, GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops);
+    void (*MultiVecAxpby)           (GCGE_DOUBLE a, void **x, GCGE_DOUBLE b, void **y, GCGE_INT *start, GCGE_INT *end, struct GCGE_OPS_ *ops);
+    /* y[col_y] = a*x[col_x] + b*y[col_y] */
+    void (*MultiVecAxpbyColumn)     (GCGE_DOUBLE a, void **x, GCGE_INT col_x, GCGE_DOUBLE b, void **y, GCGE_INT col_y, struct GCGE_OPS_ *ops);
     /* vec_y[j] = \sum_{i=sx}^{ex} vec_x[i] a[i-sx][j-sy] */
     //MultiVecLinearComb去掉原来的void* dmat与GCGE_INT lddmat两个参数，加上GCGE_INT if_Vec这个参数
     //加的参数if_Vec表示是否是线性组合得到一个向量，因为之前的线性组合是默认得到一个向量组，但我们应该允许得到一个(单向量结构的)向量
@@ -99,6 +118,7 @@ typedef struct GCGE_OPS_ {
                                      struct GCGE_OPS_ *ops);
     void (*MultiVecPrint)           (void **x, GCGE_INT n, struct GCGE_OPS_ *ops);
 
+    /* usefull ?? */
     void (*SetDirichletBoundary)    (void**Vecs, GCGE_INT nev, void* A, void* B);
 
 
