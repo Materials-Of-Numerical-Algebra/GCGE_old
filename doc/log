@@ -799,3 +799,91 @@ MultiVecFromItoJ
 2. 实现hypre, petsc, slepc的mg接口，可以考虑将以前我们自己的程序，针对csr矩阵也实现mg
 3. hypre已经有multivec的结构，可能会比SLEPC要快
 4. 以后对于gcge的修改原则是，先在其外进行实现，完全成功后再将之放在gcge中
+
+2020.5.15 liyu
+1. MatSetSizes
+Sets the local and global sizes, and checks to determine compatibility Synopsis
+
+#include "petscmat.h"
+PetscErrorCode  MatSetSizes(Mat A, PetscInt m, PetscInt n, PetscInt M, PetscInt N)
+
+Collective on Mat
+
+Input Parameters
+	A 	- the matrix
+	m 	- number of local rows (or PETSC_DECIDE)
+	n 	- number of local columns (or PETSC_DECIDE)
+	M 	- number of global rows (or PETSC_DETERMINE)
+	N 	- number of global columns (or PETSC_DETERMINE)
+
+Notes
+m (n) and M (N) cannot be both PETSC_DECIDE If one processor calls this with M (N) of PETSC_DECIDE then all processors must, otherwise the program will hang.
+
+If PETSC_DECIDE is not used for the arguments 'm' and 'n', then the user must ensure that they are chosen to be compatible with the vectors. To do this, one first considers the matrix-vector product 'y = A x'. The 'm' that is used in the above routine must match the local size used in the vector creation routine VecCreateMPI() for 'y'. Likewise, the 'n' used must match that used as the local size in VecCreateMPI() for 'x'.
+
+You cannot change the sizes once they have been set.
+
+The sizes must be set before MatSetUp() or MatXXXSetPreallocation() is called.
+
+
+
+2. MatPartitioningApply
+Gets a partitioning for a matrix.
+Synopsis
+
+#include "petscmat.h" 
+PetscErrorCode  MatPartitioningApply(MatPartitioning matp,IS *partitioning)
+
+Collective on Mat
+
+Input Parameters
+matp -the matrix partitioning object
+
+Output Parameters
+partitioning -the partitioning. For each local node this tells the processor number that that node is assigned to.
+
+Options Database Keys
+To specify the partitioning through the options database, use one of the following
+
+   -mat_partitioning_type parmetis, -mat_partitioning current
+
+To see the partitioning result
+
+   -mat_partitioning_view
+
+The user can define additional partitionings; see MatPartitioningRegister(). 
+
+3. .../petsc-3.13.0/src/mat/tutorials/ex17.c 给出一个例子关于空进程和大进程 
+
+4. manual中 3.5 Partitioning 阐述了矩阵的分配机制，但是没有太明白IS在其中的作用
+
+5. MatCreateAIJ=(MPI Comm comm,PetscInt m,PetscInt n,PetscInt M,PetscInt N,PetscInt
+                 d_nz,PetscInt *d_nnz, PetscInt o_nz,PetscInt *o_nnz,Mat *A);
+A is the newly created matrix, while the arguments m, M, and N, indicate the number of local rows and the number of global rows and columns, respectively. 
+In the PETSc partitioning scheme, all the matrix columns are local and n is the number of columns corresponding to local part of a parallel vector. 
+Either the local or global parameters can be replaced with PETSC_DECIDE, so that PETSc will determine them.
+The matrix is stored with a fixed number of rows on each process, given by m, or determined by PETSc if m is PETSC_DECIDE.
+If PETSC_DECIDE is not used for the arguments m and n, then the user must ensure that they are chosen to be compatible with the vectors. 
+To do this, one first considers the matrix-vector product y = Ax. 
+The m that is used in the matrix creation routine MatCreateAIJ() must match the local size used in the vector creation routine VecCreateMPI() for y. Likewise, the n used must match that used as the local size in VecCreateMPI() for x.
+
+6. 做一个测试函数，利用gcge中ops生成矩阵A的分层矩阵，然后构造new_P_H (行多列少) 
+   new_P_H的行分配与old_P_H同，但列分配自定义. 设定bigranks
+   然后利用new_P_H调用PtAP，重新生成new_A_H, 已new_A_H生成对应的粗空间中的向量
+   完成在pase/test/test_mg_gcge.c
+
+2020.5.16 liyu
+1. 有一个编译的BUG, 对于petsc app, MatSetSizes
+In file included from /home/liyu/2020-WS/petsc/include/petscsys.h:1474:0,
+                 from /home/liyu/2020-WS/petsc/include/petscoptions.h:6,
+                 from ../../include/gcge_app_slepc.h:29,
+                 from test_mg_gcge.c:19:
+/home/liyu/2020-WS/petsc/include/petsclog.h:64:1: warning: parameter names (without types) in function declaration
+ PETSC_EXTERN PetscErrorCode PetscInfoSetFromOptions(PetscOptions);
+ ^~~~~~~~~~~~
+
+但加入pase_convert.h之后再编译就没有这样的问题
+
+2. 利用PETSc进行矩阵分层时，最粗层的矩阵会只在一个进程中存储!
+   这个可能是由于，petsc在计算最粗层线性方程组时利用直接法
+   但是其它层的矩阵是被所有进程平均分的

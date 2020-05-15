@@ -10,6 +10,8 @@ include $(GCGEHOME)/config/make.inc
 INC         = -I$(GCGEINC) -I$(PASEHOME)/include $(HYPREINC) $(PETSCINC) $(PHGINC) $(SLEPCINC)
 LIBGCGEPASE = $(PASEHOME)/lib/libgcge_pase.a
 
+INC_GCGE    = -I$(GCGEINC) $(SLEPCINC)
+
 ########################################################################
 all:    help
 
@@ -38,6 +40,9 @@ run-convert_phg:
 run-mg:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg.exe
 
+run-mg_gcge:
+	mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_gcge.exe
+
 run-mg_phg:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_phg.exe
 
@@ -63,6 +68,10 @@ test_convert_phg:
 test_mg:
 	$(CC)  $(CFLAGS) -c test_mg.c -o test_mg.o $(INC) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_mg.exe ./test_mg.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
+
+test_mg_gcge:
+	$(CC)  $(CFLAGS) -c test_mg_gcge.c -o test_mg_gcge.o $(INC_GCGE) 
+	$(CLINKER)  $(LDFLAGS)  -o ./test_mg_gcge.exe ./test_mg_gcge.o $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBGCGE)
 
 test_mg_petsc:
 	$(CC)  $(CFLAGS) $(PETSCFLAGS) -c test_mg_petsc.c -o test_mg_petsc.o $(PETSCINC) 

@@ -213,6 +213,10 @@ void GCGE_PETSC_MultiGridCreate(void ***A_array, void ***B_array, void ***P_arra
    petsc_A_array = malloc(sizeof(Mat)*(*num_levels));
    petsc_P_array = malloc(sizeof(Mat)*((*num_levels)-1));
 
+   //将原来的最细层A矩阵指针给A_array
+   petsc_A_array[0] = (Mat)A;
+   MatGetSize(petsc_A_array[0], &m, &n);
+   PetscPrintf(PETSC_COMM_WORLD, "A_array[%d], m = %d, n = %d\n", 0, m, n );
    for (level = 1; level < (*num_levels); ++level)
    {
       petsc_A_array[level] = Aarr[(*num_levels)-level-1];
@@ -223,31 +227,29 @@ void GCGE_PETSC_MultiGridCreate(void ***A_array, void ***B_array, void ***P_arra
       MatGetSize(petsc_P_array[level-1], &m, &n);
       PetscPrintf(PETSC_COMM_WORLD, "P_array[%d], m = %d, n = %d\n", level-1, m, n );
    }
+   (*A_array) = (void**)petsc_A_array;
+   (*P_array) = (void**)petsc_P_array;
 
    PetscFree(Aarr);
    PetscFree(Parr);
    PCDestroy(&pc);
 
-   //将原来的最细层A矩阵指针给A_array
-   petsc_A_array[0] = (Mat)A;
-
-   petsc_B_array = malloc(sizeof(Mat)*(*num_levels));
-   petsc_B_array[0] = (Mat)B;
-   MatGetSize(petsc_B_array[0], &m, &n);
-   PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", 0, m, n );
-   /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
-   for ( level = 1; level < (*num_levels); ++level )
+   if (B!=NULL)
    {
-      MatPtAP(petsc_B_array[level-1], petsc_P_array[level-1], 
-	    MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_B_array[level]));
-      MatGetSize(petsc_B_array[level], &m, &n);
-      PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", level, m, n );
+      petsc_B_array = malloc(sizeof(Mat)*(*num_levels));
+      petsc_B_array[0] = (Mat)B;
+      MatGetSize(petsc_B_array[0], &m, &n);
+      PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", 0, m, n );
+      /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
+      for ( level = 1; level < (*num_levels); ++level )
+      {
+	 MatPtAP(petsc_B_array[level-1], petsc_P_array[level-1], 
+	       MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_B_array[level]));
+	 MatGetSize(petsc_B_array[level], &m, &n);
+	 PetscPrintf(PETSC_COMM_WORLD, "B_array[%d], m = %d, n = %d\n", level, m, n );
+      }
+      (*B_array) = (void**)petsc_B_array;
    }
-
-   (*A_array) = (void**)petsc_A_array;
-   (*B_array) = (void**)petsc_B_array;
-   (*P_array) = (void**)petsc_P_array;
-
 }
 
 /* free A1 A2 A3 B1 B2 B3 P0 P1 P2 
@@ -256,25 +258,28 @@ void GCGE_PETSC_MultiGridDestroy(void ***A_array, void ***B_array, void ***P_arr
 {
     Mat *petsc_A_array, *petsc_B_array, *petsc_P_array;
     petsc_A_array = (Mat *)(*A_array);
-    petsc_B_array = (Mat *)(*B_array);
     petsc_P_array = (Mat *)(*P_array);
     int level; 
     for ( level = 1; level < (*num_levels); ++level )
     {
         MatDestroy(&(petsc_A_array[level]));
-        MatDestroy(&(petsc_B_array[level]));
+        MatDestroy(&(petsc_P_array[level-1]));
     }
-    for ( level = 0; level < (*num_levels) - 1; ++level )
-    {
-        MatDestroy(&(petsc_P_array[level]));
-    }
-
     free(petsc_A_array);
-    free(petsc_B_array);
     free(petsc_P_array);
     (*A_array) = NULL;
-    (*B_array) = NULL;
     (*P_array) = NULL;
+
+    if (B_array!=NULL)
+    {
+       petsc_B_array = (Mat *)(*B_array);
+       for ( level = 1; level < (*num_levels); ++level )
+       {
+	  MatDestroy(&(petsc_B_array[level]));
+       }
+       free(petsc_B_array);
+       (*B_array) = NULL;
+    }
 }
 
 void GCGE_PETSC_SetOps(GCGE_OPS *ops)

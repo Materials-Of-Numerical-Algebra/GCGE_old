@@ -126,7 +126,6 @@ void GCGE_HYPRE_MultiGridCreate(void ***A_array, void ***B_array, void ***P_arra
     /* Create HYPRE Matrix */
     HYPRE_ParCSRMatrix *hypre_A_array, *hypre_B_array, *hypre_P_array;
     hypre_A_array = malloc(sizeof(HYPRE_ParCSRMatrix)*(*num_levels));
-    hypre_B_array = malloc(sizeof(HYPRE_ParCSRMatrix)*(*num_levels));
     hypre_P_array = malloc(sizeof(HYPRE_ParCSRMatrix)*(*num_levels-1));
 
     hypre_ParCSRMatrix **hypre_mat;
@@ -158,35 +157,40 @@ void GCGE_HYPRE_MultiGridCreate(void ***A_array, void ***B_array, void ***P_arra
     hypre_MPI_Comm_size( hypre_ParCSRMatrixComm((HYPRE_ParCSRMatrix)(A)), &num_procs);
     /* B0  P0^T B0 P0  P1^T B1 P1   P2^T B2 P2 */
     hypre_ParCSRMatrix  *B_H;
-    hypre_B_array[0] = (HYPRE_ParCSRMatrix)(B);
-    for ( level = 1; level < (*num_levels); ++level )
+    if (B!=NULL)
     {
-       /* Compute standard Galerkin coarse-grid product */
-       if (hypre_ParAMGDataModularizedMatMat(amg_data))
+       hypre_B_array = malloc(sizeof(HYPRE_ParCSRMatrix)*(*num_levels));
+       hypre_B_array[0] = (HYPRE_ParCSRMatrix)(B);
+       for ( level = 1; level < (*num_levels); ++level )
        {
-	  B_H = hypre_ParCSRMatrixRAPKT(hypre_P_array[level-1], hypre_B_array[level-1],
-		hypre_P_array[level-1], keepTranspose);
+	  /* Compute standard Galerkin coarse-grid product */
+	  if (hypre_ParAMGDataModularizedMatMat(amg_data))
+	  {
+	     B_H = hypre_ParCSRMatrixRAPKT(hypre_P_array[level-1], hypre_B_array[level-1],
+		   hypre_P_array[level-1], keepTranspose);
+	  }
+	  else
+	  {
+	     hypre_BoomerAMGBuildCoarseOperatorKT(hypre_P_array[level-1], hypre_B_array[level-1] ,
+		   hypre_P_array[level-1], keepTranspose, &B_H);
+	  }
+	  /* dropping in B_H */
+	  hypre_ParCSRMatrixDropSmallEntries(B_H, hypre_ParAMGDataADropTol(amg_data),
+		hypre_ParAMGDataADropType(amg_data));
+	  /* if CommPkg for B_H was not built */
+	  //MPI_Comm  comm = hypre_ParCSRMatrixComm((HYPRE_ParCSRMatrix)(A));
+	  if (num_procs > 1 && hypre_ParCSRMatrixCommPkg(B_H) == NULL)
+	  {
+	     hypre_MatvecCommPkgCreate(B_H);
+	  }
+	  if (hypre_ParAMGDataADropTol(amg_data) <= 0.0)
+	  {
+	     hypre_ParCSRMatrixSetNumNonzeros(B_H);
+	     hypre_ParCSRMatrixSetDNumNonzeros(B_H);
+	  }
+	  hypre_B_array[level] = B_H;
        }
-       else
-       {
-	  hypre_BoomerAMGBuildCoarseOperatorKT(hypre_P_array[level-1], hypre_B_array[level-1] ,
-		hypre_P_array[level-1], keepTranspose, &B_H);
-       }
-       /* dropping in B_H */
-       hypre_ParCSRMatrixDropSmallEntries(B_H, hypre_ParAMGDataADropTol(amg_data),
-	     hypre_ParAMGDataADropType(amg_data));
-       /* if CommPkg for B_H was not built */
-       //MPI_Comm  comm = hypre_ParCSRMatrixComm((HYPRE_ParCSRMatrix)(A));
-       if (num_procs > 1 && hypre_ParCSRMatrixCommPkg(B_H) == NULL)
-       {
-	  hypre_MatvecCommPkgCreate(B_H);
-       }
-       if (hypre_ParAMGDataADropTol(amg_data) <= 0.0)
-       {
-	  hypre_ParCSRMatrixSetNumNonzeros(B_H);
-	  hypre_ParCSRMatrixSetDNumNonzeros(B_H);
-       }
-       hypre_B_array[level] = B_H;
+       (*B_array) = (void**)hypre_B_array;
     }
     /* HYPRE_BoomerAMGDestroy(amg); 对于释放amg时，对AArray和PArray的操作 */
     /* if (hypre_ParAMGDataAArray(amg_data)[i])
@@ -196,7 +200,6 @@ void GCGE_HYPRE_MultiGridCreate(void ***A_array, void ***B_array, void ***P_arra
        hypre_ParCSRMatrixDestroy(hypre_ParAMGDataPArray(amg_data)[i-1]); */    
     HYPRE_BoomerAMGDestroy(amg);
     (*A_array) = (void**)hypre_A_array;
-    (*B_array) = (void**)hypre_B_array;
     (*P_array) = (void**)hypre_P_array;
 }
 
@@ -205,26 +208,32 @@ void GCGE_HYPRE_MultiGridDestroy(void ***A_array, void ***B_array, void ***P_arr
 {
     HYPRE_ParCSRMatrix *hypre_A_array, *hypre_B_array, *hypre_P_array;
     hypre_A_array = (HYPRE_ParCSRMatrix *)(*A_array);
-    hypre_B_array = (HYPRE_ParCSRMatrix *)(*B_array);
     hypre_P_array = (HYPRE_ParCSRMatrix *)(*P_array);
 
     int level; 
     for ( level = 1; level < (*num_levels); ++level )
     {
        hypre_ParCSRMatrixDestroy(hypre_A_array[level]);
-       hypre_ParCSRMatrixDestroy(hypre_B_array[level]);
     }
     for ( level = 0; level < (*num_levels) - 1; ++level )
     {
        hypre_ParCSRMatrixDestroy(hypre_P_array[level]);
     }
-
     free(hypre_A_array);
-    free(hypre_B_array);
     free(hypre_P_array);
     (*A_array) = NULL;
-    (*B_array) = NULL;
     (*P_array) = NULL;
+
+    if (B_array!=NULL)
+    {
+       hypre_B_array = (HYPRE_ParCSRMatrix *)(*B_array);
+       for ( level = 1; level < (*num_levels); ++level )
+       {
+	  hypre_ParCSRMatrixDestroy(hypre_B_array[level]);
+       }
+       free(hypre_B_array);
+       (*B_array) = NULL;
+    }
 }
 
 void GCGE_HYPRE_SetOps(GCGE_OPS *ops)
