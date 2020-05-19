@@ -147,9 +147,9 @@ main ( int argc, char *argv[] )
     GCGE_DOUBLE *tol    = malloc(num_levels*sizeof(GCGE_DOUBLE));
     for (idx = 0; idx < num_levels; ++idx)
     {
-       max_it[idx] = 10;
-       rate[idx]   = 1e-2;
-       tol[idx]    = 1e-8;
+       max_it[idx] = 100;
+       rate[idx]   = 1e-5;
+       tol[idx]    = 1e-15;
     }
 
     /* 生成每层上的多向量 */
@@ -160,30 +160,23 @@ main ( int argc, char *argv[] )
     BV *multi_vec_w   = malloc(num_levels*sizeof(BV));
     for (idx = 0; idx < num_levels; ++idx)
     {
-       printf ( "162 idx = %d\n", idx );
        gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_rhs[idx]), num_vecs, 
 	     (void*)petsc_A_array[idx], gcge_ops);
-       printf ( "165 idx = %d\n", idx );
-//       gcge_ops->MultiVecAxpby(0.0, (void**)(multi_vec_rhs[idx]), 0.0, (void**)(multi_vec_rhs[idx]), 
-//	     start_bx, end_bx, gcge_ops);
-       printf ( "168 idx = %d\n", idx );
+       gcge_ops->MultiVecAxpby(0.0, (void**)(multi_vec_rhs[idx]), 0.0, (void**)(multi_vec_rhs[idx]), 
+	     start_bx, end_bx, gcge_ops);
        gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_sol[idx]), num_vecs, 
 	     (void*)petsc_A_array[idx], gcge_ops);
-//       gcge_ops->MultiVecSetRandomValue((void**)(multi_vec_sol[idx]), 0, num_vecs, gcge_ops);
-//       printf ( "172 idx = %d\n", idx );
+       gcge_ops->MultiVecSetRandomValue((void**)(multi_vec_sol[idx]), 0, num_vecs, gcge_ops);
 
-//       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_r[idx]),   num_vecs, 
-//	     (void*)petsc_A_array[idx], gcge_ops);
-//       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_p[idx]),   num_vecs, 
-//	     (void*)petsc_A_array[idx], gcge_ops);
-//       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_w[idx]),   num_vecs, 
-//	     (void*)petsc_A_array[idx], gcge_ops);
+       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_r[idx]),   num_vecs, 
+	     (void*)petsc_A_array[idx], gcge_ops);
+       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_p[idx]),   num_vecs, 
+	     (void*)petsc_A_array[idx], gcge_ops);
+       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_w[idx]),   num_vecs, 
+	     (void*)petsc_A_array[idx], gcge_ops);
     }
-#if 0
-#endif
 
 
-#if 0
     GCGE_MultiLinearSolverSetup_BAMG(
 	  max_it,                   rate,                     tol, 
 	  (void**)petsc_A_array,    (void**)petsc_P_array, 
@@ -195,21 +188,19 @@ main ( int argc, char *argv[] )
 	  dtmp,                     itmp, 
 	  NULL, 
 	  gcge_ops);
-    GCGE_MultiLinearSolver_BAMG((void *)petsc_mat_A, (void **)multi_vec_rhs, (void **)multi_vec_sol, 
+    BVView(multi_vec_sol[0], viewer);
+    GCGE_MultiLinearSolver_BAMG((void *)petsc_mat_A, (void **)(multi_vec_rhs[0]), (void **)(multi_vec_sol[0]), 
 	  start_bx, end_bx, gcge_ops);
-#endif
-
+    BVView(multi_vec_sol[0], viewer);
 
     for (idx = 0; idx < num_levels; ++idx)
     {
-//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_rhs[idx]), num_vecs, gcge_ops);
-//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_sol[idx]), num_vecs, gcge_ops);
-//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_r[idx]),   num_vecs, gcge_ops);
-//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_p[idx]),   num_vecs, gcge_ops);
-//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_w[idx]),   num_vecs, gcge_ops);
+       gcge_ops->MultiVecDestroy((void***)(&multi_vec_rhs[idx]), num_vecs, gcge_ops);
+       gcge_ops->MultiVecDestroy((void***)(&multi_vec_sol[idx]), num_vecs, gcge_ops);
+       gcge_ops->MultiVecDestroy((void***)(&multi_vec_r[idx]),   num_vecs, gcge_ops);
+       gcge_ops->MultiVecDestroy((void***)(&multi_vec_p[idx]),   num_vecs, gcge_ops);
+       gcge_ops->MultiVecDestroy((void***)(&multi_vec_w[idx]),   num_vecs, gcge_ops);
     }
-#if 0
-#endif
     free(multi_vec_rhs);
     free(multi_vec_sol);
     free(multi_vec_r);

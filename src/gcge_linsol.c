@@ -207,8 +207,8 @@ void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V,
    void   *b, *x, *r, *p, *w;
    GCGE_INT    id, idx, niter = 0;
    GCGE_INT num_unlock = 0, old_num_unlock = 0; 
-   
    //计算初始的残差向量和残差
+//   ops->MultiVecPrint(CG_X, 3, ops);
    for(idx=0; idx<x_length; idx++)
    {
       ops->GetVecFromMultiVec(CG_X, start[1]+idx, &x, ops);   //取出初始值 x      
@@ -230,7 +230,7 @@ void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V,
       }
       ops->RestoreVecForMultiVec(CG_X, start[1]+idx, &x, ops);
       // r = b - A*x;
-      ops->GetVecFromMultiVec(CG_B, start_rpw[0]+idx, &b, ops);    //取出右端项 b
+      ops->GetVecFromMultiVec(CG_B, start[0]+idx, &b, ops);    //取出右端项 b
       ops->VecAxpby(1.0, b, -1.0, r, ops);  
       ops->VecLocalInnerProd(r, r, rho2+idx, ops);    //用残量的模来判断误差    
       ops->RestoreVecForMultiVec(CG_B, start[0]+idx, &b, ops); //把b相应的位置设为残差
@@ -325,8 +325,8 @@ void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V,
 	 rho1[id] = rho2[id];
 	 //计算新的r的局部内积
 	 ops->VecLocalInnerProd(r, r, rho2+id, ops);       
-	 ops->RestoreVecForMultiVec(CG_R, start[0]+idx, &r, ops); 
-	 ops->RestoreVecForMultiVec(CG_W, start[3]+idx, &w, ops);
+	 ops->RestoreVecForMultiVec(CG_R, start_rpw[0]+idx, &r, ops); 
+	 ops->RestoreVecForMultiVec(CG_W, start_rpw[2]+idx, &w, ops);
       }//end for idx
       //统一进行数据传输  
 #if GCGE_USE_MPI
@@ -466,7 +466,7 @@ static void BlockAlgebraicMultiGridSolver( GCGE_INT current_level,
    GCGE_BAMGSolver *bamg = (GCGE_BAMGSolver *)ops->multi_linear_solver_workspace;
    //默认0层为最细层
    // obtain the coarsest level
-   GCGE_INT coarsest_level = bamg->num_levels;
+   GCGE_INT coarsest_level = bamg->num_levels-1;
    GCGE_INT mv_s[2];
    GCGE_INT mv_e[2];
 
@@ -485,7 +485,7 @@ static void BlockAlgebraicMultiGridSolver( GCGE_INT current_level,
    // obtain the 'enough' accurate solution on the coarest level
    //direct solving the linear equation
    void *A = bamg->A_array[current_level];
-   GCGE_MultiLinearSolverSetup_BPCG( 
+   GCGE_MultiLinearSolverSetup_BPCG(
 	 bamg->max_it[current_level], 
 	 bamg->rate[current_level], 
 	 bamg->tol[current_level], 
@@ -615,6 +615,7 @@ void GCGE_MultiLinearSolverSetup_BAMG(
    GCGE_BAMGSolver *bamg = (GCGE_BAMGSolver*)ops->multi_linear_solver_workspace;
  
    bamg->max_it  = max_it;    
+   bamg->rate    = rate;    
    bamg->tol     = tol; 
    bamg->A_array    = A_array;   
    bamg->P_array    = P_array;

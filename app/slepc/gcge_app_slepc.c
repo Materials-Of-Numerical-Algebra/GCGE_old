@@ -499,6 +499,11 @@ void GCGE_SLEPC_MultiGridDestroy(void ***A_array, void ***B_array, void ***P_arr
     }
 }
 
+void GCGE_SLEPC_MultiVecPrint(void **x, GCGE_INT n, struct GCGE_OPS_ *ops)
+{
+   BVView((BV)x, PETSC_VIEWER_STDOUT_WORLD);
+}
+
 void GCGE_SLEPC_SetOps(GCGE_OPS *ops)
 {
     /* either-or */
@@ -526,6 +531,7 @@ void GCGE_SLEPC_SetOps(GCGE_OPS *ops)
     ops->MultiVecInnerProdLocal = GCGE_SLEPC_MultiVecInnerProdLocal;
     ops->MultiVecSwap  = GCGE_SLEPC_MultiVecSwap;
     ops->MultiVecAxpby = GCGE_SLEPC_MultiVecAxpby;
+    ops->MultiVecPrint = GCGE_SLEPC_MultiVecPrint;
 
     ops->MultiGridCreate  = GCGE_SLEPC_MultiGridCreate;
     ops->MultiGridDestroy = GCGE_SLEPC_MultiGridDestroy;
