@@ -34,7 +34,7 @@
  * @param x       解向量    (GCGE_VEC)
  * @param ops
  */
-void GCGE_Default_LinearSolver(void *Matrix, void *b, void *x, GCGE_OPS *ops)
+void GCGE_LinearSolver_PCG(void *Matrix, void *b, void *x, GCGE_OPS *ops)
 {
    GCGE_PCGSolver *pcg = (GCGE_PCGSolver*)ops->linear_solver_workspace;
    void        *r, *p, *w;
@@ -75,7 +75,7 @@ void GCGE_Default_LinearSolver(void *Matrix, void *b, void *x, GCGE_OPS *ops)
          ops->VecAxpby(1.0, r, beta, p, ops);
       }//end for if(niter == 1)
       //compute the vector w = A*p
-      ops->MatDotVec(Matrix,p,w, ops);
+      ops->MatDotVec(Matrix, p, w, ops);
       if(type == 1)
       {
          //compute the value pTw = p^T * w 
@@ -129,16 +129,24 @@ void GCGE_Default_LinearSolver(void *Matrix, void *b, void *x, GCGE_OPS *ops)
  * @param w
  * @param ops
  */
-void GCGE_Default_LinearSolverSetUp(void *pc, GCGE_INT max_it, GCGE_DOUBLE tol, 
-      void *r, void *p, void *w, GCGE_OPS *ops)
+void GCGE_LinearSolver_PCG_SetUp(GCGE_INT max_it, GCGE_DOUBLE rate, GCGE_DOUBLE tol, 
+      void *r, void *p, void *w, void *pc, GCGE_OPS *ops)
 {
+   /* 只初始化一次，且全局可见 */
+   static GCGE_PCGSolver pcg_static = {
+      .max_it = 50, .rate = 1e-2, .tol=1e-12, 
+      .r = NULL, .p = NULL, .w = NULL, 
+      .pc = NULL};
+   ops->linear_solver_workspace = (void *)&pcg_static;
+
    GCGE_PCGSolver *pcg = (GCGE_PCGSolver*)ops->linear_solver_workspace;
-   pcg->pc     = pc;
    pcg->max_it = max_it;
+   pcg->rate   = rate;
    pcg->tol    = tol;
    pcg->r      = r;
    pcg->p      = p;
    pcg->w      = w;
+   pcg->pc     = pc;
 }
 
 /**
@@ -156,7 +164,7 @@ void GCGE_Default_LinearSolverSetUp(void *pc, GCGE_INT max_it, GCGE_DOUBLE tol,
  * @param end    end[0]   RHS结束的指标  end[1]   V结束的指标
  * @param ops
  */
-void GCGE_Default_MultiLinearSolver(void *Matrix, void **RHS, void **V, 
+void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V, 
       GCGE_INT *start, GCGE_INT *end, GCGE_OPS *ops) 
 {
    GCGE_BPCGSolver *bpcg = (GCGE_BPCGSolver*)ops->multi_linear_solver_workspace;
@@ -367,15 +375,25 @@ void GCGE_Default_MultiLinearSolver(void *Matrix, void **RHS, void **V,
  * @param itmp       1*count(MultiVec)   int型工作空间   
  * @param ops
  */
-void GCGE_Default_MultiLinearSolverSetUp(void *pc, GCGE_INT max_it, GCGE_DOUBLE tol, 
+void GCGE_MultiLinearSolver_BPCG_SetUp(GCGE_INT max_it, GCGE_DOUBLE rate, GCGE_DOUBLE tol, 
       void **r, void **p, void **w, GCGE_INT *start_rpw, GCGE_INT *end_rpw, 
-      GCGE_DOUBLE *dtmp, GCGE_INT *itmp, 
+      GCGE_DOUBLE *dtmp, GCGE_INT *itmp, void *pc, 
       GCGE_INT if_shift, GCGE_DOUBLE shift, void *B, 
       GCGE_OPS *ops)
 {
+   /* 只初始化一次，且全局可见 */
+   static GCGE_BPCGSolver bpcg_static = {
+      .max_it = 50, .rate = 1e-2, .tol=1e-12, 
+      .r = NULL, .p = NULL, .w = NULL, 
+      .start_rpw = NULL, .end_rpw = NULL, 
+      .dtmp = NULL, .itmp = NULL, 
+      .pc = NULL, 
+      .if_shift = 0, .shift = 0.0, .B = NULL};
+   ops->multi_linear_solver_workspace = (void *)&bpcg_static;
+
    GCGE_BPCGSolver *bpcg = (GCGE_BPCGSolver*)ops->multi_linear_solver_workspace;
-   bpcg->pc        = pc;
    bpcg->max_it    = max_it;
+   bpcg->rate      = rate;
    bpcg->tol       = tol;
    bpcg->r         = r;
    bpcg->p         = p;
@@ -384,8 +402,227 @@ void GCGE_Default_MultiLinearSolverSetUp(void *pc, GCGE_INT max_it, GCGE_DOUBLE 
    bpcg->end_rpw   = end_rpw;
    bpcg->dtmp      = dtmp;
    bpcg->itmp      = itmp;
+   bpcg->pc        = pc;
 
    bpcg->if_shift  = if_shift;
    bpcg->shift     = shift;
    bpcg->B         = B;
 }
+
+/* GCGE_BMG 算法过程
+ * 递归求解，给定要求解的层号current_level, 该层右端项rhs, 解sol
+ *
+ * 如果current_level是最细层, 直接求解(暂时用GCGE_BCG多迭代几次)
+ * 否则 coarse_level = current_level + 1
+ *
+ * 1. 前光滑, 使用GCGE_BCG迭代几次, 
+ *    需要两组工作空间，使用mg->u_tmp与mg->u_tmp_1
+ *    (即为 solver->u_tmp_1 与 solver->u_tmp_2)
+ *
+ * 2. 计算当前细层的残差residual = rhs - A * sol
+ *    residual 使用 mg->u_tmp 的工作空间
+ *
+ * 3. 将当前层的残差residual投影到粗一层空间上
+ *    coarse_residual = R * residual
+ *    coarse_residual 使用 mg->rhs 的工作空间(因为是用作下一层的rhs)
+ *    (mg->rhs = solver->u_tmp)
+ *
+ * 4. 给 coarse_sol 赋初值为 0
+ *    coarse_sol 使用 mg->u 的工作空间
+ *
+ * 5. 递归调用 GCGE_BMG, 层号为 coarse_level
+ *
+ * 6. 将粗层的解 coarse_sol 插值到current_level层, 并加到sol上
+ *    residual = P * coarse_sol
+ *    sol += residual
+ *
+ * 7. 后光滑, 使用GCGE_BCG迭代几次
+ *
+ * 工作空间总结：
+ *    递归调用过程中, 
+ *    解sol所用空间一直是mg->u(即 solver->u)
+ *    右端项rhs所用空间一直是mg->rhs(即 solver->u_tmp)
+ *    残差residual所用空间一直是mg->u_tmp(即 solver->u_tmp_1)
+ *    GCGE_BCG使用空间为 mg->u_tmp, mg->u_tmp_1(solver->u_tmp_1, 2)
+ */
+/*
+ * mg : 包含需要的工作空间
+ * current_level: 从哪个细层开始进行多重网格计算，都会算到mg中的最粗层
+ * offset: 0 是最细层还是最粗层,默认最细层
+ * rhs: 多个右端项
+ * sol: 多个解向量
+ * start,end: rhs与sol分别计算第几个到第几个向量
+ * tol: 收敛准则 TODO 目前这个参数没用到
+ * rate: 前后光滑中CG迭代的精度提高比例
+ * nsmooth: 各细层CG迭代次数
+ * max_coarsest_smooth : 最粗层最大迭代次数
+ */
+static void BlockAlgebraicMultiGridSolver( GCGE_INT current_level, 
+	       void **rhs, void **sol, 
+               GCGE_INT *start, GCGE_INT *end,
+	       GCGE_OPS *ops )
+{
+   //printf("current_level: %d, coarsest_level: %d, rate: %e\n", current_level, mg->coarsest_level, rate);
+   GCGE_BAMGSolver *bamg = (GCGE_BAMGSolver *)ops->multi_linear_solver_workspace;
+   //默认0层为最细层
+   // obtain the coarsest level
+   GCGE_INT coarsest_level = bamg->num_levels;
+   GCGE_INT mv_s[2];
+   GCGE_INT mv_e[2];
+   void *A;
+
+   /* --------------------------------------------------------------- */
+   // obtain the 'enough' accurate solution on the coarest level
+   //direct solving the linear equation
+   A = bamg->A_array[current_level];
+   GCGE_MultiLinearSolver_BPCG_SetUp( 
+	 bamg->max_it[current_level], 
+	 bamg->rate[current_level], 
+	 bamg->tol[current_level], 
+	 bamg->r_array[current_level], 
+	 bamg->p_array[current_level], 
+	 bamg->w_array[current_level], 
+	 bamg->start_rpw, 
+	 bamg->end_rpw, 
+	 bamg->dtmp, bamg->itmp, NULL,
+	 0, 0.0, NULL, 
+	 ops);
+   GCGE_MultiLinearSolver_BPCG(A, rhs, sol, start, end, ops);
+   //GCGE_Printf("current_level: %d, after direct\n", current_level);
+   //mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
+   if( current_level < coarsest_level )
+   {   
+      mv_s[0] = start[1];
+      mv_e[0] = end[1];
+      mv_s[1] = bamg->start_rpw[0];
+      mv_e[1] = bamg->end_rpw[0];
+      //计算residual = A*sol
+      void **residual = bamg->r_array[current_level];
+      ops->MatDotMultiVec(A, sol, residual, mv_s, mv_e, ops);
+      //计算residual = rhs-A*sol
+      mv_s[0] = start[0];
+      mv_e[0] = end[0];
+      mv_s[1] = bamg->start_rpw[0];
+      mv_e[1] = bamg->end_rpw[0];
+      ops->MultiVecAxpby(1.0, rhs, -1.0, residual, mv_s, mv_e, ops);
+
+      //把residual投影到粗网格
+      GCGE_INT coarse_level = current_level + 1;
+      void **coarse_rhs = bamg->rhs_array[coarse_level];
+      mv_s[0] = bamg->start_rpw[0];
+      mv_e[0] = bamg->end_rpw[0];
+      mv_s[1] = bamg->start_bx[0];
+      mv_e[1] = bamg->end_bx[0];
+      ops->MultiVecFromItoJ(bamg->P_array, current_level, coarse_level, 
+	    residual, coarse_rhs, bamg->w_array, mv_s, mv_e, ops);
+
+      //求粗网格解问题，利用递归
+      void **coarse_sol = bamg->sol_array[coarse_level];
+      mv_s[0] = bamg->start_bx[1];
+      mv_e[0] = bamg->end_bx[1];
+      mv_s[1] = bamg->start_bx[1];
+      mv_e[1] = bamg->end_bx[1];
+      //先给coarse_sol赋初值0
+      ops->MultiVecAxpby(0.0, coarse_sol, 0.0, coarse_sol, mv_s, mv_e, ops);
+      GCGE_MultiLinearSolver_BAMG_SetUp(
+	 bamg->max_it,    bamg->rate,      bamg->tol, 
+	 bamg->A_array,   bamg->P_array,
+	 bamg->num_levels,
+	 bamg->rhs_array, bamg->sol_array, 
+	 bamg->start_bx,  bamg->end_bx, 
+	 bamg->r_array,   bamg->p_array,   bamg->w_array, 
+	 bamg->start_rpw, bamg->end_rpw, 
+	 bamg->dtmp,      bamg->itmp,      bamg->pc, 
+	 ops);
+      BlockAlgebraicMultiGridSolver( coarse_level, 
+	    coarse_rhs, coarse_sol, 
+	    bamg->start_bx, bamg->end_bx,
+	    ops );
+      //GCGE_Printf("current_level: %d, after postsmoothing\n", current_level);
+      //mg->gcge_ops->MultiVecPrint(sol, 1, mg->gcge_ops);
+
+      // 把粗网格上的解插值到细网格，再加到前光滑得到的近似解上
+      // 可以用 residual 代替
+      mv_s[0] = bamg->start_rpw[0];
+      mv_e[0] = bamg->end_rpw[0];
+      mv_s[1] = bamg->start_bx[1];
+      mv_e[1] = bamg->end_bx[1];
+      ops->MultiVecFromItoJ(bamg->P_array, coarse_level, current_level, 
+	    coarse_sol, residual, bamg->w_array, mv_s, mv_e, ops);
+      //计算residual = rhs-A*sol
+      mv_s[0] = bamg->start_rpw[0];
+      mv_e[0] = bamg->end_rpw[0];
+      mv_s[1] = start[1];
+      mv_e[1] = end[1];
+      ops->MultiVecAxpby(1.0, residual, 1.0, sol, mv_s, mv_e, ops);
+
+      //后光滑
+      GCGE_MultiLinearSolver_BPCG_SetUp( 
+	    bamg->max_it[current_level], 
+	    bamg->rate[current_level], 
+	    bamg->tol[current_level], 
+	    bamg->r_array[current_level], 
+	    bamg->p_array[current_level], 
+	    bamg->w_array[current_level], 
+	    bamg->start_rpw, 
+	    bamg->end_rpw, 
+	    bamg->dtmp, bamg->itmp, NULL,
+	    0, 0.0, NULL, 
+	    ops);
+      GCGE_MultiLinearSolver_BPCG(A, rhs, sol, start, end, ops);
+   }//end for (if current_level)
+}
+
+void GCGE_MultiLinearSolver_BAMG(void *Matrix, void **RHS, void **V, 
+      GCGE_INT *start, GCGE_INT *end, GCGE_OPS *ops) 
+{
+   BlockAlgebraicMultiGridSolver(0, RHS, V, start, end, ops);
+}
+
+void GCGE_MultiLinearSolver_BAMG_SetUp(
+      GCGE_INT    *max_it,      GCGE_DOUBLE *rate,        GCGE_DOUBLE *tol, 
+      void        **A_array,    void        **P_array, 
+      GCGE_INT    num_levels,
+      void        ***rhs_array, void        ***sol_array, 
+      GCGE_INT    *start_bx,    GCGE_INT    *end_bx,
+      void        ***r_array,   void        ***p_array,   void        ***w_array,
+      GCGE_INT    *start_rpw,   GCGE_INT    *end_rpw, 
+      GCGE_DOUBLE *dtmp,        GCGE_INT    *itmp, 
+      void        *pc,
+      GCGE_OPS *ops)
+{
+   static GCGE_BAMGSolver bamg_static = {
+      .max_it     = NULL, .rate      = NULL, .tol     = NULL, 
+      .A_array    = NULL, .P_array   = NULL, 
+      .num_levels = 0,
+      .rhs_array  = NULL, .sol_array = NULL,
+      .r_array    = NULL, .p_array   = NULL, .w_array = NULL, 
+      .start_rpw  = NULL, .end_rpw   = NULL, 
+      .dtmp       = NULL, .itmp      = NULL, 
+      .pc         = NULL};
+   ops->multi_linear_solver_workspace = (void *)&bamg_static;
+
+   GCGE_BAMGSolver *bamg = (GCGE_BAMGSolver*)ops->multi_linear_solver_workspace;
+ 
+   bamg->max_it  = max_it;    
+   bamg->tol     = tol; 
+   bamg->A_array    = A_array;   
+   bamg->P_array    = P_array;
+   bamg->num_levels = num_levels;
+   bamg->rhs_array  = rhs_array;       
+   bamg->sol_array  = sol_array; 
+   bamg->start_bx   = start_bx;
+   bamg->end_bx     = end_bx; 
+   bamg->r_array    = r_array;
+   bamg->p_array    = p_array;
+   bamg->w_array    = w_array;
+   bamg->start_rpw  = start_rpw; 
+   bamg->end_rpw    = end_rpw; 
+   bamg->dtmp       = dtmp;
+   bamg->itmp       = itmp;
+   bamg->pc         = pc;
+}
+
+
+
+
