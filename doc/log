@@ -887,3 +887,9 @@ In file included from /home/liyu/2020-WS/petsc/include/petscsys.h:1474:0,
 2. 利用PETSc进行矩阵分层时，最粗层的矩阵会只在一个进程中存储!
    这个可能是由于，petsc在计算最粗层线性方程组时利用直接法
    但是其它层的矩阵是被所有进程平均分的
+
+3. PCGAMGSetCoarseEqLim
+Set maximum number of equations on coarsest grid. 
+
+PCGAMGSetProcEqLim
+Set number of equations to aim for per process on the coarse grids via processor reduction.

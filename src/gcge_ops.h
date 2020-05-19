@@ -19,6 +19,7 @@
 #ifndef  _GCGE_OPS_H_
 #define  _GCGE_OPS_H_
 
+#include <math.h>
 #include "gcge_config.h"
 //把每一个操作都写好，这样以后进行算法设计的时候才能方便。
 #if GCGE_USE_MPI
@@ -75,6 +76,7 @@ typedef struct GCGE_OPS_ {
     void (*LinearSolver)            (void *Matrix, void *b, void *x, struct GCGE_OPS_ *ops);
     void *linear_solver_workspace;
     void (*MultiLinearSolver)       (void *Matrix, void **b, void **x, int *start, int *end, struct GCGE_OPS_ *ops); 
+    void *multi_linear_solver_workspace;
 
     /* TODO DenseMatCreate, DenseMatDestroy should in function Orthonormalization 
      * Add struct member name void *orth_workspace to save tmp variables */

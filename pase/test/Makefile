@@ -10,7 +10,7 @@ include $(GCGEHOME)/config/make.inc
 INC         = -I$(GCGEINC) -I$(PASEHOME)/include $(HYPREINC) $(PETSCINC) $(PHGINC) $(SLEPCINC)
 LIBGCGEPASE = $(PASEHOME)/lib/libgcge_pase.a
 
-INC_GCGE    = -I$(GCGEINC) $(SLEPCINC)
+INC_GCGE    = -I$(GCGEINC) $(PETSCINC) $(SLEPCINC)
 
 ########################################################################
 all:    help

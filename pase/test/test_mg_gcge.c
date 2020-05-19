@@ -16,6 +16,7 @@
 
 #include <stdio.h>
 #include "gcge.h"
+//#include "pase_convert.h"
 #include "gcge_app_slepc.h"
 
 
@@ -45,7 +46,7 @@ main ( int argc, char *argv[] )
 
     /* 得到PETSC矩阵A, B */
     Mat      petsc_mat_A, petsc_mat_B;
-    PetscInt n = 5, m = 5;
+    PetscInt n = 25, m = 25;
     GetPetscMat(&petsc_mat_A, &petsc_mat_B, n, m);
 
     /* 生成分层矩阵 num_levels可能会在创建多层矩阵之后变小 */
@@ -67,6 +68,7 @@ main ( int argc, char *argv[] )
        PetscPrintf(PETSC_COMM_SELF,"[%d] Matrix local size %D * %D\n", rank, local_m, local_n);
     }
 
+#if 0
     /* 打印各层矩阵 */
     PetscPrintf(PETSC_COMM_WORLD, "A_array\n");
     for (idx = 0; idx < num_levels; ++idx)
@@ -89,6 +91,7 @@ main ( int argc, char *argv[] )
 //    PETSCPrintMat(petsc_A_array[0], "A0");
 //    PETSCPrintMat(petsc_B_array[0], "B0");
 //    PETSCPrintMat(petsc_P_array[0], "P0");
+#endif
 
     /* 构造新的P_H矩阵，使得部分进程拥有其行 */
     /* 可以写成一个函数
@@ -139,8 +142,8 @@ main ( int argc, char *argv[] )
        MatGetLocalSize(new_P_H, &local_nrows, &local_ncols);
        PetscPrintf(PETSC_COMM_SELF,"[%d] new P_H local size %D * %D\n", 
 	     rank, local_nrows, new_local_ncols);
-       MatView(petsc_P_array[num_levels-2], viewer);
-       MatView(new_P_H, viewer);
+//       MatView(petsc_P_array[num_levels-2], viewer);
+//       MatView(new_P_H, viewer);
 
        /* 销毁之前的P_H A_H B_H */
        MatDestroy(&(petsc_P_array[num_levels-2]));
@@ -152,11 +155,11 @@ main ( int argc, char *argv[] )
 	     MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_A_array[num_levels-1]));
        MatPtAP(petsc_B_array[num_levels-2], petsc_P_array[num_levels-2],
 	     MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_B_array[num_levels-1]));
-       MatView(petsc_A_array[num_levels-1], viewer);
-       MatView(petsc_B_array[num_levels-1], viewer);
+//       MatView(petsc_A_array[num_levels-1], viewer);
+//       MatView(petsc_B_array[num_levels-1], viewer);
     }
 
-#if 1
+#if 0
     /* 测试向量延拓和限制 */
     PetscInt level_i, level_j;
     level_i = 0; level_j = num_levels-1;
