@@ -21,6 +21,7 @@
 #include <math.h>
 
 #include "gcge_ops.h"
+#include "gcge_linsol.h"
 /* if use mpi, multivec inner prod will be improved by MPI_Typre_vector and MPI_Op_create */
 #if GCGE_USE_MPI
 GCGE_INT SIZE_B, SIZE_E, LDA;
@@ -814,6 +815,8 @@ void GCGE_OPS_Create(GCGE_OPS **ops)
     /* Linear Solver */
     (*ops)->LinearSolver = NULL;
     (*ops)->MultiLinearSolver = NULL;
+    (*ops)->linear_solver_workspace = NULL;
+    (*ops)->multi_linear_solver_workspace = NULL;
     /* Multi Grid */
     (*ops)->MultiGridCreate  = NULL;
     (*ops)->MultiGridDestroy = NULL;
@@ -971,6 +974,14 @@ GCGE_INT GCGE_OPS_Setup(GCGE_OPS *ops)
     if(ops->MultiVecFromItoJ == NULL)
     {
        ops->MultiVecFromItoJ = GCGE_Default_MultiVecFromItoJ;
+    }
+    if(ops->LinearSolver == NULL)
+    {
+       ops->LinearSolver = GCGE_LinearSolver_PCG;
+    }
+    if(ops->MultiLinearSolver == NULL)
+    {
+       ops->MultiLinearSolver = GCGE_MultiLinearSolver_BAMG;
     }
 }                                           
 

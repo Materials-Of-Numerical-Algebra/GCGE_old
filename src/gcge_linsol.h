@@ -55,14 +55,14 @@ typedef struct GCGE_BAMGSolver_ {
 
 
 void GCGE_LinearSolver_PCG(void *Matrix, void *b, void *x, GCGE_OPS *ops);
-void GCGE_LinearSolver_PCG_SetUp(
+void GCGE_LinearSolverSetup_PCG(
       GCGE_INT max_it, GCGE_DOUBLE rate, GCGE_DOUBLE tol, 
       void *r,         void *p,          void *w, 
       void *pc, 
       GCGE_OPS *ops);
 void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V, 
       GCGE_INT *start, GCGE_INT *end, GCGE_OPS *ops);
-void GCGE_MultiLinearSolver_BPCG_SetUp(
+void GCGE_MultiLinearSolverSetup_BPCG(
       GCGE_INT    max_it,       GCGE_DOUBLE rate,         GCGE_DOUBLE tol, 
       void        **r,          void        **p,          void        **w, 
       GCGE_INT    *start_rpw,   GCGE_INT    *end_rpw, 
@@ -73,7 +73,7 @@ void GCGE_MultiLinearSolver_BPCG_SetUp(
 
 void GCGE_MultiLinearSolver_BAMG(void *Matrix, void **RHS, void **V, 
       GCGE_INT *start, GCGE_INT *end, GCGE_OPS *ops);
-void GCGE_MultiLinearSolver_BAMG_SetUp(
+void GCGE_MultiLinearSolverSetup_BAMG(
       GCGE_INT    *max_it,      GCGE_DOUBLE *rate,        GCGE_DOUBLE *tol, 
       void        **A_array,    void        **P_array, 
       GCGE_INT    num_levels,

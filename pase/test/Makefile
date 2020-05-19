@@ -43,6 +43,10 @@ run-mg:
 run-mg_gcge:
 	mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_gcge.exe
 
+run-amg_gcge:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_amg_gcge.exe
+	#mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_amg_gcge.exe
+
 run-mg_phg:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_phg.exe
 
@@ -72,6 +76,10 @@ test_mg:
 test_mg_gcge:
 	$(CC)  $(CFLAGS) -c test_mg_gcge.c -o test_mg_gcge.o $(INC_GCGE) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_mg_gcge.exe ./test_mg_gcge.o $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBGCGE)
+
+test_amg_gcge:
+	$(CC)  $(CFLAGS) -c test_amg_gcge.c -o test_amg_gcge.o $(INC_GCGE) 
+	$(CLINKER)  $(LDFLAGS)  -o ./test_amg_gcge.exe ./test_amg_gcge.o $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBGCGE)
 
 test_mg_petsc:
 	$(CC)  $(CFLAGS) $(PETSCFLAGS) -c test_mg_petsc.c -o test_mg_petsc.o $(PETSCINC) 

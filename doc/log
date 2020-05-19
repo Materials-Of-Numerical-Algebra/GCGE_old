@@ -893,3 +893,14 @@ Set maximum number of equations on coarsest grid.
 
 PCGAMGSetProcEqLim
 Set number of equations to aim for per process on the coarse grids via processor reduction.
+
+
+
+2020.5.19 liyu
+1. 加入 gcge_linsol.c gcge_linsol.h
+   将 CG BCG BMG 加入ops, 还未改动gcge_ops
+2. 利用static去管理 linear_solver_workspace
+3. 进行 PCG BPCG BAMG (重起了名字) 解方程之前，务必先SetUp
+
+
+

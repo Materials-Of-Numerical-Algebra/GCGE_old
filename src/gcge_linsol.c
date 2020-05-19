@@ -25,7 +25,7 @@
  * @brief CG迭代求解Matrix * x = b
  *
  * 本函数不直接修改b的值，但如果利用
- * GCGE_Default_LinearSolverSetUp
+ * GCGE_Default_LinearSolverSetup
  * 设定工作空间时，可以将b设为linear_solver_workspace->p or w;
  * 不能设为r，因为在一开始需要用b和r求初始残量
  *
@@ -49,7 +49,7 @@ void GCGE_LinearSolver_PCG(void *Matrix, void *b, void *x, GCGE_OPS *ops)
    w = pcg->w; //记录tmp=A*p
    if (r==NULL || p==NULL || w==NULL)
    {
-      GCGE_Printf("Default linear solver is used. Please set r p w in ops->linear_solver_workspace.\n");
+      GCGE_Printf("PCG linear solver is used. Please set r p w in ops->linear_solver_workspace.\n");
       exit;
    }
 
@@ -129,7 +129,7 @@ void GCGE_LinearSolver_PCG(void *Matrix, void *b, void *x, GCGE_OPS *ops)
  * @param w
  * @param ops
  */
-void GCGE_LinearSolver_PCG_SetUp(GCGE_INT max_it, GCGE_DOUBLE rate, GCGE_DOUBLE tol, 
+void GCGE_LinearSolverSetup_PCG(GCGE_INT max_it, GCGE_DOUBLE rate, GCGE_DOUBLE tol, 
       void *r, void *p, void *w, void *pc, GCGE_OPS *ops)
 {
    /* 只初始化一次，且全局可见 */
@@ -153,7 +153,7 @@ void GCGE_LinearSolver_PCG_SetUp(GCGE_INT max_it, GCGE_DOUBLE rate, GCGE_DOUBLE 
  * @brief 
  *
  * 本函数不直接修改RHS值，但如果利用
- * GCGE_Default_MultiLinearSolverSetUp
+ * GCGE_Default_MultiLinearSolverSetup
  * 设定工作空间时，可以将RHS设为multi_linear_solver_workspace->p or w;
  * 不能设为r，因为在一开始需要用b和r求初始残量
  *
@@ -177,14 +177,14 @@ void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V,
    GCGE_INT    x_length = end[1] - start[1];
    if (CG_R==NULL || CG_P==NULL || CG_W==NULL)
    {
-      GCGE_Printf("Default multi linear solver is used. Please set r p w in ops->multi_linear_solver_workspace.\n");
+      GCGE_Printf("BPCG multi linear solver is used. Please set r p w in ops->multi_linear_solver_workspace.\n");
       exit;
    }
    if (end_rpw[0]-start_rpw[0] < x_length || 
        end_rpw[1]-start_rpw[1] < x_length ||
        end_rpw[2]-start_rpw[2] < x_length)
    {
-      GCGE_Printf("Default multi linear solver is used. Please the length of r p w in ops->multi_linear_solver_workspace is not enough.\n");
+      GCGE_Printf("BPCG multi linear solver is used. Please the length of r p w in ops->multi_linear_solver_workspace is not enough.\n");
       exit;
    }
 
@@ -375,7 +375,7 @@ void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V,
  * @param itmp       1*count(MultiVec)   int型工作空间   
  * @param ops
  */
-void GCGE_MultiLinearSolver_BPCG_SetUp(GCGE_INT max_it, GCGE_DOUBLE rate, GCGE_DOUBLE tol, 
+void GCGE_MultiLinearSolverSetup_BPCG(GCGE_INT max_it, GCGE_DOUBLE rate, GCGE_DOUBLE tol, 
       void **r, void **p, void **w, GCGE_INT *start_rpw, GCGE_INT *end_rpw, 
       GCGE_DOUBLE *dtmp, GCGE_INT *itmp, void *pc, 
       GCGE_INT if_shift, GCGE_DOUBLE shift, void *B, 
@@ -469,13 +469,23 @@ static void BlockAlgebraicMultiGridSolver( GCGE_INT current_level,
    GCGE_INT coarsest_level = bamg->num_levels;
    GCGE_INT mv_s[2];
    GCGE_INT mv_e[2];
-   void *A;
+
+   if (bamg->A_array==NULL || bamg->P_array==NULL)
+   {
+      GCGE_Printf("BAMG multi linear solver is used. Please set A P in ops->multi_linear_solver_workspace.\n");
+      exit;
+   }
+   if (bamg->r_array==NULL || bamg->p_array==NULL || bamg->w_array==NULL)
+   {
+      GCGE_Printf("BAMG multi linear solver is used. Please set r p w in ops->multi_linear_solver_workspace.\n");
+      exit;
+   }
 
    /* --------------------------------------------------------------- */
    // obtain the 'enough' accurate solution on the coarest level
    //direct solving the linear equation
-   A = bamg->A_array[current_level];
-   GCGE_MultiLinearSolver_BPCG_SetUp( 
+   void *A = bamg->A_array[current_level];
+   GCGE_MultiLinearSolverSetup_BPCG( 
 	 bamg->max_it[current_level], 
 	 bamg->rate[current_level], 
 	 bamg->tol[current_level], 
@@ -524,7 +534,7 @@ static void BlockAlgebraicMultiGridSolver( GCGE_INT current_level,
       mv_e[1] = bamg->end_bx[1];
       //先给coarse_sol赋初值0
       ops->MultiVecAxpby(0.0, coarse_sol, 0.0, coarse_sol, mv_s, mv_e, ops);
-      GCGE_MultiLinearSolver_BAMG_SetUp(
+      GCGE_MultiLinearSolverSetup_BAMG(
 	 bamg->max_it,    bamg->rate,      bamg->tol, 
 	 bamg->A_array,   bamg->P_array,
 	 bamg->num_levels,
@@ -557,7 +567,7 @@ static void BlockAlgebraicMultiGridSolver( GCGE_INT current_level,
       ops->MultiVecAxpby(1.0, residual, 1.0, sol, mv_s, mv_e, ops);
 
       //后光滑
-      GCGE_MultiLinearSolver_BPCG_SetUp( 
+      GCGE_MultiLinearSolverSetup_BPCG( 
 	    bamg->max_it[current_level], 
 	    bamg->rate[current_level], 
 	    bamg->tol[current_level], 
@@ -579,7 +589,7 @@ void GCGE_MultiLinearSolver_BAMG(void *Matrix, void **RHS, void **V,
    BlockAlgebraicMultiGridSolver(0, RHS, V, start, end, ops);
 }
 
-void GCGE_MultiLinearSolver_BAMG_SetUp(
+void GCGE_MultiLinearSolverSetup_BAMG(
       GCGE_INT    *max_it,      GCGE_DOUBLE *rate,        GCGE_DOUBLE *tol, 
       void        **A_array,    void        **P_array, 
       GCGE_INT    num_levels,

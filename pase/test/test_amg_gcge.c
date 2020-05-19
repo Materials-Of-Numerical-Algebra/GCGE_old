@@ -1,7 +1,7 @@
 /*
  * =====================================================================================
  *
- *       Filename:  test_mg_gcge.c
+ *       Filename:  test_amg_gcge.c
  *
  *    Description:  
  *
@@ -68,30 +68,7 @@ main ( int argc, char *argv[] )
        PetscPrintf(PETSC_COMM_SELF,"[%d] Matrix local size %D * %D\n", rank, local_m, local_n);
     }
 
-#if 0
-    /* 打印各层矩阵 */
-    PetscPrintf(PETSC_COMM_WORLD, "A_array\n");
-    for (idx = 0; idx < num_levels; ++idx)
-    {
-        PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
-        MatView(petsc_A_array[idx], viewer);
-    }
-    PetscPrintf(PETSC_COMM_WORLD, "B_array\n");
-    for (idx = 0; idx < num_levels; ++idx)
-    {
-        PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
-        MatView(petsc_B_array[idx], viewer);
-    }
-    PetscPrintf(PETSC_COMM_WORLD, "P_array\n");
-    for (idx = 0; idx < num_levels-1; ++idx)
-    {
-        PetscPrintf(PETSC_COMM_WORLD, "idx = %d\n", idx);
-        MatView(petsc_P_array[idx], viewer);
-    }
-//    PETSCPrintMat(petsc_A_array[0], "A0");
-//    PETSCPrintMat(petsc_B_array[0], "B0");
-//    PETSCPrintMat(petsc_P_array[0], "P0");
-#endif
+
 
     /* 构造新的P_H矩阵，使得部分进程拥有其行 */
     /* 可以写成一个函数
@@ -159,79 +136,89 @@ main ( int argc, char *argv[] )
 //       MatView(petsc_B_array[num_levels-1], viewer);
     }
 
-    /* 测试向量延拓和限制 */
-    PetscInt level_i, level_j;
-    level_i = 0; level_j = num_levels-1;
-    Vec vec_i, vec_j;
-    gcge_ops->VecCreateByMat((void**)&vec_i, (void*)petsc_A_array[level_i], gcge_ops);
-    gcge_ops->VecCreateByMat((void**)&vec_j, (void*)petsc_A_array[level_j], gcge_ops);
-    gcge_ops->VecSetRandomValue((void*)vec_i, gcge_ops);
-    gcge_ops->VecSetRandomValue((void*)vec_j, gcge_ops);
-    /* 测试FromItoJ, 需要所有层上的临时向量 */
-    Vec *vec_tmp = malloc(num_levels*sizeof(Vec));
+
+    GCGE_INT num_vecs = 3;
+    GCGE_INT start_bx[2]  = {0, 0},    end_bx[2]  = {3, 3};      // num_vecs
+    GCGE_INT start_rpw[3] = {0, 0, 0}, end_rpw[3] = {3, 3, 3};   // num_vecs
+    GCGE_DOUBLE dtmp[15]; // 5*num_vecs
+    GCGE_INT    itmp[3];  // 1*num_vecs
+    GCGE_INT    *max_it = malloc(num_levels*sizeof(GCGE_INT));
+    GCGE_DOUBLE *rate   = malloc(num_levels*sizeof(GCGE_DOUBLE));
+    GCGE_DOUBLE *tol    = malloc(num_levels*sizeof(GCGE_DOUBLE));
     for (idx = 0; idx < num_levels; ++idx)
     {
-       gcge_ops->VecCreateByMat((void**)(&vec_tmp[idx]), (void*)petsc_A_array[idx], gcge_ops);
+       max_it[idx] = 10;
+       rate[idx]   = 1e-2;
+       tol[idx]    = 1e-8;
     }
-    gcge_ops->VecFromItoJ((void**)petsc_P_array, level_i, level_j, 
-	  (void*)vec_i, (void*)vec_j, (void**)vec_tmp, gcge_ops);
-    VecView(vec_i, viewer);
-    VecView(vec_j, viewer);
-    gcge_ops->VecFromItoJ((void**)petsc_P_array, level_j, level_i, 
-	  (void*)vec_j, (void*)vec_i, (void**)vec_tmp, gcge_ops);
-    VecView(vec_i, viewer);
-    VecView(vec_j, viewer);
-//    PETSCPrintVec(vec_i);
-//    PETSCPrintVec(vec_j);
+
+    /* 生成每层上的多向量 */
+    BV *multi_vec_rhs = malloc(num_levels*sizeof(BV));
+    BV *multi_vec_sol = malloc(num_levels*sizeof(BV));
+    BV *multi_vec_r   = malloc(num_levels*sizeof(BV));
+    BV *multi_vec_p   = malloc(num_levels*sizeof(BV));
+    BV *multi_vec_w   = malloc(num_levels*sizeof(BV));
     for (idx = 0; idx < num_levels; ++idx)
     {
-       gcge_ops->VecDestroy((void**)&vec_tmp[idx], gcge_ops);
+       printf ( "162 idx = %d\n", idx );
+       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_rhs[idx]), num_vecs, 
+	     (void*)petsc_A_array[idx], gcge_ops);
+       printf ( "165 idx = %d\n", idx );
+//       gcge_ops->MultiVecAxpby(0.0, (void**)(multi_vec_rhs[idx]), 0.0, (void**)(multi_vec_rhs[idx]), 
+//	     start_bx, end_bx, gcge_ops);
+       printf ( "168 idx = %d\n", idx );
+       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_sol[idx]), num_vecs, 
+	     (void*)petsc_A_array[idx], gcge_ops);
+//       gcge_ops->MultiVecSetRandomValue((void**)(multi_vec_sol[idx]), 0, num_vecs, gcge_ops);
+//       printf ( "172 idx = %d\n", idx );
+
+//       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_r[idx]),   num_vecs, 
+//	     (void*)petsc_A_array[idx], gcge_ops);
+//       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_p[idx]),   num_vecs, 
+//	     (void*)petsc_A_array[idx], gcge_ops);
+//       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_w[idx]),   num_vecs, 
+//	     (void*)petsc_A_array[idx], gcge_ops);
     }
-    free(vec_tmp);
-    gcge_ops->VecDestroy((void**)&vec_i, gcge_ops);
-    gcge_ops->VecDestroy((void**)&vec_j, gcge_ops);
+#if 0
+#endif
+
 
 #if 0
-    /* 测试多向量延拓和限制 */
-    level_i = 0; level_j = num_levels-1;
-    PetscInt num_vecs = 3;
-    BV multi_vec_i, multi_vec_j;
-    gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_i), num_vecs, 
-	  (void*)petsc_A_array[level_i], gcge_ops);
-    gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_j), num_vecs, 
-	  (void*)petsc_A_array[level_j], gcge_ops);
-    gcge_ops->MultiVecSetRandomValue((void**)multi_vec_i, 0, num_vecs, gcge_ops);
-    gcge_ops->MultiVecSetRandomValue((void**)multi_vec_j, 0, num_vecs, gcge_ops);
-
-    PetscInt mv_s[2], mv_e[2];
-    mv_s[0] = 0; mv_e[0] = num_vecs;
-    mv_s[1] = 0; mv_e[1] = num_vecs;
-
-    /* FromItoJ需要临时向量，存储每一层的多向量 */
-    BV *multi_vec_tmp = malloc(num_levels*sizeof(BV));
-    for (idx = 0; idx < num_levels; ++idx)
-    {
-       gcge_ops->MultiVecCreateByMat((void***)(&multi_vec_tmp[idx]), num_vecs, 
-	     (void*)petsc_A_array[idx], gcge_ops);
-    }
-    gcge_ops->MultiVecFromItoJ((void**)petsc_P_array, level_i, level_j, 
-	  (void**)multi_vec_i, (void**)multi_vec_j, (void***)multi_vec_tmp, mv_s, mv_e, gcge_ops);
-    BVView(multi_vec_i, viewer);
-    BVView(multi_vec_j, viewer);
-    gcge_ops->MultiVecFromItoJ((void**)petsc_P_array, level_j, level_i, 
-	  (void**)multi_vec_j, (void**)multi_vec_i, (void***)multi_vec_tmp, mv_s, mv_e, gcge_ops);
-    BVView(multi_vec_i, viewer);
-    BVView(multi_vec_j, viewer);
-//    PETSCPrintBV(multi_vec_i, "Rfrom");
-//    PETSCPrintBV(multi_vec_j, "Rto");
-    for (idx = 0; idx < num_levels; ++idx)
-    {
-       gcge_ops->MultiVecDestroy((void***)(&multi_vec_tmp[idx]), num_vecs, gcge_ops);
-    }
-    free(multi_vec_tmp);
-    gcge_ops->MultiVecDestroy((void***)(&multi_vec_i), num_vecs, gcge_ops);
-    gcge_ops->MultiVecDestroy((void***)(&multi_vec_j), num_vecs, gcge_ops);
+    GCGE_MultiLinearSolverSetup_BAMG(
+	  max_it,                   rate,                     tol, 
+	  (void**)petsc_A_array,    (void**)petsc_P_array, 
+	  num_levels,
+	  (void***)multi_vec_rhs,   (void***)multi_vec_sol, 
+	  start_bx,                 end_bx,
+	  (void***)multi_vec_r,     (void***)multi_vec_p,     (void***)multi_vec_w,
+	  start_rpw,                end_rpw, 
+	  dtmp,                     itmp, 
+	  NULL, 
+	  gcge_ops);
+    GCGE_MultiLinearSolver_BAMG((void *)petsc_mat_A, (void **)multi_vec_rhs, (void **)multi_vec_sol, 
+	  start_bx, end_bx, gcge_ops);
 #endif
+
+
+    for (idx = 0; idx < num_levels; ++idx)
+    {
+//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_rhs[idx]), num_vecs, gcge_ops);
+//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_sol[idx]), num_vecs, gcge_ops);
+//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_r[idx]),   num_vecs, gcge_ops);
+//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_p[idx]),   num_vecs, gcge_ops);
+//       gcge_ops->MultiVecDestroy((void***)(&multi_vec_w[idx]),   num_vecs, gcge_ops);
+    }
+#if 0
+#endif
+    free(multi_vec_rhs);
+    free(multi_vec_sol);
+    free(multi_vec_r);
+    free(multi_vec_p);
+    free(multi_vec_w);
+    free(max_it);
+    free(rate);
+    free(tol);
+
 
     gcge_ops->MultiGridDestroy((void***)&petsc_A_array, (void***)&petsc_B_array, (void***)&petsc_P_array,
 	  &num_levels, gcge_ops);
