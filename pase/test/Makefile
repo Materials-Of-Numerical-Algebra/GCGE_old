@@ -44,8 +44,7 @@ run-mg_gcge:
 	mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_gcge.exe
 
 run-amg_gcge:
-	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_amg_gcge.exe
-	#mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_amg_gcge.exe
+	mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_amg_gcge.exe
 
 run-mg_phg:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_phg.exe

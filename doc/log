@@ -902,5 +902,12 @@ Set number of equations to aim for per process on the coarse grids via processor
 2. 利用static去管理 linear_solver_workspace
 3. 进行 PCG BPCG BAMG (重起了名字) 解方程之前，务必先SetUp
 
-
+2020.5.20 liyu
+1. RedistributeDataOfMultiGridMatrixOnEachProcess in pase/test/test_amg_gcge
+2. 测试成功slepc下, MG矩阵生成，矩阵在各个进程中重分配，进行BAMG
+   在测试中，工作空间被独立出来，不会和其它任何结构冲突
+3. 虽然可以直接利用ops->MultiLinearSolver调用求解，但并没那么做, 之后再探讨
+   注意：ops的默认LinearSolver和MultiLinearSolver已经更改分别使用内置的PCG和BPCG
+         调用之前一定进行相应的Setup，这其实是在分配工作空间和设置相关参数
+         预条件部分还没有实现
 
