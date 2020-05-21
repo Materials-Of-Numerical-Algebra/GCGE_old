@@ -76,12 +76,13 @@ main ( int argc, char *argv[] )
     * 保证每层实际拥有数据的进程数nbigranks是unit的倍数(比如LSSC4 unit=36)
     * nbigranks[level] = size*proc_rate[level]
     * 进程号从0开始到nbigranks-1
-    * proc_rate[0]是无效参数，即不改变最细层的矩阵分配 */
+    * proc_rate[0]是无效参数，即不改变最细层的矩阵分配 
+    * 若proc_rate设为(0,1)之外，则不进行数据重分配 表示不会改变idx-1层的P和idx层的A */
    GCGE_INT    unit = 2;
    GCGE_DOUBLE *proc_rate = malloc(num_levels*sizeof(GCGE_DOUBLE));
    for (idx = 0; idx < num_levels; ++idx)
    {
-      proc_rate[idx]   = 1.0;
+      proc_rate[idx]   = -1.0;
    }
    proc_rate[num_levels-1] = 0.5;
    RedistributeDataOfMultiGridMatrixOnEachProcess(
@@ -226,13 +227,23 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
    MPI_Comm_size(PETSC_COMM_WORLD, &size);
 
-   if (proc_rate[0]<0.8)
+   if (proc_rate[0]<1.0 && proc_rate[0]>0.0)
    {
       PetscPrintf(PETSC_COMM_WORLD, "Warning the refinest matrix cannot be redistributed\n");
    }
 
    for (level = 1; level < num_levels; ++level)
    {
+      /* 若proc_rate设为(0,1)之外，则不进行数据重分配 */
+      if (proc_rate[level]>=1.0 || proc_rate[level]<=0.0)
+      {
+	 PetscPrintf(PETSC_COMM_WORLD, "Retain data distribution of %D level\n", level);
+	 continue; /* 直接到下一次循环 */
+      }
+      else
+      {
+	 PetscPrintf(PETSC_COMM_WORLD, "Redistribute data of %D level\n", level);
+      }
       MatGetSize(petsc_P_array[level-1], &global_nrows, &global_ncols);
       /* 在设定new_P_H的局部行时已经不能用以前P的局部行，因为当前层的A可能已经改变 */
       MatGetLocalSize(petsc_A_array[level-1], &local_nrows, &local_ncols);
@@ -253,7 +264,7 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
       /* 创建新的延拓矩阵, 并用原始的P为之赋值 */
       MatCreate(PETSC_COMM_WORLD, &new_P_H);
       MatSetSizes(new_P_H, local_nrows, new_local_ncols, global_nrows, global_ncols);
-      MatSetFromOptions(new_P_H);
+      //MatSetFromOptions(new_P_H);
       /* can be improved */
       //       MatSeqAIJSetPreallocation(new_P_H, 5, NULL);
       //       MatMPIAIJSetPreallocation(new_P_H, 3, NULL, 2, NULL);
@@ -280,13 +291,19 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
       /* 销毁之前的P_H A_H B_H */
       MatDestroy(&(petsc_P_array[level-1]));
       MatDestroy(&(petsc_A_array[level]));
-      MatDestroy(&(petsc_B_array[level]));
+      if (petsc_B_array!=NULL)
+      {
+	 MatDestroy(&(petsc_B_array[level]));
+      }
 
       petsc_P_array[level-1] = new_P_H;
       MatPtAP(petsc_A_array[level-1], petsc_P_array[level-1],
 	    MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_A_array[level]));
-      MatPtAP(petsc_B_array[level-1], petsc_P_array[level-1],
-	    MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_B_array[level]));
+      if (petsc_B_array!=NULL)
+      {
+	 MatPtAP(petsc_B_array[level-1], petsc_P_array[level-1],
+	       MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_B_array[level]));
+      }
       //       MatView(petsc_A_array[num_levels-1], viewer);
       //       MatView(petsc_B_array[num_levels-1], viewer);
    }
@@ -300,7 +317,7 @@ void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m)
     PetscErrorCode ierr;
     ierr = MatCreate(PETSC_COMM_WORLD,A);
     ierr = MatSetSizes(*A,PETSC_DECIDE,PETSC_DECIDE,N,N);
-    ierr = MatSetFromOptions(*A);
+//    ierr = MatSetFromOptions(*A);
     ierr = MatSetUp(*A);
     ierr = MatGetOwnershipRange(*A,&Istart,&Iend);
     for (II=Istart;II<Iend;II++) {
@@ -316,7 +333,7 @@ void GetPetscMat(Mat *A, Mat *B, PetscInt n, PetscInt m)
 
     ierr = MatCreate(PETSC_COMM_WORLD,B);
     ierr = MatSetSizes(*B,PETSC_DECIDE,PETSC_DECIDE,N,N);
-    ierr = MatSetFromOptions(*B);
+//    ierr = MatSetFromOptions(*B);
     ierr = MatSetUp(*B);
     ierr = MatGetOwnershipRange(*B,&Istart,&Iend);
     for (II=Istart;II<Iend;II++) {
