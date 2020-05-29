@@ -18,6 +18,10 @@ MAIN1 = test_pcg.c
 OBJS1 = test_pcg.o
 EXE1 = ../../bin/test_pcg.exe
 
+MAIN1 = test_amg.c
+OBJS1 = test_amg.o
+EXE1 = ../../bin/test_amg.exe
+
 MAIN1 = test_bcg.c
 OBJS1 = test_bcg.o
 EXE1 = test_bcg.exe
