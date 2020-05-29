@@ -15,8 +15,8 @@
  *
  * =====================================================================================
  */
-#ifndef _GCGE_LINSOL_H_
-#define _GCGE_LINSOL_H_
+#ifndef _GCGE_OPS_LINSOL_H_
+#define _GCGE_OPS_LINSOL_H_
 
 #include "gcge_config.h"
 #include "gcge_ops.h"

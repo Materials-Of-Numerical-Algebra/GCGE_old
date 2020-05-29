@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include "gcge_linsol.h"
+#include "gcge_ops_linsol.h"
 
 /**
  * @brief CG迭代求解Matrix * x = b

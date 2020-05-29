@@ -25,7 +25,7 @@
 #include "gcge_statistics.h"
 #include "gcge_para.h"
 #include "gcge_ops.h"
-#include "gcge_linsol.h"
+#include "gcge_ops_linsol.h"
 
 #include "gcge_workspace.h"
 

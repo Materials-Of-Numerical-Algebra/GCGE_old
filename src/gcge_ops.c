@@ -21,7 +21,7 @@
 #include <math.h>
 
 #include "gcge_ops.h"
-#include "gcge_linsol.h"
+#include "gcge_ops_linsol.h"
 /* if use mpi, multivec inner prod will be improved by MPI_Typre_vector and MPI_Op_create */
 #if GCGE_USE_MPI
 GCGE_INT SIZE_B, SIZE_E, LDA;
