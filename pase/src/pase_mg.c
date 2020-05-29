@@ -1,5 +1,10 @@
 #include <time.h>
 #include "pase_mg.h"
+/* ------------------------liyu 20200529 修改部分 ---------------------------- */
+void RedistributeDataOfMultiGridMatrixOnEachProcess(
+     Mat * petsc_A_array, Mat *petsc_B_array, Mat *petsc_P_array, 
+     PetscInt num_levels, PetscReal *proc_rate, PetscInt unit);
+/* ------------------------liyu 20200529 修改部分 ---------------------------- */
 
 void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array, 
       HYPRE_Int *num_levels, HYPRE_ParCSRMatrix hypre_parcsr_mat, 
@@ -130,6 +135,34 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     }
     /* --------------------------------------- JUST for PETSC using HYPRE --------------------------------------- */
 #endif
+
+/* ------------------------liyu 20200529 修改部分 ---------------------------- */
+    /* 重分配矩阵数据在进程中，默认只改变最粗层的分布
+     * 即proc_rate[num_levels-1] = 0.5 使用一半的进程数 */
+    /* 对整个进程, 重新分配各层矩阵数据 
+     * 保证每层实际拥有数据的进程数nbigranks是unit的倍数(比如LSSC4 unit=36)
+     * nbigranks[level] = size*proc_rate[level]
+     * 进程号从0开始到nbigranks-1
+     * proc_rate[0]是无效参数，即不改变最细层的矩阵分配 
+     * 若proc_rate设为(0,1)之外，则不进行数据重分配 表示不会改变idx-1层的P和idx层的A */
+    /* TODO
+     * 这个函数形式参数max_levels就只能理解为最大层数，实际层数
+     * (*multi_grid)->num_levels有可能比它小
+     * 这会使得在param中的num_levels与真实的num_levels不等
+     * 但是在创建pase_solver中，一些参数如initial_level会与param中的num_levels相关
+     * 这是错误的设计*/
+    GCGE_INT    unit = 1;
+    GCGE_DOUBLE *proc_rate = malloc((*multi_grid)->num_levels*sizeof(GCGE_DOUBLE));
+    for (level = 0; level < (*multi_grid)->num_levels; ++level)
+    {
+       proc_rate[level] = -1.0;
+    }
+    proc_rate[(*multi_grid)->num_levels-1] = 0.5;
+    RedistributeDataOfMultiGridMatrixOnEachProcess(
+	  A_array, B_array, P_array, 
+	  (*multi_grid)->num_levels, proc_rate, unit);
+    free(proc_rate);
+/* ------------------------liyu 20200529 修改部分 ---------------------------- */
 
     (*multi_grid)->A_array = (void**)A_array;
     (*multi_grid)->B_array = (void**)B_array;
@@ -402,3 +435,157 @@ void GetMultigridMatFromHypreToPetsc(Mat **A_array, Mat **P_array,
     end = clock();
     *convert_time += ((double)(end-start))/CLK_TCK;
 }
+
+
+
+
+/* ------------------------liyu 20200529 修改部分 ---------------------------- */
+/**
+ * @brief 
+ *    nbigranks = ((PetscInt)((((PetscReal)size)*proc_rate[level])/((PetscReal)unit))) * (unit);
+ *    if (nbigranks < unit) nbigranks = unit<size?unit:size;
+ *
+ * @param petsc_A_array
+ * @param petsc_B_array
+ * @param petsc_P_array
+ * @param num_levels
+ * @param proc_rate
+ * @param unit           保证每层nbigranks是unit的倍数
+ */
+void RedistributeDataOfMultiGridMatrixOnEachProcess(
+     Mat * petsc_A_array, Mat *petsc_B_array, Mat *petsc_P_array, 
+     PetscInt num_levels, PetscReal *proc_rate, PetscInt unit)
+{
+   PetscMPIInt   rank, size;
+//   PetscViewer   viewer;
+
+   PetscInt      level, row;
+   Mat           new_P_H;
+   PetscMPIInt   nbigranks;
+   PetscInt      global_nrows, global_ncols; 
+   PetscInt      local_nrows,  local_ncols;
+   PetscInt      new_local_ncols;
+   /* 保证每层nbigranks是unit的倍数 */
+   PetscInt      rstart, rend, ncols;
+   const PetscInt              *cols; 
+   const PetscScalar           *vals;
+
+   MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+   MPI_Comm_size(PETSC_COMM_WORLD, &size);
+
+   if (proc_rate[0]<1.0 && proc_rate[0]>0.0)
+   {
+      PetscPrintf(PETSC_COMM_WORLD, "Warning the refinest matrix cannot be redistributed\n");
+   }
+
+   for (level = 1; level < num_levels; ++level)
+   {
+      /* 若proc_rate设为(0,1)之外，则不进行数据重分配 */
+      if (proc_rate[level]>=1.0 || proc_rate[level]<=0.0)
+      {
+	 PetscPrintf(PETSC_COMM_WORLD, "Retain data distribution of %D level\n", level);
+	 continue; /* 直接到下一次循环 */
+      }
+      else
+      {
+	 PetscPrintf(PETSC_COMM_WORLD, "Redistribute data of %D level\n", level);
+      }
+      MatGetSize(petsc_P_array[level-1], &global_nrows, &global_ncols);
+      /* 在设定new_P_H的局部行时已经不能用以前P的局部行，因为当前层的A可能已经改变 */
+      MatGetLocalSize(petsc_A_array[level-1], &local_nrows, &local_ncols);
+      /* 应该通过ncols_P，即最粗层矩阵大小和进程总数size确定nbigranks */
+      nbigranks = ((PetscInt)((((PetscReal)size)*proc_rate[level])/((PetscReal)unit))) * (unit);
+      if (nbigranks < unit) nbigranks = unit<size?unit:size;
+      PetscPrintf(PETSC_COMM_WORLD, "nbigranks[%D] = %D\n", level, nbigranks);
+      /* 对0到nbigranks-1进程平均分配global_ncols */
+      new_local_ncols = 0;
+      if (rank < nbigranks)
+      {
+	 new_local_ncols = global_ncols/nbigranks;
+	 if (rank < global_ncols%nbigranks)
+	 {
+	    ++new_local_ncols;
+	 }
+      }
+      /* 创建新的延拓矩阵, 并用原始的P为之赋值 */
+      MatCreate(PETSC_COMM_WORLD, &new_P_H);
+      MatSetSizes(new_P_H, local_nrows, new_local_ncols, global_nrows, global_ncols);
+      //MatSetFromOptions(new_P_H);
+      /* can be improved */
+      //       MatSeqAIJSetPreallocation(new_P_H, 5, NULL);
+      //       MatMPIAIJSetPreallocation(new_P_H, 3, NULL, 2, NULL);
+      MatSetUp(new_P_H);
+      MatGetOwnershipRange(petsc_P_array[level-1], &rstart, &rend);
+      for(row = rstart; row < rend; ++row) 
+      {
+	 MatGetRow(petsc_P_array[level-1], row, &ncols, &cols, &vals);
+	 MatSetValues(new_P_H, 1, &row, ncols, cols, vals, INSERT_VALUES);
+	 MatRestoreRow(petsc_P_array[level-1], row, &ncols, &cols, &vals);
+      }
+      MatAssemblyBegin(new_P_H,MAT_FINAL_ASSEMBLY);
+      MatAssemblyEnd(new_P_H,MAT_FINAL_ASSEMBLY);
+
+      MatGetLocalSize(petsc_P_array[level-1], &local_nrows, &local_ncols);
+      PetscPrintf(PETSC_COMM_SELF, "[%D] original P_H[%D] local size %D * %D\n", 
+	    rank, level, local_nrows, local_ncols);
+      MatGetLocalSize(new_P_H, &local_nrows, &local_ncols);
+      PetscPrintf(PETSC_COMM_SELF, "[%D] new P_H[%D] local size %D * %D\n", 
+	    rank, level, local_nrows, local_ncols);
+      //       MatView(petsc_P_array[level-1], viewer);
+      //       MatView(new_P_H, viewer);
+
+      /* 销毁之前的P_H A_H B_H */
+      MatDestroy(&(petsc_P_array[level-1]));
+      MatDestroy(&(petsc_A_array[level]));
+      if (petsc_B_array!=NULL)
+      {
+	 MatDestroy(&(petsc_B_array[level]));
+      }
+
+      petsc_P_array[level-1] = new_P_H;
+      MatPtAP(petsc_A_array[level-1], petsc_P_array[level-1],
+	    MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_A_array[level]));
+      if (petsc_B_array!=NULL)
+      {
+	 MatPtAP(petsc_B_array[level-1], petsc_P_array[level-1],
+	       MAT_INITIAL_MATRIX, PETSC_DEFAULT, &(petsc_B_array[level]));
+      }
+      //       MatView(petsc_A_array[num_levels-1], viewer);
+      //       MatView(petsc_B_array[num_levels-1], viewer);
+
+      /* 这里需要修改petsc_P_array[level], 原因是
+       * petsc_A_array[level]修改后，
+       * 它利用原来的petsc_P_array[level]插值上来的向量已经与petsc_A_array[level]不匹配
+       * 所以在不修改level+1层的分布结构的情况下，需要对petsc_P_array[level]进行修改 */
+      /* 如果当前层不是最粗层，并且，下一层也不进行数据重分配 */
+      if (level+1<num_levels && (proc_rate[level+1]>=1.0 || proc_rate[level+1]<=0.0) )
+      {
+	 MatGetSize(petsc_P_array[level], &global_nrows, &global_ncols);
+	 /*需要当前层A的列 作为P的行 */
+	 MatGetLocalSize(petsc_A_array[level],   &new_local_ncols, &local_ncols);
+	 /*需要下一层A的行 作为P的列 */
+	 MatGetLocalSize(petsc_A_array[level+1], &local_nrows, &new_local_ncols);
+	 /* 创建新的延拓矩阵, 并用原始的P为之赋值 */
+	 MatCreate(PETSC_COMM_WORLD, &new_P_H);
+	 MatSetSizes(new_P_H, local_ncols, local_nrows, global_nrows, global_ncols);
+	 //MatSetFromOptions(new_P_H);
+	 /* can be improved */
+	 //       MatSeqAIJSetPreallocation(new_P_H, 5, NULL);
+	 //       MatMPIAIJSetPreallocation(new_P_H, 3, NULL, 2, NULL);
+	 MatSetUp(new_P_H);
+	 MatGetOwnershipRange(petsc_P_array[level], &rstart, &rend);
+	 for(row = rstart; row < rend; ++row) 
+	 {
+	    MatGetRow(petsc_P_array[level], row, &ncols, &cols, &vals);
+	    MatSetValues(new_P_H, 1, &row, ncols, cols, vals, INSERT_VALUES);
+	    MatRestoreRow(petsc_P_array[level], row, &ncols, &cols, &vals);
+	 }
+	 MatAssemblyBegin(new_P_H,MAT_FINAL_ASSEMBLY);
+	 MatAssemblyEnd(new_P_H,MAT_FINAL_ASSEMBLY);
+
+	 MatDestroy(&(petsc_P_array[level]));
+	 petsc_P_array[level] = new_P_H;
+      }
+   }
+}
+/* ------------------------liyu 20200529 修改部分 ---------------------------- */
