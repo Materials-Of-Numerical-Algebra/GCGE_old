@@ -30,6 +30,8 @@
 #include "gcge_utilities.h"
 #include "pase_config.h"
 #include "pase_matvec.h"
+#include "pase_mg.h"
+
 //把每一个操作都写好，这样以后进行算法设计的时候才能方便。
 #if GCGE_USE_MPI
 #include <mpi.h>

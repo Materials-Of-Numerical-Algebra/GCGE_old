@@ -268,6 +268,12 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid, PASE_INT **size)
     (*multi_grid)->B_array = NULL;
     (*multi_grid)->P_array = NULL;
 
+    /* 释放各层矩阵的通讯域 */
+    for(i=0; i<(*multi_grid)->num_levels; i++)
+    {
+       MPI_Comm_free(&PASE_MG_COMM[i]);
+    }
+
     free(*multi_grid); *multi_grid = NULL;
 }
 
@@ -473,17 +479,20 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
    MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
    MPI_Comm_size(PETSC_COMM_WORLD, &size);
 
-   if (proc_rate[0]<1.0 && proc_rate[0]>0.0)
+   if (proc_rate[0]<=1.0 && proc_rate[0]>0.0)
    {
       PetscPrintf(PETSC_COMM_WORLD, "Warning the refinest matrix cannot be redistributed\n");
    }
 
+   MPI_Comm_dup( PETSC_COMM_WORLD, &PASE_MG_COMM[0]);
    for (level = 1; level < num_levels; ++level)
    {
       /* 若proc_rate设为(0,1)之外，则不进行数据重分配 */
-      if (proc_rate[level]>=1.0 || proc_rate[level]<=0.0)
+      if (proc_rate[level]>1.0 || proc_rate[level]<=0.0)
       {
 	 PetscPrintf(PETSC_COMM_WORLD, "Retain data distribution of %D level\n", level);
+	 /* 创建分层矩阵的通信域 */
+	 MPI_Comm_dup( PETSC_COMM_WORLD, &PASE_MG_COMM[level]);
 	 continue; /* 直接到下一次循环 */
       }
       else
@@ -499,6 +508,9 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
       PetscPrintf(PETSC_COMM_WORLD, "nbigranks[%D] = %D\n", level, nbigranks);
       /* 对0到nbigranks-1进程平均分配global_ncols */
       new_local_ncols = 0;
+
+      /* 创建分层矩阵的通信域 */
+      int comm_color = MPI_UNDEFINED;
       if (rank < nbigranks)
       {
 	 new_local_ncols = global_ncols/nbigranks;
@@ -506,7 +518,15 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
 	 {
 	    ++new_local_ncols;
 	 }
+	 comm_color = 0;
       }
+      MPI_Comm_split(PETSC_COMM_WORLD, comm_color, rank, &PASE_MG_COMM[level]);
+
+      int aux_size = -1, aux_rank = -1;
+      MPI_Comm_rank(PASE_MG_COMM[level], &aux_rank);
+      MPI_Comm_size(PASE_MG_COMM[level], &aux_size);
+      printf("aux %d/%d, global %d/%d\n", aux_rank, aux_size, rank, size);  
+
       /* 创建新的延拓矩阵, 并用原始的P为之赋值 */
       MatCreate(PETSC_COMM_WORLD, &new_P_H);
       MatSetSizes(new_P_H, local_nrows, new_local_ncols, global_nrows, global_ncols);
@@ -558,7 +578,7 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
        * 它利用原来的petsc_P_array[level]插值上来的向量已经与petsc_A_array[level]不匹配
        * 所以在不修改level+1层的分布结构的情况下，需要对petsc_P_array[level]进行修改 */
       /* 如果当前层不是最粗层，并且，下一层也不进行数据重分配 */
-      if (level+1<num_levels && (proc_rate[level+1]>=1.0 || proc_rate[level+1]<=0.0) )
+      if (level+1<num_levels && (proc_rate[level+1]>1.0 || proc_rate[level+1]<=0.0) )
       {
 	 MatGetSize(petsc_P_array[level], &global_nrows, &global_ncols);
 	 /*需要当前层A的列 作为P的行 */

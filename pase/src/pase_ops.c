@@ -108,10 +108,16 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
                 "nonsym", mv_s, mv_e, num_aux_vec, 1, ops->gcge_ops);
 
 #if GCGE_USE_MPI
-        MPI_Iallreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, 
-	      MPI_SUM, MPI_COMM_WORLD, &request);
+	/* 利用包含A_H的矩阵数据的进程们进行通讯 */
+        //MPI_Iallreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, MPI_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM, &request);
+	MPI_Iallreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD, &request);
+//	int aux_rank = -1, aux_size = -1, local_nrows, local_ncols;
+//	MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM, &aux_rank);
+//	MPI_Comm_size(*PASE_MG_AUX_COARSE_LEVEL_COMM, &aux_size);
+//	MatGetLocalSize((Mat)A_H, &local_nrows, &local_ncols);
+//	PetscPrintf(PETSC_COMM_SELF, "%d/%d, local_nrows = %d, local_ncols = %D\n", aux_rank, aux_size, local_nrows, local_ncols);
         //MPI_Allreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, 
-	//      MPI_SUM, MPI_COMM_WORLD);
+	//    MPI_SUM, MPI_COMM_WORLD);
 #endif
 
     } else {
@@ -139,9 +145,11 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
             &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
             x_aux_h, &num_aux_vec, &beta, r_aux_h_tmp, &num_aux_vec);
 
+#if GCGE_USE_MPI
     if(PASE_NO == ((PASE_Matrix)Matrix)->is_diag) {
       MPI_Wait(&request, &status);
     }
+#endif
 
     ops->gcge_ops->ArrayAXPBY(1.0, r_aux_h_tmp, 1.0, r_aux_h, num_aux_vec);
     free(r_aux_h_tmp); r_aux_h_tmp = NULL;
@@ -194,6 +202,7 @@ void PASE_DefaultVecLocalInnerProd(void *x, void *y, PASE_REAL *value_ip, struct
     PASE_INT rank = 0;
 #if GCGE_USE_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//    MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM, &rank);
 #endif
     if(rank == 0)
     {
@@ -401,7 +410,9 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
         MPI_Type_commit(&SUBMATRIX);
         
         MPI_Op_create((MPI_User_function*)user_fn_submatrix_sum_pase_ops, 1, &SUBMATRIX_SUM);
-        MPI_Iallreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
+//	printf ( "MPI_Iallreduce in PASE_DefaultMatDotMultiVec\n" );
+//        MPI_Iallreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM, &request);
+	MPI_Iallreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
         //MPI_Allreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD);
 
 	//for(i=0; i<SIZE_B; i++) {
@@ -563,6 +574,7 @@ void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a,
     
     MPI_Op SUBMATRIX_SUM;
     MPI_Op_create((MPI_User_function*)user_fn_submatrix_sum_pase_ops, 1, &SUBMATRIX_SUM);
+//    MPI_Iallreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM, &request);
     MPI_Iallreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
     //MPI_Allreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD);
     //PASE_INT i = 0;

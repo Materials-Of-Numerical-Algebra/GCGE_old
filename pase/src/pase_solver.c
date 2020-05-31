@@ -475,6 +475,7 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
   //如果初始层不是最细层，先直接求解获取初值
   //那么，如果初始层是最细层，那就要求用户一定提供了至少nev个初值
   if(initial_level > finest_level) {
+     printf ( "PASE_Direct_solve\n" );
     PASE_Direct_solve(solver, initial_level);
   } 
   //各细层求解
@@ -486,6 +487,19 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
     {
       //进行二网格迭代
       start_1 = clock();
+      /* 辅助粗层的通信域指针: 这个指针的定义在pase_mg.h
+       * 先临时这样设置，在pase_mg.c中定义
+       * PASE_MG_AUX_COARSE_LEVEL_COMM 和 PASE_MG_COMM
+       * 在这里设置它们 
+       * 主要用于pase_ops.c中MPI的操作
+       * 这样设定之后，其实就实现了aux_coarse_level可调
+       * 且pase_ops.c中的操作会在不同通信域中进行
+       * 换句话说，可以将 PASE_Mg_get_new_aux_coarse_level 中
+       * 修改 aux_coarse_level 的对应的三行代码去掉注释
+       */
+      /* TODO 应该在mg的结构里得到这些通信域，然后在这里引用 */
+      PASE_MG_AUX_COARSE_LEVEL_COMM = &PASE_MG_COMM[solver->aux_coarse_level];
+      printf ( "PASE_Mg_cycle current_level = %d, idx_cycle = %d\n", current_level, idx_cycle );
       PASE_Mg_cycle(solver, solver->aux_coarse_level, current_level);
       end_1 = clock();
       cycle_time = ((double)(end_1-start_1))/CLK_TCK;
@@ -545,12 +559,12 @@ PASE_Mg_get_new_aux_coarse_level(PASE_MG_SOLVER solver, PASE_INT current_level,
   if(solver->check_efficiency_flag == 1) {
     //如果还在检查效率，且还没到最细的辅助粗层, 就继续放细一层
     if(solver->aux_coarse_level > solver->finest_aux_coarse_level) {
-      solver->aux_coarse_level -= 1;
+//      solver->aux_coarse_level -= 1; /* uncomm就会调整最粗层 */
     } else {
       //否则，那么目前就在最细的辅助粗层, 从初始aux_coarse_level到当前最细
       //对比选出最优的那一层(conv_efficiency越小, 效率越高)
-      solver->aux_coarse_level = PASE_Get_min_double(solver->conv_efficiency, 
-	    solver->finest_aux_coarse_level, solver->initial_aux_coarse_level);
+//      solver->aux_coarse_level = PASE_Get_min_double(solver->conv_efficiency, 
+//	    solver->finest_aux_coarse_level, solver->initial_aux_coarse_level);/* uncomm就会调整最粗层 */
       PASE_INT i = 0;
       for(i=solver->finest_aux_coarse_level; i<=solver->initial_aux_coarse_level; i++) {
         GCGE_Printf("conv_efficiency[%d] = %e\n", i, solver->conv_efficiency[i]);
@@ -678,7 +692,7 @@ PASE_Direct_solve(PASE_MG_SOLVER solver, PASE_INT idx_level)
   gcge_solver->para->print_para    = 0;
   gcge_solver->para->print_eval    = 0;
   gcge_solver->para->print_conv    = 0;
-  gcge_solver->para->print_result  = 0;
+  gcge_solver->para->print_result  = 1;
   gcge_solver->para->ev_tol        = solver->initial_rtol;
   gcge_solver->para->ev_max_it     = solver->max_initial_direct_count;
   //设定下面这个num_init_evec参数后，就可以给定任意多个向量作为初值
@@ -916,7 +930,7 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->print_para        = 0;
   gcge_pase_solver->para->print_conv        = 0;
   gcge_pase_solver->para->print_eval        = 0;
-  gcge_pase_solver->para->print_result      = 0;
+  gcge_pase_solver->para->print_result      = 1;
   gcge_pase_solver->para->ev_tol            = solver->aux_rtol;
   gcge_pase_solver->para->ev_max_it         = solver->max_direct_count_each_level[coarse_level];
   gcge_pase_solver->para->num_init_evec     = solver->pase_nev;

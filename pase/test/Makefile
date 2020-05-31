@@ -53,7 +53,7 @@ run-mg_petsc:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_petsc.exe
 
 run-pase:
-	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase.exe
+	mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase.exe
 
 run-amg:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_amg.exe

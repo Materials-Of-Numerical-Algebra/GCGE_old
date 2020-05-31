@@ -560,8 +560,22 @@ void GCGE_Default_DenseMatDotDenseMat(char *transa, char *transb,
         GCGE_DOUBLE *b,     GCGE_INT    *ldb,   GCGE_DOUBLE *beta, 
         GCGE_DOUBLE *c,     GCGE_INT    *ldc)
 {
-    dgemm_(transa, transb, nrows, ncols, mid, 
-            alpha, a, lda, b, ldb, beta, c, ldc);
+   if (*nrows <= 0 || *ncols <= 0 || *mid <= 0)
+   {
+      if (*mid == 0 && *nrows > 0 && *ncols > 0)
+      {
+	 int idx;
+	 for (idx = 0; idx < *ncols; ++idx)
+	 {
+	    memset(c+idx*(*ldc), 0.0, (*nrows)*sizeof(GCGE_DOUBLE));
+	 }
+      }
+      return;
+   }
+   else {
+      dgemm_(transa, transb, nrows, ncols, mid, 
+	    alpha, a, lda, b, ldb, beta, c, ldc);
+   }
 }
 
 //两个对称矩阵的乘积，调用BLAS的Subroutine
@@ -977,11 +991,13 @@ GCGE_INT GCGE_OPS_Setup(GCGE_OPS *ops)
     }
     if(ops->LinearSolver == NULL)
     {
-       ops->LinearSolver = GCGE_LinearSolver_PCG;
+       //ops->LinearSolver = GCGE_LinearSolver_PCG;
+       ops->LinearSolver = NULL;
     }
     if(ops->MultiLinearSolver == NULL)
     {
-       ops->MultiLinearSolver = GCGE_MultiLinearSolver_BAMG;
+       //ops->MultiLinearSolver = GCGE_MultiLinearSolver_BAMG;
+       ops->MultiLinearSolver = NULL;
     }
 }                                           
 

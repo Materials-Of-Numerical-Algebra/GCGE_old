@@ -40,13 +40,14 @@ main ( int argc, char *argv[] )
     /* SlepcInitialize */
     SlepcInitialize(&argc,&argv,(char*)0,help);
     PetscErrorCode ierr;
-    PetscMPIInt    rank;
+    PetscMPIInt    rank, size;
     PetscViewer    viewer;
     MPI_Comm_rank(PETSC_COMM_WORLD, &rank);
+    MPI_Comm_size(PETSC_COMM_WORLD, &size);
 
     /* 得到细网格矩阵 */
     Mat      A, B;
-    PASE_INT n = 10;
+    PASE_INT n = 50;
     PASE_INT nev = 4;
     PASE_INT num_levels = 3;
     PASE_INT aux_coarse_level = -1;

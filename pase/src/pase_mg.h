@@ -18,7 +18,11 @@
 #define pase_MultiGridDataFArray(data)  ((data)->F_array)
 
 #define pase_MultiGridDataNumLevels(data) ((data)->num_levels)
-      
+
+/* 这里临时给一个全局变量记录每一层矩阵的mpi_comm_world */
+MPI_Comm PASE_MG_COMM[16];
+MPI_Comm *PASE_MG_AUX_COARSE_LEVEL_COMM;
+
 typedef struct pase_MultiGrid_struct 
 {
    GCGE_INT num_levels;

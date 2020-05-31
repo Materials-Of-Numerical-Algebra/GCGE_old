@@ -911,3 +911,23 @@ Set number of equations to aim for per process on the coarse grids via processor
          调用之前一定进行相应的Setup，这其实是在分配工作空间和设置相关参数
          预条件部分还没有实现
 
+2020.5.31 liyu
+1. Compute_W计算线性方程组时会判断LinearSolver和MultiLinearSolver
+   所以不能在gcge_ops中设定默认的线性求解器
+2. DenseMatDotDenseMat中如果nrows > 0 ncols > 0 中间维数==0
+   那么生成一个nrows*ncols的零矩阵, 这种情况会发生在多向量在某个进程的行数为0的情况
+   且还要做多向量的内积
+3. pase中不能完全适应A_H只分配在部分进程的情况，虽然现在的版本可以正常运行
+   但是，pase中对于这部分的优化基本没有，尤其是Iallreduce这部分，还是需要全局通信
+   pase多向量内积时，依然需要进行全局的通信
+4. 现在做到了什么：
+   直接利用petsc的amg得到矩阵分层且每层矩阵的数据分在哪些进程可控制
+   而且每一层矩阵对应的子通讯器也被存储了，可以进行针对性的MPI操作
+   现在的pase比之前的应该会有小范围的提升，在V_H空间上的操作
+   现在没做什么：
+   现在的pase不能兼容对A_H只包含部分进程的情况的只进行pase_ops的优化
+   在pase计算的内部都默认每个进程都包含aux部分，那么在延拓时也会用到这部分
+
+
+
+
