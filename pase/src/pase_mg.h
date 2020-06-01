@@ -24,8 +24,10 @@
  * PASE_MG_COMM[level][1]  表示A_array[level]不在的进程组通信器
  * PASE_MG_INTERCOMM[level]表示两个子组之间的通信器
  * PASE_MG_COMM[level][0]包含全部进程的时候，其它对应两个通讯器为MPI_COMM_NULL */
+int      PASE_MG_COMM_COLOR[16];
 MPI_Comm PASE_MG_COMM[16][2];
 MPI_Comm PASE_MG_INTERCOMM[16];
+int      PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR;
 MPI_Comm *PASE_MG_AUX_COARSE_LEVEL_COMM[2];
 MPI_Comm *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM;
 

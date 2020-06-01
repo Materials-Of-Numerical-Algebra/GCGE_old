@@ -47,7 +47,7 @@ main ( int argc, char *argv[] )
 
     /* 得到细网格矩阵 */
     Mat      A, B;
-    PASE_INT n = 50;
+    PASE_INT n = 100;
     PASE_INT nev = 4;
     PASE_INT num_levels = 3;
     PASE_INT aux_coarse_level = -1;

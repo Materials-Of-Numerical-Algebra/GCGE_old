@@ -52,6 +52,9 @@ run-mg_phg:
 run-mg_petsc:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_mg_petsc.exe
 
+run-pase_ops:
+	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase_ops.exe
+
 run-pase:
 	mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase.exe
 
@@ -149,6 +152,10 @@ test_mg_phg_petsc_ksp:
 test_pase:
 	$(CC)  $(CFLAGS) -c test_pase.c -o test_pase.o $(INC) 
 	$(CLINKER)  $(LDFLAGS)  -o ./test_pase.exe ./test_pase.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
+
+test_pase_ops:
+	$(CC)  $(CFLAGS) -c test_pase_ops.c -o test_pase_ops.o $(INC) 
+	$(CLINKER)  $(LDFLAGS)  -o ./test_pase_ops.exe ./test_pase_ops.o $(LIBGCGEPASE) $(LIBGCGESLEPC) $(LIBSLEPC) $(LIBPHG) $(LIBHYPRE) $(LIBGCGE) 
 
 test_amg:
 	$(CC)  $(CFLAGS) -c test_amg.c -o test_amg.o $(INC) 

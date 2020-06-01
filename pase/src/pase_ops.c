@@ -104,18 +104,24 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
         mv_s[1] = 0;
         mv_e[1] = 1;
         //如果A_H矩阵不是单位阵，要计算下面的向量组与单向量内积
+	/* 这里由于aux_Hh, x_b_H在某些进程中行数为0, 那么局部生成的r_aux_h就是一个零矩阵
+	 * 这个零矩阵是通过nrows*0 乘以 0*ncols 的稠密矩阵得到的 */
         ops->gcge_ops->MultiVecInnerProdLocal(aux_Hh, (void**)(&x_b_H), r_aux_h,
                 "nonsym", mv_s, mv_e, num_aux_vec, 1, ops->gcge_ops);
 
 #if GCGE_USE_MPI
 	/* 利用包含A_H的矩阵数据的进程们进行通讯 */
-        //MPI_Iallreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, MPI_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM, &request);
-	MPI_Iallreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD, &request);
-//	int aux_rank = -1, aux_size = -1, local_nrows, local_ncols;
-//	MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM, &aux_rank);
-//	MPI_Comm_size(*PASE_MG_AUX_COARSE_LEVEL_COMM, &aux_size);
-//	MatGetLocalSize((Mat)A_H, &local_nrows, &local_ncols);
-//	PetscPrintf(PETSC_COMM_SELF, "%d/%d, local_nrows = %d, local_ncols = %D\n", aux_rank, aux_size, local_nrows, local_ncols);
+	if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+	{
+//	   int aux_rank = -1, aux_size = -1, local_nrows, local_ncols;
+//	   MatGetLocalSize((Mat)A_H, &local_nrows, &local_ncols);
+//	   MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM[0], &aux_rank);
+//	   MPI_Comm_size(*PASE_MG_AUX_COARSE_LEVEL_COMM[0], &aux_size);
+//	   printf("%d/%d, local_nrows = %d, local_ncols = %d\n", aux_rank, aux_size, local_nrows, local_ncols);
+//	   printf ( "PASE_DefaultMatDotVec\n" );
+	   MPI_Iallreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, MPI_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM[0], &request);
+	}
+//	MPI_Iallreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD, &request);
         //MPI_Allreduce(MPI_IN_PLACE, r_aux_h, num_aux_vec, MPI_DOUBLE, 
 	//    MPI_SUM, MPI_COMM_WORLD);
 #endif
@@ -136,22 +142,41 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
     ops->gcge_ops->MultiVecLinearComb(aux_Hh, (void**)(&r_b_H), mv_s, mv_e, 
             x_aux_h, num_aux_vec, 1, alpha, beta, ops->gcge_ops);
 
+//    {
+//       int aux_rank = -1, aux_size = -1, local_nrows;
+//       VecGetLocalSize((Vec)r_b_H, &local_nrows);
+//       MPI_Comm_rank(MPI_COMM_WORLD, &aux_rank);
+//       MPI_Comm_size(MPI_COMM_WORLD, &aux_size);
+//       printf("%d/%d, local_nrows = %d\n", aux_rank, aux_size, local_nrows);
+//    }
+
     //计算 r->aux_h += aux_hh^T * x->aux_h
     PASE_INT  ncols = 1;
     alpha = 1.0;
     beta  = 0.0;
-    memset(r_aux_h_tmp, 0.0, num_aux_vec*sizeof(PASE_REAL));
-    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &num_aux_vec, &ncols, 
-            &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
-            x_aux_h, &num_aux_vec, &beta, r_aux_h_tmp, &num_aux_vec);
+    /* 这里对于PASE_MG_AUX_COARSE_LEVEL_COMM[1]的进程是不用算的
+     * 这里要确认A_H的进程分布就是PASE_MG_AUX_COARSE_LEVEL_COMM[0] 对应的进程组
+     * 通过pase_solver.c中设置的 */
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       memset(r_aux_h_tmp, 0.0, num_aux_vec*sizeof(PASE_REAL));
+       ops->gcge_ops->DenseMatDotDenseMat("T", "N", &num_aux_vec, &ncols, 
+	     &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
+	     x_aux_h, &num_aux_vec, &beta, r_aux_h_tmp, &num_aux_vec);
+    }
 
 #if GCGE_USE_MPI
     if(PASE_NO == ((PASE_Matrix)Matrix)->is_diag) {
-      MPI_Wait(&request, &status);
+       if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+       {
+	  MPI_Wait(&request, &status);
+       }
     }
 #endif
-
-    ops->gcge_ops->ArrayAXPBY(1.0, r_aux_h_tmp, 1.0, r_aux_h, num_aux_vec);
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       ops->gcge_ops->ArrayAXPBY(1.0, r_aux_h_tmp, 1.0, r_aux_h, num_aux_vec);
+    }
     free(r_aux_h_tmp); r_aux_h_tmp = NULL;
 }
 
@@ -183,6 +208,32 @@ void PASE_DefaultVecInnerProd(void *x, void *y, PASE_REAL *value_ip, struct PASE
     ops->gcge_ops->VecInnerProd(x_b_H, y_b_H, value_ip, ops->gcge_ops);
     //value_ip += x->aux_h * y->aux_h
     *value_ip += ops->gcge_ops->ArrayDotArray(x_aux_h, y_aux_h, num_aux_vec);
+
+    /* 由于PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 1的进程组
+     * x_aux_h, y_aux_h都是错误的，所以必须进行全部广播 */
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0 && *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM != MPI_COMM_NULL)
+    {
+       int local_rank, root_proc;
+       MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM[0], &local_rank);
+       if (local_rank == 0)
+	  root_proc = MPI_ROOT;
+       else
+	  root_proc = MPI_PROC_NULL;
+       MPI_Bcast(value_ip, 1, MPI_DOUBLE, 
+	     root_proc, *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM);
+    }
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 1)
+    {
+       int remote_root_proc = 0; /* 发送组的在组内的根进程号 */
+       MPI_Bcast(value_ip, 1, MPI_DOUBLE, 
+	     remote_root_proc, *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM);
+    }
+//    {
+//       int aux_rank = -1, aux_size = -1, local_nrows;
+//       MPI_Comm_rank(MPI_COMM_WORLD, &aux_rank);
+//       MPI_Comm_size(MPI_COMM_WORLD, &aux_size);
+//       printf("%d/%d, inner_prod = %f\n", aux_rank, aux_size, *value_ip);
+//    }
 }
     
 //单向量局部内积 value_ip = x^T * y
@@ -202,12 +253,18 @@ void PASE_DefaultVecLocalInnerProd(void *x, void *y, PASE_REAL *value_ip, struct
     PASE_INT rank = 0;
 #if GCGE_USE_MPI
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-//    MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM, &rank);
+//    MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM[0], &rank);
 #endif
     if(rank == 0)
     {
         *value_ip += ops->gcge_ops->ArrayDotArray(x_aux_h, y_aux_h, num_aux_vec);
     }
+//    {
+//       int aux_rank = -1, aux_size = -1, local_nrows;
+//       MPI_Comm_rank(MPI_COMM_WORLD, &aux_rank);
+//       MPI_Comm_size(MPI_COMM_WORLD, &aux_size);
+//       printf("%d/%d, local_inner_prod = %f\n", aux_rank, aux_size, *value_ip);
+//    }
 }
     
 //由src_vec单向量创建des_vec单向量
@@ -411,8 +468,13 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
         
         MPI_Op_create((MPI_User_function*)user_fn_submatrix_sum_pase_ops, 1, &SUBMATRIX_SUM);
 //	printf ( "MPI_Iallreduce in PASE_DefaultMatDotMultiVec\n" );
-//        MPI_Iallreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM, &request);
-	MPI_Iallreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
+	/* 只进行PASE_MG_AUX_COARSE_LEVEL_COMM[0]的通信 */
+	if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+	{
+//	   printf ( "PASE_DefaultMatDotMultiVec\n" );
+	   MPI_Iallreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM[0], &request);
+	}
+//	MPI_Iallreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
         //MPI_Allreduce(MPI_IN_PLACE, y_aux_h+start[1]*num_aux_vec, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD);
 
 	//for(i=0; i<SIZE_B; i++) {
@@ -441,22 +503,31 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
     PASE_INT  ncols = end[1] - start[1];
     alpha = 1.0;
     beta  = 0.0;
-    memset(y_aux_h_tmp, 0.0, ncols*num_aux_vec*sizeof(PASE_REAL));
-    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &num_aux_vec, &ncols, 
-            &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
-            x_aux_h+start[0]*num_aux_vec, &num_aux_vec, &beta, 
-            y_aux_h_tmp, &num_aux_vec);
-            //y_aux_h+start[1]*num_aux_vec, &num_aux_vec);
+//    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       memset(y_aux_h_tmp, 0.0, ncols*num_aux_vec*sizeof(PASE_REAL));
+       ops->gcge_ops->DenseMatDotDenseMat("T", "N", &num_aux_vec, &ncols, 
+	     &num_aux_vec, &alpha, aux_hh, &num_aux_vec, 
+	     x_aux_h+start[0]*num_aux_vec, &num_aux_vec, &beta, 
+	     y_aux_h_tmp, &num_aux_vec);
+       //y_aux_h+start[1]*num_aux_vec, &num_aux_vec);
+    }
 #if GCGE_USE_MPI
     if(PASE_NO == ((PASE_Matrix)mat)->is_diag) {
-      MPI_Wait(&request, &status);
-      MPI_Op_free(&SUBMATRIX_SUM);
-      MPI_Type_free(&SUBMATRIX);
+       if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+       {
+	  MPI_Wait(&request, &status);
+       }
+       MPI_Op_free(&SUBMATRIX_SUM);
+       MPI_Type_free(&SUBMATRIX);
     }
 #endif
     //计算 r->aux_h += y_aux_h_tmp
-    ops->gcge_ops->ArrayAXPBY(1.0, y_aux_h_tmp, 1.0, y_aux_h+start[1]*num_aux_vec, 
-	  ncols*num_aux_vec);
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       ops->gcge_ops->ArrayAXPBY(1.0, y_aux_h_tmp, 1.0, y_aux_h+start[1]*num_aux_vec, 
+	     ncols*num_aux_vec);
+    }
     free(y_aux_h_tmp); y_aux_h_tmp = NULL;
 }
 
@@ -574,8 +645,13 @@ void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a,
     
     MPI_Op SUBMATRIX_SUM;
     MPI_Op_create((MPI_User_function*)user_fn_submatrix_sum_pase_ops, 1, &SUBMATRIX_SUM);
-//    MPI_Iallreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM, &request);
-    MPI_Iallreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
+    /* 只在PASE_MG_AUX_COARSE_LEVEL_COMM[0]进行通信 */
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+//       printf ( "PASE_DefaultMultiVecInnerProd\n" );
+       MPI_Iallreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM[0], &request);
+    }
+//    MPI_Iallreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD, &request);
     //MPI_Allreduce(MPI_IN_PLACE, a, 1, SUBMATRIX, SUBMATRIX_SUM, MPI_COMM_WORLD);
     //PASE_INT i = 0;
     //for(i=0; i<SIZE_B; i++)
@@ -591,21 +667,49 @@ void PASE_DefaultMultiVecInnerProd(void **V, void **W, PASE_REAL *a,
     PASE_REAL alpha = 1.0;
     PASE_REAL beta  = 1.0;
     //TODO nrows==ncols==1的情况
-    memset(a_tmp, 0.0, ncols*lda*sizeof(PASE_REAL));
-    ops->gcge_ops->DenseMatDotDenseMat("T", "N", &nrows, &ncols, 
-            &mid, &alpha, x_aux_h+start[0]*num_aux_vec, &num_aux_vec, 
-            y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a_tmp, &lda);
-            //y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a, &lda);
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       memset(a_tmp, 0.0, ncols*lda*sizeof(PASE_REAL));
+       ops->gcge_ops->DenseMatDotDenseMat("T", "N", &nrows, &ncols, 
+	     &mid, &alpha, x_aux_h+start[0]*num_aux_vec, &num_aux_vec, 
+	     y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a_tmp, &lda);
+       //y_aux_h+start[1]*num_aux_vec, &num_aux_vec, &beta, a, &lda);
+    }
 #if GCGE_USE_MPI
-    MPI_Wait(&request, &status);
-    MPI_Op_free(&SUBMATRIX_SUM);
-    MPI_Type_free(&SUBMATRIX);
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       MPI_Wait(&request, &status);
+    }
 #endif
     //计算 a += y_aux_h_tmp
-    ops->gcge_ops->ArrayAXPBY(1.0, a_tmp, 1.0, a, (ncols-1)*lda+nrows);
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       ops->gcge_ops->ArrayAXPBY(1.0, a_tmp, 1.0, a, (ncols-1)*lda+nrows);
+    }
     //if(lda*(end[1]-start[1]) > num_aux_vec*num_aux_vec) {
     free(a_tmp); a_tmp = NULL;
     //}
+    /* 由于PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 1的进程组
+     * x_aux_h, y_aux_h都是错误的，所以必须进行全部广播 */
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0 && *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM != MPI_COMM_NULL)
+    {
+       int local_rank, root_proc;
+       MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM[0], &local_rank);
+       if (local_rank == 0)
+	  root_proc = MPI_ROOT;
+       else
+	  root_proc = MPI_PROC_NULL;
+       MPI_Bcast(a, 1, SUBMATRIX, 
+	     root_proc, *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM);
+    }
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 1)
+    {
+       int remote_root_proc = 0; /* 发送组的在组内的根进程号 */
+       MPI_Bcast(a, 1, SUBMATRIX, 
+	     remote_root_proc, *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM);
+    }
+    MPI_Op_free(&SUBMATRIX_SUM);
+    MPI_Type_free(&SUBMATRIX);
 }
 
 //多向量组交换，目前GCGE中用到的这个函数都是需要将V_2拷贝给V_1,
@@ -702,6 +806,7 @@ void PASE_OPS_Create(PASE_OPS **ops, GCGE_OPS *gcge_ops)
     (*ops)->MultiVecAxpbyColumn      = PASE_DefaultMultiVecAxpbyColumn     ;
     (*ops)->MultiVecLinearComb       = PASE_DefaultMultiVecLinearComb      ;
     (*ops)->MultiVecInnerProd        = PASE_DefaultMultiVecInnerProd       ;
+    /* 这里并没有对ops->MultiVecInnerProdLocal 进行赋值，其它均有 */
     (*ops)->MultiVecSwap             = PASE_DefaultMultiVecSwap            ;
     (*ops)->GetVecFromMultiVec       = PASE_DefaultGetVecFromMultiVec      ;
     (*ops)->RestoreVecForMultiVec    = PASE_DefaultRestoreVecForMultiVec   ;

@@ -475,10 +475,11 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
   //如果初始层不是最细层，先直接求解获取初值
   //那么，如果初始层是最细层，那就要求用户一定提供了至少nev个初值
   if(initial_level > finest_level) {
-     printf ( "PASE_Direct_solve\n" );
+//     printf ( "PASE_Direct_solve\n" );
     PASE_Direct_solve(solver, initial_level);
   } 
   //各细层求解
+  /* ? liyu 这里是否从initial_level+1开始 ? */
   for(idx_level=initial_level; idx_level>finest_level-1; idx_level--) {
     //确定粗细层指标
     current_level = idx_level;
@@ -499,10 +500,11 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
        * 修改 aux_coarse_level 的对应的三行代码去掉注释
        */
       /* TODO 应该在mg的结构里得到这些通信域，然后在这里引用 */
-      PASE_MG_AUX_COARSE_LEVEL_COMM[0]   = &PASE_MG_COMM[solver->aux_coarse_level][0];
-      PASE_MG_AUX_COARSE_LEVEL_COMM[1]   = &PASE_MG_COMM[solver->aux_coarse_level][1];
-      PASE_MG_AUX_COARSE_LEVEL_INTERCOMM = &PASE_MG_INTERCOMM[solver->aux_coarse_level];
-      printf ( "PASE_Mg_cycle current_level = %d, idx_cycle = %d\n", current_level, idx_cycle );
+      PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR =  PASE_MG_COMM_COLOR[solver->aux_coarse_level];
+      PASE_MG_AUX_COARSE_LEVEL_COMM[0]    = &PASE_MG_COMM[solver->aux_coarse_level][0];
+      PASE_MG_AUX_COARSE_LEVEL_COMM[1]    = &PASE_MG_COMM[solver->aux_coarse_level][1];
+      PASE_MG_AUX_COARSE_LEVEL_INTERCOMM  = &PASE_MG_INTERCOMM[solver->aux_coarse_level];
+      PetscPrintf(PETSC_COMM_WORLD, "PASE_Mg_cycle aux_coarse_level = %d, current_level = %d, idx_cycle = %d\n", solver->aux_coarse_level, current_level, idx_cycle );
       PASE_Mg_cycle(solver, solver->aux_coarse_level, current_level);
       end_1 = clock();
       cycle_time = ((double)(end_1-start_1))/CLK_TCK;
@@ -627,9 +629,11 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_lev
   PASE_Mg_set_pase_aux_vector(solver, coarse_level, current_level);
   //GCGE_Printf("after set_aux_vector:\n");
   //直接求解复合矩阵特征值问题
+//  printf ( "PASE_Aux_direct_solve coarse_level = %d\n", coarse_level );
   PASE_Aux_direct_solve(solver, coarse_level);
   //GCGE_Printf("after aux_direct:\n");
 
+//  printf ( "PASE_Mg_prolong_from_pase_aux_vector coarse_level = %d, current_level = %d\n", coarse_level, current_level );
   //把aux向量转换成细空间上的向量
   PASE_Mg_prolong_from_pase_aux_vector(solver, coarse_level, current_level);
   //GCGE_Printf("after prolong:\n");
@@ -943,6 +947,7 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   //gcge_pase_solver->para->p_orth_type = "gs";
   gcge_pase_solver->para->x_orth_type = "multi";
   //求解
+//  printf ( "GCGE_SOLVER_Solve in PASE_Aux_direct_solve\n" );
   GCGE_SOLVER_Solve(gcge_pase_solver);  
   //解完后选择每个细空间向量方向值最大的向量，重新排序
   //出现内存错误，主要是multigrid->double_tmp的大小不够
@@ -1111,6 +1116,30 @@ PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
         coarse_level, current_level, mv_s, mv_e, aux_sol->b_H, P_uH);
   //线性组合时，alpha=beta=1.0
   //线性组合的基底是所有参与构造复合矩阵的细空间向量
+  /* 需要做一次组间通信，使得PASE_MG_AUX_COARSE_LEVEL_COMM[0]中的aux_sol->aux_h部分
+   * 与PASE_MG_AUX_COARSE_LEVEL_COMM[1]中的aux_sol->aux_h一致
+   * 用PASE_MG_AUX_COARSE_LEVEL_COMM[0]中的0进程(也是全局的0进程)
+   * 向PASE_MG_AUX_COARSE_LEVEL_COMM[1]中的所有进程进行广播
+   * 这里liyu不确定aux_sol->aux_h应该从哪里开始，所以先整体都广播出去 */
+  /* ? 有待检查和提升 传递的数量 ? */
+  if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0 && *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM != MPI_COMM_NULL)
+  {
+     int local_rank, root_proc;
+     MPI_Comm_rank(*PASE_MG_AUX_COARSE_LEVEL_COMM[0], &local_rank);
+     if (local_rank == 0)
+	root_proc = MPI_ROOT;
+     else
+	root_proc = MPI_PROC_NULL;
+     MPI_Bcast(aux_sol->aux_h, (solver->max_nev) * (solver->max_nev), MPI_DOUBLE, 
+	   root_proc, *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM);
+  }
+  if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 1)
+  {
+     int remote_root_proc = 0; /* 发送组的在组内的根进程号 */
+     MPI_Bcast(aux_sol->aux_h, (solver->max_nev) * (solver->max_nev), MPI_DOUBLE, 
+	   remote_root_proc, *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM);
+  }
+
   mv_s[0] = nlock_direct;
   mv_e[0] = pase_nev;
   mv_s[1] = nconv;

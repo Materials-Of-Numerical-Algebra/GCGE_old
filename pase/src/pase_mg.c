@@ -54,8 +54,9 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     //ierr = PCMGSetLevels(pc, (*multi_grid)->num_levels, NULL);CHKERRQ(ierr);
     ierr = PCGAMGSetNlevels(pc, (*multi_grid)->num_levels);CHKERRQ(ierr);
     ierr = PCGAMGSetType(pc, PCGAMGCLASSICAL);CHKERRQ(ierr);
-    //PetscReal th[2] = {0.0, 0.9};
-    //ierr = PCGAMGSetThreshold(pc, th, 2);
+    PetscReal th[16] = {0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
+                        0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25};
+    ierr = PCGAMGSetThreshold(pc, th, 16);
     //PCGAMGAGG, PACAMGGEO, PCGAMGCLASSICAL
     ierr = PCSetUp(pc);CHKERRQ(ierr);
     /* the size of Aarr is num_levels-1, Aarr is the coarsest matrix */
@@ -158,6 +159,7 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
        proc_rate[level] = -1.0;
     }
     proc_rate[(*multi_grid)->num_levels-1] = 0.5;
+    //proc_rate[(*multi_grid)->num_levels-1] = 1.0;
     RedistributeDataOfMultiGridMatrixOnEachProcess(
 	  A_array, B_array, P_array, 
 	  (*multi_grid)->num_levels, proc_rate, unit);
@@ -494,8 +496,9 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
 
    /* 不改变最细层的进程分布 */
    MPI_Comm_dup( PETSC_COMM_WORLD, &PASE_MG_COMM[0][0]);
-   PASE_MG_COMM[0][1]   = MPI_COMM_NULL;
-   PASE_MG_INTERCOMM[0] = MPI_COMM_NULL;
+   PASE_MG_COMM[0][1]    = MPI_COMM_NULL;
+   PASE_MG_INTERCOMM[0]  = MPI_COMM_NULL;
+   PASE_MG_COMM_COLOR[0] = 0;
    for (level = 1; level < num_levels; ++level)
    {
       MatGetSize(petsc_P_array[level-1], &global_nrows, &global_ncols);
@@ -510,6 +513,7 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
       {
 	 PetscPrintf(PETSC_COMM_WORLD, "Retain data distribution of %D level\n", level);
 	 /* 创建分层矩阵的通信域 */
+	 PASE_MG_COMM_COLOR[level] = 0;
 	 MPI_Comm_dup(PETSC_COMM_WORLD, &PASE_MG_COMM[level][0]);
 	 PASE_MG_COMM[level][1]   = MPI_COMM_NULL;
 	 PASE_MG_INTERCOMM[level] = MPI_COMM_NULL;
@@ -542,6 +546,8 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
 	 local_leader  = 0; /* 它的全局进程号是nbigranks */
 	 remote_leader = 0;
       }
+      /* 在不同进程中PASE_MG_COMM_COLOR[level]是不一样的值，它表征该进程属于哪个通讯域 */
+      PASE_MG_COMM_COLOR[level] = comm_color;
       /* 分成两个子通讯域, PASE_MG_COMM[level][0]从0~(nbigranks-1)
        * PASE_MG_COMM[level][0]从nbigranks~(size-1) */
       MPI_Comm_split(PETSC_COMM_WORLD, comm_color, rank, &PASE_MG_COMM[level][comm_color]);

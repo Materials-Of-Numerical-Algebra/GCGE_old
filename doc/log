@@ -929,5 +929,23 @@ Set number of equations to aim for per process on the coarse grids via processor
    在pase计算的内部都默认每个进程都包含aux部分，那么在延拓时也会用到这部分
 
 
-
-
+2020.6.1 liyu
+1. pase中的进程基于A_H可以划为两个组 PASE_MG_COMM[level][0] PASE_MG_COMM[level][1]
+   通过PASE_MG_COMM_COLOR[level]标志当前进程属于哪个通讯域
+2. 通过PASE_MG_AUX_COARSE_LEVEL_COMM 以及 PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR 
+   这两个指针记录当前辅助层的进程归属情况，也就是说，依然可以调用不同粗层做为辅助层
+3. 组间通信，由于PASE_MG_COMM[level][1] 不包含A_H的行，但aux_h部分还是存在的，但值未知
+   所以，在pase特征值计算完成后需要进行辅助多向量aux_h部分的广播
+   即PASE_MG_COMM[level][0]的0进程将aux_h部分广播PASE_MG_COMM[level][1]的所有进程
+   然后再进行prlong操作
+4. 组间通信，pase_ops中的VecInnerProd和MultiVecInnerProd, 
+   由于PASE_MG_COMM[level][1]中的aux_h部分的值完全未知，全局内积是不能靠进程本身的aux_h计算得到的
+   所以，依然需要进程广播
+   即PASE_MG_COMM[level][0]的0进程将value_ip部分广播PASE_MG_COMM[level][1]的所有进程
+5. pase_ops中的MatDotVec MatDotMultiVec MultiVecInnerProd
+   进行Iallreduce的时候只在PASE_MG_COMM[level][0]上进行，节省了一定的时间
+   MatDotVec MatDotMultiVec 可以理解为，
+   只要petsc自身矩阵向量操作对于那些拥有行数为零的进程有特殊操作的话, 这两个操作
+   是完全在PASE_MG_COMM[level][0]上进行了。
+   但MultiVecInMatDotVec还是需要广播，因为内积生成的是数，而矩阵乘以向量生成的向量
+   数是全局的，向量是局部的
