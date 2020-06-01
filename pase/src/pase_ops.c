@@ -203,11 +203,24 @@ void PASE_DefaultVecInnerProd(void *x, void *y, PASE_REAL *value_ip, struct PASE
     void      *y_b_H      = ((PASE_Vector)y)->b_H;
     PASE_REAL *y_aux_h    = ((PASE_Vector)y)->aux_h;
     PASE_INT  num_aux_vec = ((PASE_Vector)y)->num_aux_vec;
+
+    MPI_Request request;
+    MPI_Status  status;
     //value_ip = x->b_H * y->b_H + x->aux_h * y->aux_h
     //value_ip = x->b_H * y->b_H
-    ops->gcge_ops->VecInnerProd(x_b_H, y_b_H, value_ip, ops->gcge_ops);
+    ops->gcge_ops->VecLocalInnerProd(x_b_H, y_b_H, value_ip, ops->gcge_ops);
     //value_ip += x->aux_h * y->aux_h
-    *value_ip += ops->gcge_ops->ArrayDotArray(x_aux_h, y_aux_h, num_aux_vec);
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       MPI_Iallreduce(MPI_IN_PLACE, value_ip, 1, MPI_DOUBLE, MPI_SUM, *PASE_MG_AUX_COARSE_LEVEL_COMM[0], &request);
+    }
+    double tmp = ops->gcge_ops->ArrayDotArray(x_aux_h, y_aux_h, num_aux_vec);
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       MPI_Wait(&request, &status);
+    }
+
+    *value_ip += tmp;
 
     /* 由于PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 1的进程组
      * x_aux_h, y_aux_h都是错误的，所以必须进行全部广播 */

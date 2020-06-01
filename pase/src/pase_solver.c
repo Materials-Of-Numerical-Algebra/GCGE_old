@@ -1120,8 +1120,7 @@ PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
    * 与PASE_MG_AUX_COARSE_LEVEL_COMM[1]中的aux_sol->aux_h一致
    * 用PASE_MG_AUX_COARSE_LEVEL_COMM[0]中的0进程(也是全局的0进程)
    * 向PASE_MG_AUX_COARSE_LEVEL_COMM[1]中的所有进程进行广播
-   * 这里liyu不确定aux_sol->aux_h应该从哪里开始，所以先整体都广播出去 */
-  /* ? 有待检查和提升 传递的数量 ? */
+   * 这里liyu不确定aux_sol->aux_h应该从哪里开始，所以先整体都广播出去(已提升) */
   if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0 && *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM != MPI_COMM_NULL)
   {
      int local_rank, root_proc;
@@ -1130,13 +1129,13 @@ PASE_Mg_prolong_from_pase_aux_vector(PASE_MG_SOLVER solver,
 	root_proc = MPI_ROOT;
      else
 	root_proc = MPI_PROC_NULL;
-     MPI_Bcast(aux_sol->aux_h, (solver->max_nev) * (solver->max_nev), MPI_DOUBLE, 
+     MPI_Bcast(aux_sol->aux_h+nconv*num_aux_vec, num_aux_vec*(pase_nev-nconv), MPI_DOUBLE, 
 	   root_proc, *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM);
   }
   if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 1)
   {
      int remote_root_proc = 0; /* 发送组的在组内的根进程号 */
-     MPI_Bcast(aux_sol->aux_h, (solver->max_nev) * (solver->max_nev), MPI_DOUBLE, 
+     MPI_Bcast(aux_sol->aux_h+nconv*num_aux_vec, num_aux_vec*(pase_nev-nconv), MPI_DOUBLE, 
 	   remote_root_proc, *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM);
   }
 
