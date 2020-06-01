@@ -47,9 +47,9 @@ main ( int argc, char *argv[] )
 
     /* 得到细网格矩阵 */
     Mat      A, B;
-    PASE_INT n = 100;
-    PASE_INT nev = 4;
-    PASE_INT num_levels = 3;
+    PASE_INT n = 5000;
+    PASE_INT nev = 200;
+    PASE_INT num_levels = 6;
     PASE_INT aux_coarse_level = -1;
 
     GetCommandLineInfo(argc, argv, &n, &num_levels);
@@ -78,7 +78,8 @@ main ( int argc, char *argv[] )
     //创建特征值与特征向量空间
 
     param->max_initial_direct_count = 30;
-    param->max_cycle_count_each_level[0] = 100;
+    //param->max_cycle_count_each_level[0] = 100;
+    param->max_cycle_count_each_level[0] = 15;
 
     //pase求解
     PASE_EigenSolver((void*)A, (void*)B, NULL, NULL, nev, param, gcge_ops);

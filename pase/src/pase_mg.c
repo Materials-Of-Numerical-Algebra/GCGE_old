@@ -54,10 +54,12 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     //ierr = PCMGSetLevels(pc, (*multi_grid)->num_levels, NULL);CHKERRQ(ierr);
     ierr = PCGAMGSetNlevels(pc, (*multi_grid)->num_levels);CHKERRQ(ierr);
     ierr = PCGAMGSetType(pc, PCGAMGCLASSICAL);CHKERRQ(ierr);
+    //ierr = PCGAMGSetType(pc, PCGAMGGEO);CHKERRQ(ierr);
+    //ierr = PCGAMGSetType(pc, PCGAMGAGG);CHKERRQ(ierr);
     PetscReal th[16] = {0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 
                         0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25, 0.25};
     ierr = PCGAMGSetThreshold(pc, th, 16);
-    //PCGAMGAGG, PACAMGGEO, PCGAMGCLASSICAL
+    //PCGAMGAGG, PCGAMGGEO, PCGAMGCLASSICAL
     ierr = PCSetUp(pc);CHKERRQ(ierr);
     /* the size of Aarr is num_levels-1, Aarr is the coarsest matrix */
     ierr = PCGetCoarseOperators(pc, &((*multi_grid)->num_levels), &Aarr);
@@ -152,13 +154,13 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
      * 这会使得在param中的num_levels与真实的num_levels不等
      * 但是在创建pase_solver中，一些参数如initial_level会与param中的num_levels相关
      * 这是错误的设计*/
-    GCGE_INT    unit = 1;
+    GCGE_INT    unit = 144;
     GCGE_DOUBLE *proc_rate = malloc((*multi_grid)->num_levels*sizeof(GCGE_DOUBLE));
     for (level = 0; level < (*multi_grid)->num_levels; ++level)
     {
        proc_rate[level] = -1.0;
     }
-    proc_rate[(*multi_grid)->num_levels-1] = 0.5;
+    proc_rate[(*multi_grid)->num_levels-1] = 1e-8;
     //proc_rate[(*multi_grid)->num_levels-1] = 1.0;
     RedistributeDataOfMultiGridMatrixOnEachProcess(
 	  A_array, B_array, P_array, 

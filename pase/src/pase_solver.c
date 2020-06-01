@@ -699,7 +699,8 @@ PASE_Direct_solve(PASE_MG_SOLVER solver, PASE_INT idx_level)
   gcge_solver->para->print_para    = 0;
   gcge_solver->para->print_eval    = 0;
   gcge_solver->para->print_conv    = 0;
-  gcge_solver->para->print_result  = 1;
+  gcge_solver->para->print_result  = 0;
+  gcge_solver->para->print_final_part_time = 0;
   gcge_solver->para->ev_tol        = solver->initial_rtol;
   gcge_solver->para->ev_max_it     = solver->max_initial_direct_count;
   //设定下面这个num_init_evec参数后，就可以给定任意多个向量作为初值
@@ -937,7 +938,8 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->print_para        = 0;
   gcge_pase_solver->para->print_conv        = 0;
   gcge_pase_solver->para->print_eval        = 0;
-  gcge_pase_solver->para->print_result      = 1;
+  gcge_pase_solver->para->print_result      = 0;
+  gcge_pase_solver->para->print_final_part_time = 0;
   gcge_pase_solver->para->ev_tol            = solver->aux_rtol;
   gcge_pase_solver->para->ev_max_it         = solver->max_direct_count_each_level[coarse_level];
   gcge_pase_solver->para->num_init_evec     = solver->pase_nev;
