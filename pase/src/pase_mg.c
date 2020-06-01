@@ -269,9 +269,17 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid, PASE_INT **size)
     (*multi_grid)->P_array = NULL;
 
     /* 释放各层矩阵的通讯域 */
-    for(i=0; i<(*multi_grid)->num_levels; i++)
+    for(level=0; level<(*multi_grid)->num_levels; level++)
     {
-       MPI_Comm_free(&PASE_MG_COMM[i]);
+       MPI_Comm_free(&PASE_MG_COMM[level][0]);
+       if (PASE_MG_COMM[level][1] != MPI_COMM_NULL)
+       {
+	  MPI_Comm_free(&PASE_MG_COMM[level][1]);
+       }
+       if (PASE_MG_INTERCOMM[level] != MPI_COMM_NULL)
+       {
+	  MPI_Comm_free(&PASE_MG_INTERCOMM[level]);
+       }
     }
 
     free(*multi_grid); *multi_grid = NULL;
@@ -484,33 +492,40 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
       PetscPrintf(PETSC_COMM_WORLD, "Warning the refinest matrix cannot be redistributed\n");
    }
 
-   MPI_Comm_dup( PETSC_COMM_WORLD, &PASE_MG_COMM[0]);
+   /* 不改变最细层的进程分布 */
+   MPI_Comm_dup( PETSC_COMM_WORLD, &PASE_MG_COMM[0][0]);
+   PASE_MG_COMM[0][1]   = MPI_COMM_NULL;
+   PASE_MG_INTERCOMM[0] = MPI_COMM_NULL;
    for (level = 1; level < num_levels; ++level)
    {
-      /* 若proc_rate设为(0,1)之外，则不进行数据重分配 */
-      if (proc_rate[level]>1.0 || proc_rate[level]<=0.0)
-      {
-	 PetscPrintf(PETSC_COMM_WORLD, "Retain data distribution of %D level\n", level);
-	 /* 创建分层矩阵的通信域 */
-	 MPI_Comm_dup( PETSC_COMM_WORLD, &PASE_MG_COMM[level]);
-	 continue; /* 直接到下一次循环 */
-      }
-      else
-      {
-	 PetscPrintf(PETSC_COMM_WORLD, "Redistribute data of %D level\n", level);
-      }
       MatGetSize(petsc_P_array[level-1], &global_nrows, &global_ncols);
       /* 在设定new_P_H的局部行时已经不能用以前P的局部行，因为当前层的A可能已经改变 */
       MatGetLocalSize(petsc_A_array[level-1], &local_nrows, &local_ncols);
       /* 应该通过ncols_P，即最粗层矩阵大小和进程总数size确定nbigranks */
       nbigranks = ((PetscInt)((((PetscReal)size)*proc_rate[level])/((PetscReal)unit))) * (unit);
       if (nbigranks < unit) nbigranks = unit<size?unit:size;
-      PetscPrintf(PETSC_COMM_WORLD, "nbigranks[%D] = %D\n", level, nbigranks);
-      /* 对0到nbigranks-1进程平均分配global_ncols */
-      new_local_ncols = 0;
+
+      /* 若proc_rate设为(0,1)之外，则不进行数据重分配 */
+      if (proc_rate[level]>1.0 || proc_rate[level]<=0.0 || nbigranks >= size || nbigranks <= 0)
+      {
+	 PetscPrintf(PETSC_COMM_WORLD, "Retain data distribution of %D level\n", level);
+	 /* 创建分层矩阵的通信域 */
+	 MPI_Comm_dup(PETSC_COMM_WORLD, &PASE_MG_COMM[level][0]);
+	 PASE_MG_COMM[level][1]   = MPI_COMM_NULL;
+	 PASE_MG_INTERCOMM[level] = MPI_COMM_NULL;
+	 continue; /* 直接到下一次循环 */
+      }
+      else
+      {
+	 PetscPrintf(PETSC_COMM_WORLD, "Redistribute data of %D level\n", level);
+	 PetscPrintf(PETSC_COMM_WORLD, "nbigranks[%D] = %D\n", level, nbigranks);
+      }
+      /* 上面的判断保证 0 < nbigranks < size */
 
       /* 创建分层矩阵的通信域 */
-      int comm_color = MPI_UNDEFINED;
+      int comm_color, local_leader, remote_leader;
+      /* 对0到nbigranks-1进程平均分配global_ncols */
+      new_local_ncols = 0;
       if (rank < nbigranks)
       {
 	 new_local_ncols = global_ncols/nbigranks;
@@ -518,13 +533,24 @@ void RedistributeDataOfMultiGridMatrixOnEachProcess(
 	 {
 	    ++new_local_ncols;
 	 }
-	 comm_color = 0;
+	 comm_color    = 0;
+	 local_leader  = 0;
+	 remote_leader = nbigranks;
       }
-      MPI_Comm_split(PETSC_COMM_WORLD, comm_color, rank, &PASE_MG_COMM[level]);
+      else {
+	 comm_color    = 1;
+	 local_leader  = 0; /* 它的全局进程号是nbigranks */
+	 remote_leader = 0;
+      }
+      /* 分成两个子通讯域, PASE_MG_COMM[level][0]从0~(nbigranks-1)
+       * PASE_MG_COMM[level][0]从nbigranks~(size-1) */
+      MPI_Comm_split(PETSC_COMM_WORLD, comm_color, rank, &PASE_MG_COMM[level][comm_color]);
+      MPI_Intercomm_create(PASE_MG_COMM[level][comm_color], local_leader, 
+	    MPI_COMM_WORLD, remote_leader, level, &PASE_MG_INTERCOMM[level]);
 
       int aux_size = -1, aux_rank = -1;
-      MPI_Comm_rank(PASE_MG_COMM[level], &aux_rank);
-      MPI_Comm_size(PASE_MG_COMM[level], &aux_size);
+      MPI_Comm_rank(PASE_MG_COMM[level][comm_color], &aux_rank);
+      MPI_Comm_size(PASE_MG_COMM[level][comm_color], &aux_size);
       printf("aux %d/%d, global %d/%d\n", aux_rank, aux_size, rank, size);  
 
       /* 创建新的延拓矩阵, 并用原始的P为之赋值 */

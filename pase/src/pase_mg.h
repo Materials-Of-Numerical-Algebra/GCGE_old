@@ -20,8 +20,14 @@
 #define pase_MultiGridDataNumLevels(data) ((data)->num_levels)
 
 /* 这里临时给一个全局变量记录每一层矩阵的mpi_comm_world */
-MPI_Comm PASE_MG_COMM[16];
-MPI_Comm *PASE_MG_AUX_COARSE_LEVEL_COMM;
+/* PASE_MG_COMM[level][0]  表示A_array[level]所在的进程组通信器
+ * PASE_MG_COMM[level][1]  表示A_array[level]不在的进程组通信器
+ * PASE_MG_INTERCOMM[level]表示两个子组之间的通信器
+ * PASE_MG_COMM[level][0]包含全部进程的时候，其它对应两个通讯器为MPI_COMM_NULL */
+MPI_Comm PASE_MG_COMM[16][2];
+MPI_Comm PASE_MG_INTERCOMM[16];
+MPI_Comm *PASE_MG_AUX_COARSE_LEVEL_COMM[2];
+MPI_Comm *PASE_MG_AUX_COARSE_LEVEL_INTERCOMM;
 
 typedef struct pase_MultiGrid_struct 
 {

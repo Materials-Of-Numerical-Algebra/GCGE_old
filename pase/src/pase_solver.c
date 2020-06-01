@@ -489,7 +489,8 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
       start_1 = clock();
       /* 辅助粗层的通信域指针: 这个指针的定义在pase_mg.h
        * 先临时这样设置，在pase_mg.c中定义
-       * PASE_MG_AUX_COARSE_LEVEL_COMM 和 PASE_MG_COMM
+       * PASE_MG_AUX_COARSE_LEVEL_COMM, PASE_MG_AUX_COARSE_LEVEL_INTERCOMM 
+       * PASE_MG_COMM, PASE_MG_INTERCOMM
        * 在这里设置它们 
        * 主要用于pase_ops.c中MPI的操作
        * 这样设定之后，其实就实现了aux_coarse_level可调
@@ -498,7 +499,9 @@ PASE_Mg_solve(PASE_MG_SOLVER solver)
        * 修改 aux_coarse_level 的对应的三行代码去掉注释
        */
       /* TODO 应该在mg的结构里得到这些通信域，然后在这里引用 */
-      PASE_MG_AUX_COARSE_LEVEL_COMM = &PASE_MG_COMM[solver->aux_coarse_level];
+      PASE_MG_AUX_COARSE_LEVEL_COMM[0]   = &PASE_MG_COMM[solver->aux_coarse_level][0];
+      PASE_MG_AUX_COARSE_LEVEL_COMM[1]   = &PASE_MG_COMM[solver->aux_coarse_level][1];
+      PASE_MG_AUX_COARSE_LEVEL_INTERCOMM = &PASE_MG_INTERCOMM[solver->aux_coarse_level];
       printf ( "PASE_Mg_cycle current_level = %d, idx_cycle = %d\n", current_level, idx_cycle );
       PASE_Mg_cycle(solver, solver->aux_coarse_level, current_level);
       end_1 = clock();
