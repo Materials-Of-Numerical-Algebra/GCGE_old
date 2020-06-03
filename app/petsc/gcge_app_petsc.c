@@ -197,15 +197,19 @@ void GCGE_PETSC_MultiGridCreate(void ***A_array, void ***B_array, void ***P_arra
    PCSetType(pc,PCGAMG);
    //PCMGSetLevels(pc, (*multi_grid)->num_levels, NULL);
    PCGAMGSetNlevels(pc, *num_levels);
+   /* not force coarse grid onto one processor */
+   PCGAMGSetUseParallelCoarseGridSolve(pc,PETSC_TRUE);
+   /* this will generally improve the loading balancing of the work on each level */
+   //PCGAMGSetRepartition(pc, PETSC_TRUE);
    PCGAMGSetType(pc, PCGAMGCLASSICAL);
    //	type 	- PCGAMGAGG, PCGAMGGEO, or PCGAMGCLASSICAL
    //PetscReal th[2] = {0.0, 0.9};
    //PCGAMGSetThreshold(pc, th, 2);
    /* 下面两个函数效果不是完全清楚 */
    /* Set maximum number of equations on coarsest grid. */ 
-   PCGAMGSetCoarseEqLim(pc, 400);
+   //PCGAMGSetCoarseEqLim(pc, 400);
    /* Set number of equations to aim for per process on the coarse grids via processor reduction. */
-   PCGAMGSetProcEqLim(pc, 100);
+   //PCGAMGSetProcEqLim(pc, 100);
    PCSetUp(pc);
    /* the size of Aarr is num_levels-1, Aarr is the coarsest matrix */
    PCGetCoarseOperators(pc, num_levels, &Aarr);
