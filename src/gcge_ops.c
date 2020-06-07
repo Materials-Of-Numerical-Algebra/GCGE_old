@@ -22,6 +22,7 @@
 
 #include "gcge_ops.h"
 #include "gcge_ops_linsol.h"
+#include "gcge_ops_orth.h"
 /* if use mpi, multivec inner prod will be improved by MPI_Typre_vector and MPI_Op_create */
 #if GCGE_USE_MPI
 GCGE_INT SIZE_B, SIZE_E, LDA;
@@ -789,52 +790,53 @@ void GCGE_OPS_Create(GCGE_OPS **ops)
 {
     *ops = (GCGE_OPS*)malloc(sizeof(GCGE_OPS));
     /* vec */
-    (*ops)->VecSetRandomValue = NULL;
-    (*ops)->MatDotVec = NULL;
+    (*ops)->VecSetRandomValue  = NULL;
+    (*ops)->MatDotVec          = NULL;
     (*ops)->MatTransposeDotVec = NULL;
-    (*ops)->VecAxpby = NULL;
-    (*ops)->VecInnerProd = NULL;
-    (*ops)->VecLocalInnerProd = NULL;
-    (*ops)->VecCreateByVec = NULL;
-    (*ops)->VecDestroy = NULL;
+    (*ops)->VecAxpby           = NULL;
+    (*ops)->VecInnerProd       = NULL;
+    (*ops)->VecLocalInnerProd  = NULL;
+    (*ops)->VecCreateByVec     = NULL;
+    (*ops)->VecDestroy         = NULL;
     /* multi_vec */
-    (*ops)->MultiVecCreateByVec = NULL;
-    (*ops)->MultiVecCreateByMat = NULL;
+    (*ops)->MultiVecCreateByVec      = NULL;
+    (*ops)->MultiVecCreateByMat      = NULL;
     (*ops)->MultiVecCreateByMultiVec = NULL;
-    (*ops)->MultiVecDestroy = NULL;
-    (*ops)->MultiVecSetRandomValue = NULL;
-    (*ops)->MatDotMultiVec = NULL;
-    (*ops)->MatTransposeDotMultiVec = NULL;
-    (*ops)->MultiVecAxpby = NULL;
-    (*ops)->MultiVecAxpbyColumn = NULL;
-    (*ops)->MultiVecLinearComb = NULL;
-    (*ops)->MultiVecInnerProd = NULL;
-    (*ops)->MultiVecInnerProdLocal = NULL;
-    (*ops)->MultiVecSwap = NULL;
-    (*ops)->GetVecFromMultiVec = NULL;
-    (*ops)->RestoreVecForMultiVec = NULL;
+    (*ops)->MultiVecDestroy          = NULL;
+    (*ops)->MultiVecSetRandomValue   = NULL;
+    (*ops)->MatDotMultiVec           = NULL;
+    (*ops)->MatTransposeDotMultiVec  = NULL;
+    (*ops)->MultiVecAxpby            = NULL;
+    (*ops)->MultiVecAxpbyColumn      = NULL;
+    (*ops)->MultiVecLinearComb       = NULL;
+    (*ops)->MultiVecInnerProd        = NULL;
+    (*ops)->MultiVecInnerProdLocal   = NULL;
+    (*ops)->MultiVecSwap             = NULL;
+    (*ops)->GetVecFromMultiVec       = NULL;
+    (*ops)->RestoreVecForMultiVec    = NULL;
     /* Dense Matrix */
-    (*ops)->DenseMatEigenSolver = NULL;
-    (*ops)->DenseMatDotDenseMat = NULL;
+    (*ops)->DenseMatEigenSolver    = NULL;
+    (*ops)->DenseMatDotDenseMat    = NULL;
     (*ops)->DenseSymMatDotDenseMat = NULL;
-    (*ops)->DenseMatCreate  = NULL;
-    (*ops)->DenseMatDestroy = NULL;
-    (*ops)->ArrayDotArray = NULL;
-    (*ops)->ArrayNorm  = NULL;
-    (*ops)->ArrayAXPBY = NULL;
-    (*ops)->ArrayCopy  = NULL;
-    (*ops)->ArrayScale = NULL;
+    (*ops)->DenseMatCreate         = NULL;
+    (*ops)->DenseMatDestroy        = NULL;
+    (*ops)->ArrayDotArray          = NULL;
+    (*ops)->ArrayNorm              = NULL;
+    (*ops)->ArrayAXPBY             = NULL;
+    (*ops)->ArrayCopy              = NULL;
+    (*ops)->ArrayScale             = NULL;
     /* Orth */
     (*ops)->Orthonormalization = NULL;
+    (*ops)->orth_workspace     = NULL;
     /* Linear Solver */
-    (*ops)->LinearSolver = NULL;
-    (*ops)->MultiLinearSolver = NULL;
-    (*ops)->linear_solver_workspace = NULL;
+    (*ops)->LinearSolver                  = NULL;
+    (*ops)->MultiLinearSolver             = NULL;
+    (*ops)->linear_solver_workspace       = NULL;
     (*ops)->multi_linear_solver_workspace = NULL;
     /* Multi Grid */
     (*ops)->MultiGridCreate  = NULL;
     (*ops)->MultiGridDestroy = NULL;
-    (*ops)->VecFromItoJ = NULL;
+    (*ops)->VecFromItoJ      = NULL;
     (*ops)->MultiVecFromItoJ = NULL;
 }
 //OPS的setup: 主要是进行对OPS的赋值， 同时也判断赋值是否充足和合理了
@@ -998,6 +1000,10 @@ GCGE_INT GCGE_OPS_Setup(GCGE_OPS *ops)
     {
        //ops->MultiLinearSolver = GCGE_MultiLinearSolver_BAMG;
        ops->MultiLinearSolver = NULL;
+    }
+    if(ops->Orthonormalization == NULL)
+    {
+       ops->Orthonormalization = GCGE_Orth_GramSchmidt;
     }
 }                                           
 

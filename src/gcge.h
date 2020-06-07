@@ -26,6 +26,7 @@
 #include "gcge_para.h"
 #include "gcge_ops.h"
 #include "gcge_ops_linsol.h"
+#include "gcge_ops_orth.h"
 
 #include "gcge_workspace.h"
 

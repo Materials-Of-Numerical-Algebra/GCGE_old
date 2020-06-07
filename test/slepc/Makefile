@@ -2,9 +2,9 @@
 GCGEHOME = ../..
 include $(GCGEHOME)/config/make.inc
 
-MAIN2 = test_orthogonal.c
-OBJS2 = test_orthogonal.o
-EXE2 = bin_test_orthogonal.exe
+#MAIN2 = test_orthogonal.c
+#OBJS2 = test_orthogonal.o
+#EXE2 = bin_test_orthogonal.exe
 
 MAIN1 = test_solver.c
 OBJS1 = test_solver.o
@@ -29,6 +29,12 @@ EXE1 = test_bcg.exe
 MAIN1 = test_slepc_solver.c
 OBJS1 = test_slepc_solver.o
 EXE1 = ./test_slepc_solver.exe
+
+MAIN1 = test_ops_orth.c
+OBJS1 = test_ops_orth.o
+EXE1  = test_ops_orth.exe
+
+
 
 INC   = -I$(GCGEINC) $(SLEPCINC) $(PETSCINC)
 LIBS  = $(LIBGCGESLEPC) $(LIBGCGE) $(LIBSLEPC)

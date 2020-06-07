@@ -80,9 +80,8 @@ typedef struct GCGE_OPS_ {
 
     /* TODO DenseMatCreate, DenseMatDestroy should in function Orthonormalization 
      * Add struct member name void *orth_workspace to save tmp variables */
-    void (*Orthonormalization)      (void **V, GCGE_INT start, GCGE_INT *end, 
-                                     void *B, GCGE_DOUBLE orth_zero_tol, 
-                                     void **work);
+    void (*Orthonormalization)      (void **V, GCGE_INT start, GCGE_INT *end, void *B, struct GCGE_OPS_ *ops);
+    void *orth_workspace;
     void (*DenseMatCreate)          (void **densemat, GCGE_INT nrows, GCGE_INT ncols);
     void (*DenseMatDestroy)         (void **mat);
  
