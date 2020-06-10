@@ -7,7 +7,7 @@ PASE_PrintDenseMat(PASE_REAL *aux_hh, PASE_INT n)
   PASE_INT j = 0;
   for(i=0; i<n; i++) {
     for(j=0; j<n; j++) {
-      GCGE_Printf("%.5e\t", aux_hh[i*n+j]);
+      GCGE_Printf("%.2e\t", aux_hh[i*n+j]);
     }
     GCGE_Printf("\n");
   }
@@ -620,12 +620,28 @@ PASE_INT
 PASE_Mg_orth_solution(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_level)
 {
 //   printf ( "PASE_Mg_orth_solution in pase_solver.c\n" );
-   void **v_h = solver->sol[current_level];
-   void  *B_h = solver->multigrid->B_array[current_level];
-   void  *B_H = solver->multigrid->B_array[coarse_level];
-   void **w_h = solver->multigrid->cg_w[current_level];
-   void **rhs = solver->multigrid->rhs[coarse_level];
-   void **sol = solver->multigrid->sol[coarse_level];
+   void **v_h  = solver->sol[current_level];
+   void  *B_h  = solver->multigrid->B_array[current_level];
+   void  *B_H  = solver->multigrid->B_array[coarse_level];
+   void **w_h  = solver->multigrid->cg_w[current_level];
+
+   void **sol  = solver->multigrid->coarse_sol;
+   void **rhs  = solver->multigrid->coarse_rhs;
+   void **cg_p = solver->multigrid->coarse_cg_p;
+   void **cg_w = solver->multigrid->coarse_cg_w;
+   void **cg_r = solver->multigrid->coarse_cg_res;
+
+   /*
+      solver->sol           = solver->multigrid->sol;
+      solver->rhs           = solver->multigrid->rhs;
+      solver->cg_p          = solver->multigrid->cg_p;
+      solver->cg_w          = solver->multigrid->cg_w;
+      solver->cg_res        = solver->multigrid->cg_res;
+
+      solver->aux_A->aux_Hh = solver->rhs[idx_level];
+      solver->aux_B->aux_Hh = solver->cg_p[idx_level];
+      solver->aux_sol->b_H  = solver->sol[idx_level];
+    */
 
    GCGE_OPS *gcge_ops      = solver->pase_ops->gcge_ops;
    PASE_INT  pase_nev      = solver->pase_nev;
@@ -673,14 +689,21 @@ PASE_Mg_orth_solution(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT cur
 
    GCGE_MultiLinearSolverSetup_BPCG(
 	 max_coarest_nsmooth, cg_rate, 1e-15, 
-	 solver->multigrid->cg_res[coarse_level], 
-	 solver->multigrid->cg_p[coarse_level], 
-	 solver->multigrid->cg_w[coarse_level], 
+	 cg_r, cg_p, cg_w, 
 	 mv_s, mv_e, 
 	 solver->multigrid->cg_double_tmp, solver->multigrid->cg_int_tmp, NULL, 
 	 0, 0, NULL, 
 	 solver->gcge_ops);
    GCGE_MultiLinearSolver_BPCG(B_H, rhs, sol, mv_s, mv_e, solver->gcge_ops);
+
+   int lda = mv_e[0]-mv_s[0];
+//   solver->gcge_ops->MatDotMultiVec(B_H, sol, cg_w, mv_s, mv_e, solver->gcge_ops);
+//   solver->gcge_ops->MultiVecAxpby(-1, cg_w, 1, rhs, mv_s, mv_e, solver->gcge_ops);
+//   double *tmp_ipv = malloc(lda*lda*sizeof(double));
+//   solver->gcge_ops->MultiVecInnerProd(rhs, rhs, tmp_ipv, "nsym", 
+//	 mv_s, mv_e, lda, 0, gcge_ops);
+//   PASE_PrintDenseMat(tmp_ipv, lda);
+//   free(tmp_ipv);
 
 //   printf ( "final sol\n" );
 //   solver->gcge_ops->MultiVecPrint(sol, mv_e[0]-mv_s[0], solver->gcge_ops);
@@ -698,8 +721,16 @@ PASE_Mg_orth_solution(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT cur
 //   printf ( "final v_h\n" );
 //   solver->gcge_ops->MultiVecPrint(v_h, mv_e[0]-mv_s[0], solver->gcge_ops);
 
-   GCGE_OrthSetup_GramSchmidt(3, 0.99, 1e-14, w_h, 0, gcge_ops);
-   GCGE_Orth_GramSchmidt(v_h, mv_s[0], &mv_e[0], B_h, gcge_ops);
+//   GCGE_OrthSetup_GramSchmidt(3, 0.99, 1e-14, w_h, 0, gcge_ops);
+//   GCGE_Orth_GramSchmidt(v_h, mv_s[0], &mv_e[0], B_h, gcge_ops);
+
+   gcge_ops->MatDotMultiVec(B_h, v_h, w_h, mv_s, mv_e, gcge_ops);
+   PASE_MULTIGRID_FromItoJ(solver->multigrid, current_level, coarse_level, 
+	 mv_s, mv_e, w_h, sol);
+//  GCGE_Printf ( "B aux_Hh is solver->cg_p, lda = %d\n", lda );
+//  solver->gcge_ops->MultiVecPrint(sol, 2, solver->gcge_ops);
+
+
    if (mv_e[0]!=pase_nev)
    {
       printf ( "pase_nev = %d, nlock_smooth = %d, mv_e[0] = %d\n", 
@@ -731,8 +762,8 @@ PASE_Mg_cycle(PASE_MG_SOLVER solver, PASE_INT coarse_level, PASE_INT current_lev
   //PASE_Mg_error_estimate(solver, current_level);
 
   /* 先将当前层特征向量减去V_H部分, 并对剩余部分做正交归一化, 可以多做几次 */
-  PASE_Mg_orth_solution(solver, coarse_level, current_level);
-  PASE_Mg_orth_solution(solver, coarse_level, current_level);
+//  PASE_Mg_orth_solution(solver, coarse_level, current_level);
+//  PASE_Mg_orth_solution(solver, coarse_level, current_level);
 
   //构造复合矩阵 (solver, coarse_level, current_level)
   PASE_Mg_set_pase_aux_matrix(solver, coarse_level, current_level);
@@ -805,7 +836,9 @@ PASE_Mg_set_pase_aux_matrix(PASE_MG_SOLVER solver, PASE_INT coarse_level,
   /* 如果对v_h减去了粗空间的部分，且进行了自身的正交化，那么aux_B并不需要进行重置
    * aux_B->A_H 一直保持原样, aux_B->aux_Hh为零向量组，aux_hh为单位矩阵 */
 
-#if 1
+  /* 当运行PASE_Mg_orth_solution之后再去进行置NULL 
+   * 但现在的情况是pase太复杂，不能被简单这样做 */
+#if 0
   aux_B->aux_Hh = NULL; aux_B->aux_hH = NULL; 
   if (aux_B->aux_hh!=NULL)
   {
@@ -817,10 +850,10 @@ PASE_Mg_set_pase_aux_matrix(PASE_MG_SOLVER solver, PASE_INT coarse_level,
 	B, current_sol, solver, coarse_level, current_level, 
 	solver->nlock_auxmat_B);
 #endif
-//  printf ( "B aux_Hh is solver->cg_p\n" );
-//  solver->gcge_ops->MultiVecPrint(solver->aux_B->aux_Hh, 10, solver->gcge_ops);
-//  printf ( "B aux_hh\n" );
-//  PASE_PrintDenseMat(solver->aux_B->aux_hh, 10);
+//  GCGE_Printf ( "B aux_Hh is solver->cg_p\n" );
+//  solver->gcge_ops->MultiVecPrint(solver->aux_B->aux_Hh, 2, solver->gcge_ops);
+//  GCGE_Printf ( "B aux_hh\n" );
+//  PASE_PrintDenseMat(solver->aux_B->aux_hh, 20);
   
   end = clock();
   solver->build_aux_time += ((double)(end-start))/CLK_TCK;
@@ -1075,9 +1108,9 @@ PASE_Aux_direct_solve(PASE_MG_SOLVER solver, PASE_INT coarse_level)
   gcge_pase_solver->para->print_result      = 0;
   gcge_pase_solver->para->print_final_part_time = 0;
   gcge_pase_solver->para->ev_tol            = solver->aux_rtol;
-  //gcge_pase_solver->para->ev_max_it         = solver->max_direct_count_each_level[coarse_level];
+  gcge_pase_solver->para->ev_max_it         = solver->max_direct_count_each_level[coarse_level];
   /* 无论特征值的block_size取多少，貌似GCGE都是10个10个算 TODO BUG */
-  gcge_pase_solver->para->ev_max_it         = 20;
+//  gcge_pase_solver->para->ev_max_it         = 5;
   gcge_pase_solver->para->num_init_evec     = solver->pase_nev;
   gcge_pase_solver->para->opt_rr_eig_partly = 1;
   //gcge_pase_solver->para->cg_max_it = 50;

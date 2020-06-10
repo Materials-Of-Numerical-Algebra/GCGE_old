@@ -45,6 +45,12 @@ typedef struct pase_MultiGrid_struct
    void     ***cg_p;
    void     ***cg_w;
    void     ***cg_res;
+   /* 用作粗空间上的线性方程组求解 */
+   void     **coarse_sol;  
+   void     **coarse_rhs;  
+   void     **coarse_cg_p; 
+   void     **coarse_cg_w; 
+   void     **coarse_cg_res;
 
    GCGE_DOUBLE  *cg_double_tmp;
    GCGE_INT   *cg_int_tmp;

@@ -216,6 +216,29 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     (*multi_grid)->cg_double_tmp = double_tmp;
     (*multi_grid)->cg_int_tmp    = int_tmp;
 
+    BV coarse_u, coarse_rhs, coarse_u_tmp, coarse_u_tmp_1, coarse_u_tmp_2;
+    i = (*multi_grid)->num_levels - 1;
+    if (size[0][i]) 
+       gcge_ops->MultiVecCreateByMat((void***)(&(coarse_u)),       size[0][i], 
+	     (*multi_grid)->A_array[i], gcge_ops);
+    if (size[1][i]) 
+       gcge_ops->MultiVecCreateByMat((void***)(&(coarse_rhs)),     size[1][i], 
+	     (*multi_grid)->A_array[i], gcge_ops);
+    if (size[2][i]) 
+       gcge_ops->MultiVecCreateByMat((void***)(&(coarse_u_tmp)),   size[2][i], 
+	     (*multi_grid)->A_array[i], gcge_ops);
+    if (size[3][i]) 
+       gcge_ops->MultiVecCreateByMat((void***)(&(coarse_u_tmp_1)), size[3][i], 
+	     (*multi_grid)->A_array[i], gcge_ops);
+    if (size[4][i]) 
+       gcge_ops->MultiVecCreateByMat((void***)(&(coarse_u_tmp_2)), size[4][i], 
+	     (*multi_grid)->A_array[i], gcge_ops);
+    (*multi_grid)->coarse_sol    = (void**)coarse_u;
+    (*multi_grid)->coarse_rhs    = (void**)coarse_rhs;
+    (*multi_grid)->coarse_cg_p   = (void**)coarse_u_tmp;
+    (*multi_grid)->coarse_cg_w   = (void**)coarse_u_tmp_1;
+    (*multi_grid)->coarse_cg_res = (void**)coarse_u_tmp_2;
+
     PetscPrintf(PETSC_COMM_WORLD, "End PASE_MULTIGRID_Create\n", 0, m, n );
     return 0;
 }
@@ -270,6 +293,25 @@ PASE_MULTIGRID_Destroy(PASE_MULTIGRID* multi_grid, PASE_INT **size)
     free(u_tmp); u_tmp = NULL;
     free(u_tmp_1); u_tmp_1 = NULL;
     free(u_tmp_2); u_tmp_2 = NULL;
+
+    void **coarse_u, **coarse_rhs, **coarse_u_tmp, **coarse_u_tmp_1, **coarse_u_tmp_2;
+    coarse_u          = (*multi_grid)->coarse_sol;
+    coarse_rhs        = (*multi_grid)->coarse_rhs;
+    coarse_u_tmp      = (*multi_grid)->coarse_cg_p;
+    coarse_u_tmp_1    = (*multi_grid)->coarse_cg_w;
+    coarse_u_tmp_2    = (*multi_grid)->coarse_cg_res;
+
+    i = (*multi_grid)->num_levels - 1;
+    if (size[0][i])
+       (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(coarse_u)), size[0][i], (*multi_grid)->gcge_ops);
+    if (size[1][i]) 
+       (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(coarse_rhs)), size[1][i], (*multi_grid)->gcge_ops);
+    if (size[2][i])
+       (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(coarse_u_tmp)), size[2][i], (*multi_grid)->gcge_ops);
+    if (size[3][i])
+       (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(coarse_u_tmp_1)), size[3][i], (*multi_grid)->gcge_ops);
+    if (size[4][i])
+       (*multi_grid)->gcge_ops->MultiVecDestroy((void***)(&(coarse_u_tmp_2)), size[4][i], (*multi_grid)->gcge_ops);
 
     free(double_tmp); double_tmp = NULL;
     free(int_tmp);    int_tmp = NULL;

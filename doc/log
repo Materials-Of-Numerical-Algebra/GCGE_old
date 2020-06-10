@@ -978,4 +978,6 @@ Set number of equations to aim for per process on the coarse grids via processor
    那么特征值的精度会相应收到影响
 5. 也许是petsc生成的多层矩阵与进程数相关，当进程数提高的时候，整体的迭代次数变多
    多进程时，做了上述第二点后，迭代次数也会变化
-   一个进程的时候，万事没问题。
+   但是由于pase中各种参数以及相应的判断使得上述算法不能实现，除非在特征值都计算的情况下
+   也就是aux_Hh部分所有都被更新的情况下
+   需要对pase各种参数和优化进行整理和筛查
