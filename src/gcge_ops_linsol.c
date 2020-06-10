@@ -209,6 +209,8 @@ void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V,
    GCGE_INT num_unlock = 0, old_num_unlock = 0; 
    //计算初始的残差向量和残差
 //   ops->MultiVecPrint(CG_X, 3, ops);
+   /* TODO 为什么不直接利用MatDotMultiVec，先得到r然后再循环生成LocalInnerProd
+    * 如果有MultiVecInnerProd更好 */
    for(idx=0; idx<x_length; idx++)
    {
       ops->GetVecFromMultiVec(CG_X, start[1]+idx, &x, ops);   //取出初始值 x      
@@ -246,7 +248,7 @@ void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V,
    {
       init_error[idx] = sqrt(rho2[idx]);
       last_error[idx] = init_error[idx];
-      //printf("the initial residual: %e\n",error[idx]);
+//      printf("the initial residual [%d]: %e\n", idx, init_error[idx]);
       if(init_error[idx] > tol)
       {
 	 unlock[num_unlock] = idx;
@@ -356,6 +358,10 @@ void GCGE_MultiLinearSolver_BPCG(void *Matrix, void **RHS, void **V,
    if((if_shift == 1)&&(B != NULL))
    {
       ops->VecDestroy(&Bx, ops);
+   }
+   for(idx=0;idx<x_length;idx++)
+   {
+//      printf("the last residual [%d]: %e\n", idx, last_error[idx]);
    }
 }//end for this subprogram
 

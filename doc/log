@@ -949,3 +949,33 @@ Set number of equations to aim for per process on the coarse grids via processor
    是完全在PASE_MG_COMM[level][0]上进行了。
    但MultiVecInMatDotVec还是需要广播，因为内积生成的是数，而矩阵乘以向量生成的向量
    数是全局的，向量是局部的
+
+2020.6.6 liyu
+1. 已经将正交化加入到ops里，但只写了G-S标准情况
+2. 准备将特征值也包含在GCGE的ops中，重点是使得它的workspace完全可见
+3. 重新整理app，并且使得eigsol对应的ops也能被接口赋值
+   换句话说，这样只要create ops就可以做任何事情了
+4. 对于正交化的改造，首先写一个WSubV这样的子函数，就是GCGE_SubOrthonormalization
+   然后就是自身正交化VOrthSelf
+   不同的方法可以有不同的VOrthSelf_二分法, VOrthSelf_BlockGS
+   把这些子函数组合起来形成
+   GCGE_Orth_二分法，GCGE_Orth_BlockGS
+5. 对于EigenSolver的改造需要对不同运行参数下选择不同的正交化方法
+6. 加入对UMFPACK的支持以及superLU
+7. 加入对ani2D/3D的支持
+
+2020.6.8 liyu
+1. GCGE有一个BUG，不管blocksize取多少，都是10个10个算特征值(后面的特征向量不会被计算)，
+   这导致了在做下属第二点时，
+   进行正交化的失败，所以现在将pase中调用GCGE的迭代次数设为20, 这样每个特征值都可以被求到
+2. 当每次光滑后，将v_h = v_h - I_H^h inv(B_H) (I_h^H B_h v_h)
+   那么生成的A_Hh矩阵的hh部分接近一个对角矩阵，B_Hh矩阵的hh部分就是单位阵，且Hh部分是零
+   需要注意的是 inv(B_H) I_h^H B_h v_h 的求解需要很精确，才能使得 aux_Hh 接近于零,
+   它的精度与迭代求解inv(B_H)的精度相当, 如果有很好的直接法(并行)是最佳的.
+   而且可以多次调用程序循环计算v_h = v_h - I_H^h inv(B_H) I_h^H B_h v_h，当前默认为2次
+3. 另外，对新的v_h进行正交归一化的时候，精度只能保持在1e-16
+4. 受制于上述两点，那么如果直接将B_Hh中的aux_Hh赋值为零，aux_hh赋值为单位矩阵，
+   那么特征值的精度会相应收到影响
+5. 也许是petsc生成的多层矩阵与进程数相关，当进程数提高的时候，整体的迭代次数变多
+   多进程时，做了上述第二点后，迭代次数也会变化
+   一个进程的时候，万事没问题。

@@ -93,6 +93,7 @@ void GCGE_Orth_GramSchmidt(void **V, GCGE_INT start, GCGE_INT *end, void *B, GCG
 	 ++reorth_count;      
       } while((ratio < gs_orth->reorth_tol) && (reorth_count < gs_orth->max_reorth_count) 
 	    && (norm_out > gs_orth->orth_zero_tol) );
+//      printf ( "reorth_count = %d, ratio = %.5e\n", reorth_count, ratio );
       /* 上面的判断中，如果ratio比较大，比如接近1，
        * 也就是说，已经去掉V[current]中V[0]到V[current-1]的部分 
        * 如果norm_out接近与0, 则说明V[current]与V[0]到V[current-1]线性相关 */

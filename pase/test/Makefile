@@ -56,7 +56,7 @@ run-pase_ops:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase_ops.exe
 
 run-pase:
-	mpiexec -np 4 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase.exe
+	mpiexec -np 2 $(DEBUGEXEC) $(DEBUGFLAGS) ./test_pase.exe
 
 run-amg:
 	$(DEBUGEXEC) $(DEBUGFLAGS) ./test_amg.exe

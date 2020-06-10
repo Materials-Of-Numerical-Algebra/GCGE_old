@@ -168,7 +168,7 @@ PASE_MULTIGRID_Create(PASE_MULTIGRID* multi_grid,
     {
        proc_rate[level] = -1.0;
     }
-    proc_rate[(*multi_grid)->num_levels-1] = 0.5;
+//    proc_rate[(*multi_grid)->num_levels-1] = 0.5;
     //proc_rate[(*multi_grid)->num_levels-1] = 1e-8;
     //proc_rate[(*multi_grid)->num_levels-1] = 1.0;
     RedistributeDataOfMultiGridMatrixOnEachProcess(

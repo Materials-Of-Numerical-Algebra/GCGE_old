@@ -93,6 +93,10 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
 
     //计算 r->aux_h = aux_Hh^T * x->b_H + aux_hh^T * x->aux_h
     //计算 r->aux_h = aux_Hh^T * x->b_H
+    /* 如果aux_Hh为NULL, 认为它是一个零向量组 */
+if (aux_Hh!=NULL&&aux_hh!=NULL)
+{
+
 #if GCGE_USE_MPI
     MPI_Request request;
     MPI_Status  status;
@@ -177,6 +181,17 @@ void PASE_DefaultMatDotVec(void *Matrix, void *x, void *r, struct PASE_OPS_ *ops
     {
        ops->gcge_ops->ArrayAXPBY(1.0, r_aux_h_tmp, 1.0, r_aux_h, num_aux_vec);
     }
+}
+
+/* aux_Hh == O aux_hh == E */
+if (aux_Hh==NULL&&aux_hh==NULL)
+{
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       ops->gcge_ops->ArrayAXPBY(1.0, x_aux_h, 0.0, r_aux_h, num_aux_vec);
+    }
+}
+
     free(r_aux_h_tmp); r_aux_h_tmp = NULL;
 }
 
@@ -438,6 +453,7 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
     void      **y_b_H     = ((PASE_MultiVector)y)->b_H;
     PASE_REAL *y_aux_h    = ((PASE_MultiVector)y)->aux_h;
     PASE_INT  num_aux_vec = ((PASE_MultiVector)y)->num_aux_vec;
+    PASE_INT  ncols       = end[1] - start[1];
     //PASE_REAL *y_aux_h_tmp = ((PASE_MultiVector)y)->aux_h_tmp;
     PASE_REAL *y_aux_h_tmp = (PASE_REAL*)calloc((end[1]-start[1])*num_aux_vec, 
 	  sizeof(PASE_REAL));
@@ -451,6 +467,9 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
     //计算 r_b_H = A_H * x_b_H + aux_Hh * aux_h
     //计算 r_b_H = A_H * x_b_H
     ops->gcge_ops->MatDotMultiVec(A_H, x_b_H, y_b_H, start, end, ops->gcge_ops);
+
+if (aux_Hh!=NULL&&aux_hh!=NULL)
+{
 
     //计算 r->aux_h = aux_Hh^T * x->b_H + aux_hh^T * x->aux_h
     //计算 r->aux_h = aux_Hh^T * x->b_H
@@ -513,7 +532,6 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
             0, alpha, beta,  ops->gcge_ops);
 
     //计算 y_aux_h_tmp = aux_hh^T * x->aux_h
-    PASE_INT  ncols = end[1] - start[1];
     alpha = 1.0;
     beta  = 0.0;
 //    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
@@ -541,6 +559,16 @@ void PASE_DefaultMatDotMultiVec(void *mat, void **x, void **y,
        ops->gcge_ops->ArrayAXPBY(1.0, y_aux_h_tmp, 1.0, y_aux_h+start[1]*num_aux_vec, 
 	     ncols*num_aux_vec);
     }
+}
+
+if (aux_Hh==NULL&&aux_hh==NULL)
+{
+    if (PASE_MG_AUX_COARSE_LEVEL_COMM_COLOR == 0)
+    {
+       ops->gcge_ops->ArrayAXPBY(1.0, x_aux_h+start[0]*num_aux_vec, 0.0, y_aux_h+start[1]*num_aux_vec, 
+	     ncols*num_aux_vec);
+    }
+}
     free(y_aux_h_tmp); y_aux_h_tmp = NULL;
 }
 
