@@ -119,7 +119,7 @@ main ( int argc, char *argv[] )
    for (idx = 0; idx < num_levels; ++idx)
    {
       max_it[idx]      = 100;
-      conv_rate[idx]   = 1e-6;
+      conv_rate[idx]   = 1e-12;
       tol[idx]         = 1e-15;
    }
    /* 生成每层上的多向量 */

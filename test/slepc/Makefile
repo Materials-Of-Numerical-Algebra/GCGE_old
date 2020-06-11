@@ -30,6 +30,10 @@ MAIN1 = test_slepc_solver.c
 OBJS1 = test_slepc_solver.o
 EXE1 = ./test_slepc_solver.exe
 
+MAIN1 = test_amg.c
+OBJS1 = test_amg.o
+EXE1  = test_amg.exe
+
 MAIN1 = test_ops_orth.c
 OBJS1 = test_ops_orth.o
 EXE1  = test_ops_orth.exe

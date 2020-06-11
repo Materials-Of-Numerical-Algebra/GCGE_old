@@ -27,6 +27,7 @@
 #endif
 
 typedef struct GCGE_GramSchidtOrth_ {
+   /* 最大的重正交次数 */
    GCGE_INT    max_reorth_count;    
    GCGE_DOUBLE reorth_tol;       GCGE_DOUBLE orth_zero_tol; 
    /* 临时空间多向量，但只用到一个向量，所以idx告知V_tmp[idx]可用 */
@@ -39,4 +40,5 @@ void GCGE_OrthSetup_GramSchmidt(
       GCGE_DOUBLE reorth_tol,       GCGE_DOUBLE orth_zero_tol, 
       void        **V_tmp,          GCGE_INT idx,
       GCGE_OPS *ops);
+
 #endif

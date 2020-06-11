@@ -101,14 +101,14 @@ int main(int argc, char* argv[])
 	 mv_s, mv_e, slepc_ops);
    slepc_ops->MultiVecInnerProd((void**)multivec, (void**)multivec_tmp, 
 	 prod, "sym", mv_s, mv_e, lda, 0, slepc_ops);
-   printf("prod:\n");
+   GCGE_Printf("prod:\n");
    for(row=0; row<nvec; row++)
    {
       for(idx=0; idx<nvec; idx++)
       {
 	 GCGE_Printf("%f\t", prod[row*lda+idx]);
       }
-      printf("\n");
+      GCGE_Printf("\n");
    }
 
    free(prod); prod = NULL;
